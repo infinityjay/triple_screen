@@ -1,0 +1,44 @@
+# ============================================================
+# 三重过滤交易系统 — 配置文件
+# 修改此文件后，下次 daily_run.py 执行时自动生效，无需重启
+# ============================================================
+
+watchlist:
+  - ticker: SPY
+    name: "S&P 500 ETF"
+    group: "大盘指数"
+  - ticker: QQQ
+    name: "Nasdaq 100 ETF"
+    group: "大盘指数"
+  - ticker: AAPL
+    name: "Apple"
+    group: "科技股"
+  - ticker: MSFT
+    name: "Microsoft"
+    group: "科技股"
+  - ticker: NVDA
+    name: "NVIDIA"
+    group: "科技股"
+  - ticker: TSLA
+    name: "Tesla"
+    group: "科技股"
+  - ticker: JPM
+    name: "JPMorgan Chase"
+    group: "金融股"
+
+settings:
+  # 三重过滤指标参数
+  weekly_ema_period: 13       # 第一重：周线EMA周期
+  macd_fast: 12               # MACD快线
+  macd_slow: 26               # MACD慢线
+  macd_signal: 9              # MACD信号线
+  stoch_k: 14                 # 第二重：随机指标K周期
+  stoch_d: 3                  # 随机指标D周期
+  daily_ema_period: 22        # 第三重：日线EMA周期
+
+  # 历史数据初始化范围
+  history_period: "10y"
+
+  # 报表设置
+  report_title: "三重过滤交易信号"
+  timezone: "America/New_York"   # 美东时间
