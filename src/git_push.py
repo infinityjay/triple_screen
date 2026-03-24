@@ -4,38 +4,29 @@
 
 import subprocess
 from pathlib import Path
-
-REPO_ROOT = Path(__file__).parent.parent
-
+# src/git_push.py — 改 REPO_ROOT 指向博客仓库
+from config_loader import load_config
 
 def push_reports(date_str: str):
-    """
-    仅推送 docs/ 目录（报表文件），不推送数据库。
-    如果没有新变更则静默跳过。
-    """
+    config = load_config()
+    output_dir = config.get("settings", {}).get("output_dir")
+    repo_root = Path(output_dir).parent if output_dir else Path(__file__).parent.parent
+
     try:
-        # 1. git add docs/
-        _run(["git", "add", "docs/"])
-
-        # 2. git commit
+        _run(["git", "add", "trading/"], cwd=repo_root)
         result = subprocess.run(
-            ["git", "commit", "-m", f"report: {date_str}"],
-            cwd=REPO_ROOT, capture_output=True, text=True
+            ["git", "commit", "-m", f"trading report: {date_str}"],
+            cwd=repo_root, capture_output=True, text=True
         )
-        stdout = result.stdout + result.stderr
-        if "nothing to commit" in stdout or "nothing added" in stdout:
-            print("  git: 无新变更，跳过推送")
+        if "nothing to commit" in result.stdout + result.stderr:
+            print("  git: 无新变更")
             return
-
-        # 3. git push
-        _run(["git", "push", "origin", "main"])
-        print(f"  已推送到 GitHub，Pages 将在约 1 分钟内更新")
-
+        _run(["git", "push", "origin", "main"], cwd=repo_root)
+        print("  已推送到 GitHub")
     except Exception as e:
-        print(f"  git push 失败（不影响本地报表）: {e}")
+        print(f"  git push 失败: {e}")
 
-
-def _run(cmd: list):
-    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+def _run(cmd, cwd):
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+        raise RuntimeError(result.stderr.strip())

@@ -3,8 +3,9 @@
 
 from pathlib import Path
 from datetime import datetime
+from config_loader import load_config
 
-DOCS_DIR     = Path(__file__).parent.parent / "docs"
+DOCS_DIR     = Path("/Users/jay/workspace/my_github/infinityjay.github.io/trading")
 REPORTS_DIR  = DOCS_DIR / "reports"
 
 SIGNAL_CONFIG = {
@@ -21,6 +22,14 @@ SIGNAL_CONFIG = {
 SIGNAL_PRIORITY = ["BUY", "SELL", "WATCH_LONG", "WATCH_SHORT",
                    "CAUTION_LONG", "NEUTRAL", "INSUFFICIENT_DATA", "ERROR"]
 
+def _get_dirs():
+    config = load_config()
+    output = config.get("settings", {}).get("output_dir")
+    if output:
+        docs_dir = Path(output)
+    else:
+        docs_dir = Path(__file__).parent.parent / "docs"
+    return docs_dir, docs_dir / "reports"
 
 def _badge(signal: str) -> str:
     cfg = SIGNAL_CONFIG.get(signal, SIGNAL_CONFIG["NEUTRAL"])

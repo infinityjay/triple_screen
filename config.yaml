@@ -42,3 +42,4 @@ settings:
   # 报表设置
   report_title: "三重过滤交易信号"
   timezone: "America/New_York"   # 美东时间
+  output_dir: "/Users/jay/workspace/my_github/infinityjay.github.io/trading"
