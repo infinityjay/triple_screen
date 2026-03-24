@@ -160,6 +160,9 @@ watchlist:
   - ticker: COIN
     name: "Coinbase"
     group: "加密货币相关"
+  - ticker: CRCL
+    name: "Circle"
+    group: "加密货币相关"
   - ticker: MSTR
     name: "MicroStrategy"
     group: "加密货币相关"
