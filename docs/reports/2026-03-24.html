@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三重过滤交易信号 — 2026-03-24</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", "PingFang SC", Arial, sans-serif;
+    background: #f1f5f9;
+    color: #111827;
+    padding: 20px 16px 60px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: #0f172a; }
+  .header .meta { color: #64748b; font-size: 13px; margin-top: 5px; }
+  .header .nav { margin-top: 12px; }
+  .header .nav a {
+    color: #3b82f6; text-decoration: none; font-size: 13px; font-weight: 500;
+  }
+  .header .nav a:hover { text-decoration: underline; }
+
+  /* Summary cards */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+  }
+  .card-num { font-size: 28px; font-weight: 700; line-height: 1; }
+  .card-lbl { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .card-green .card-num { color: #15803d; }
+  .card-red   .card-num { color: #b91c1c; }
+  .card-amber .card-num { color: #b45309; }
+  .card-gray  .card-num { color: #374151; }
+
+  /* Group label */
+  .group-label {
+    font-size: 13px; font-weight: 600; color: #6b7280;
+    text-transform: uppercase; letter-spacing: .5px;
+    margin: 24px 0 8px;
+  }
+
+  /* Table */
+  .table-wrap {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px; }
+  th {
+    background: #f8fafc;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  .ticker-cell { min-width: 120px; }
+  .ticker { font-weight: 700; font-size: 14px; display: block; }
+  .name { font-size: 12px; color: #94a3b8; display: block; margin-top: 1px; }
+
+  /* Legend */
+  .legend {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 18px 22px;
+    margin-top: 24px;
+  }
+  .legend-title { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 10px; }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    font-size: 13px;
+    color: #4b5563;
+  }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .summary-row { grid-template-columns: repeat(2, 1fr); }
+    .legend-grid { grid-template-columns: 1fr; }
+    body { padding: 12px 10px 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>三重过滤交易信号</h1>
+    <div class="meta">
+      报表日期：2026-03-24 &nbsp;|&nbsp; 生成时间：2026-03-24 11:51
+      &nbsp;|&nbsp; 基于 Alexander Elder《以交易为生》三重过滤系统
+    </div>
+    <div class="nav"><a href="../index.html">← 返回历史报表列表</a></div>
+  </div>
+
+  
+    <div class="summary-row">
+      <div class="card card-green"><div class="card-num">0</div><div class="card-lbl">买入信号</div></div>
+      <div class="card card-red"><div class="card-num">0</div><div class="card-lbl">卖出信号</div></div>
+      <div class="card card-amber"><div class="card-num">0</div><div class="card-lbl">关注标的</div></div>
+      <div class="card card-gray"><div class="card-num">7</div><div class="card-lbl">监控总数</div></div>
+    </div>
+  
+        <div class="group-label">大盘指数</div>
+        <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>股票</th>
+            <th>信号</th>
+            <th>周线趋势</th>
+            <th>MACD看涨</th>
+            <th>Stoch K</th>
+            <th>Stoch D</th>
+            <th>收盘价</th>
+            <th>日线EMA22</th>
+            <th>价格&gt;EMA</th>
+          </tr></thead>
+          <tbody><tr>
+              <td class="ticker-cell">
+                <span class="ticker">SPY</span>
+                <span class="name">S&P 500 ETF</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">❌</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:26%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">26.3</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:17%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">16.6</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$655.38</td>
+              <td style="font-family:monospace;color:#6b7280">$669.99</td>
+              <td style="text-align:center">❌</td>
+            </tr><tr>
+              <td class="ticker-cell">
+                <span class="ticker">QQQ</span>
+                <span class="name">Nasdaq 100 ETF</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">✅</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:29%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">29.4</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:21%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">20.7</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$588.0</td>
+              <td style="font-family:monospace;color:#6b7280">$599.86</td>
+              <td style="text-align:center">❌</td>
+            </tr></tbody>
+        </table>
+        </div>
+        <div class="group-label">科技股</div>
+        <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>股票</th>
+            <th>信号</th>
+            <th>周线趋势</th>
+            <th>MACD看涨</th>
+            <th>Stoch K</th>
+            <th>Stoch D</th>
+            <th>收盘价</th>
+            <th>日线EMA22</th>
+            <th>价格&gt;EMA</th>
+          </tr></thead>
+          <tbody><tr>
+              <td class="ticker-cell">
+                <span class="ticker">AAPL</span>
+                <span class="name">Apple</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">✅</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:27%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">27.2</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:15%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">15.3</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$251.49</td>
+              <td style="font-family:monospace;color:#6b7280">$257.21</td>
+              <td style="text-align:center">❌</td>
+            </tr><tr>
+              <td class="ticker-cell">
+                <span class="ticker">MSFT</span>
+                <span class="name">Microsoft</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">✅</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:9%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">8.7</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:7%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">7.2</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$383.0</td>
+              <td style="font-family:monospace;color:#6b7280">$399.52</td>
+              <td style="text-align:center">❌</td>
+            </tr><tr>
+              <td class="ticker-cell">
+                <span class="ticker">NVDA</span>
+                <span class="name">NVIDIA</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">✅</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:23%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">22.8</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:19%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">18.7</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$175.64</td>
+              <td style="font-family:monospace;color:#6b7280">$181.66</td>
+              <td style="text-align:center">❌</td>
+            </tr><tr>
+              <td class="ticker-cell">
+                <span class="ticker">TSLA</span>
+                <span class="name">Tesla</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">✅</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:32%;height:100%;background:#f59e0b;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">31.6</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:14%;height:100%;background:#22c55e;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">14.2</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$380.85</td>
+              <td style="font-family:monospace;color:#6b7280">$397.1</td>
+              <td style="text-align:center">❌</td>
+            </tr></tbody>
+        </table>
+        </div>
+        <div class="group-label">金融股</div>
+        <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>股票</th>
+            <th>信号</th>
+            <th>周线趋势</th>
+            <th>MACD看涨</th>
+            <th>Stoch K</th>
+            <th>Stoch D</th>
+            <th>收盘价</th>
+            <th>日线EMA22</th>
+            <th>价格&gt;EMA</th>
+          </tr></thead>
+          <tbody><tr>
+              <td class="ticker-cell">
+                <span class="ticker">JPM</span>
+                <span class="name">JPMorgan Chase</span>
+              </td>
+              <td><span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.3px;color:#4b5563;background:#f9fafb;border:1px solid #d1d5db">中性</span></td>
+              <td><span style="color:#b91c1c;font-weight:600">▼ DOWN</span></td>
+              <td style="text-align:center">✅</td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:49%;height:100%;background:#f59e0b;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">48.8</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">K</span></td>
+              <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:40%;height:100%;background:#f59e0b;border-radius:3px"></div></div><span style="font-family:monospace;font-size:13px">39.6</span></div><span style="color:#9ca3af;font-size:11px;margin-left:2px">D</span></td>
+              <td style="font-family:monospace">$289.91</td>
+              <td style="font-family:monospace;color:#6b7280">$292.94</td>
+              <td style="text-align:center">❌</td>
+            </tr></tbody>
+        </table>
+        </div>
+  
+    <div class="legend">
+      <div class="legend-title">信号说明（三重过滤规则）</div>
+      <div class="legend-grid">
+        <div><span style="color:#15803d;font-weight:600">买入</span>：周线趋势向上 + MACD看涨 + KD超卖后K上穿D</div>
+        <div><span style="color:#b91c1c;font-weight:600">卖出</span>：周线趋势向下 + MACD看跌 + KD超买后K下穿D</div>
+        <div><span style="color:#b45309;font-weight:600">关注做多</span>：趋势向上 + MACD看涨，等待回调入场</div>
+        <div><span style="color:#c2410c;font-weight:600">关注做空</span>：趋势向下 + MACD看跌，等待反弹做空</div>
+      </div>
+    </div>
+
+</div>
+</body>
+</html>
