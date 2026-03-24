@@ -16,3 +16,6 @@ __pycache__/
 .idea/
 # 报表进仓库（docs/目录全部提交）
 # docs/ 不要加进gitignore！
+
+# log
+.logs/
