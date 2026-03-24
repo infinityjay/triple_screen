@@ -1,0 +1,18 @@
+# 数据库和数据不进仓库（太大，且每天变化）
+data/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# 系统
+.DS_Store
+.env
+
+# pycharm
+.idea/
+# 报表进仓库（docs/目录全部提交）
+# docs/ 不要加进gitignore！
