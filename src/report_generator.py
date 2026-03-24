@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from config_loader import load_config
 
-DOCS_DIR     = Path("/Users/jay/workspace/my_github/infinityjay.github.io/trading")
+DOCS_DIR     = Path("../infinityjay.github.io/trading")
 REPORTS_DIR  = DOCS_DIR / "reports"
 
 SIGNAL_CONFIG = {
