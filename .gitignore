@@ -18,4 +18,4 @@ __pycache__/
 # docs/ 不要加进gitignore！
 
 # log
-.logs/
+logs/
