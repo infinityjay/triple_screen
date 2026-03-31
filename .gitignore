@@ -1,24 +1,48 @@
-# 数据库和数据不进仓库（太大，且每天变化）
-data/
-*.db
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-*.egg-info/
-
-# 系统
-.DS_Store
+# Secrets and local environment files
 .env
+.env.*
+!.env.example
 
-# pycharm
-.idea/
-# 报表进仓库（docs/目录全部提交）
-# docs/ 不要加进gitignore！
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
-# log
-logs/
-
-# env
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 myenv/
+.python-version
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Runtime data and logs
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+logs/*.log
+*.log
+*.pid
+
+# IDEs and editors
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
