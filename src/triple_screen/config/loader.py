@@ -14,7 +14,9 @@ from triple_screen.config.schema import (
     HourlyStrategyConfig,
     MarketFilterConfig,
     PolygonConfig,
+    PolygonCacheConfig,
     PolygonHistoryConfig,
+    PolygonRateLimitConfig,
     RiskConfig,
     RuntimeConfig,
     StorageConfig,
@@ -49,6 +51,14 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(handle) or {}
 
 
+def _load_universe_symbols(project_root: Path, raw_path: str | None) -> list[dict]:
+    if not raw_path:
+        return []
+    universe_path = _resolve_path(project_root, raw_path)
+    payload = _load_yaml(universe_path)
+    return list(payload.get("symbols", []))
+
+
 def load_settings(config_path: str | Path | None = None) -> AppConfig:
     load_dotenv(PROJECT_ROOT / ".env", override=False)
 
@@ -61,6 +71,8 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
     app_raw = raw.get("app", {})
     polygon_raw = raw.get("data_source", {}).get("polygon", {})
     polygon_history_raw = polygon_raw.get("history", {})
+    polygon_rate_limit_raw = polygon_raw.get("rate_limit", {})
+    polygon_cache_raw = polygon_raw.get("cache", {})
     universe_raw = raw.get("universe", {})
     strategy_raw = raw.get("strategy", {})
     weekly_raw = strategy_raw.get("weekly", {})
@@ -100,10 +112,19 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
                 daily_days=int(polygon_history_raw.get("daily_days", 90)),
                 hourly_hours=int(polygon_history_raw.get("hourly_hours", 160)),
             ),
+            rate_limit=PolygonRateLimitConfig(
+                max_requests_per_minute=int(polygon_rate_limit_raw.get("max_requests_per_minute", 4)),
+            ),
+            cache=PolygonCacheConfig(
+                enabled=bool(polygon_cache_raw.get("enabled", True)),
+                overlap_bars=int(polygon_cache_raw.get("overlap_bars", 3)),
+            ),
         ),
         universe=UniverseConfig(
             mode=universe_raw.get("mode", "market_cap_top"),
             top_n=int(universe_raw.get("top_n", 300)),
+            static_file=_resolve_path(PROJECT_ROOT, universe_raw["static_file"]) if universe_raw.get("static_file") else None,
+            symbols=_load_universe_symbols(PROJECT_ROOT, universe_raw.get("static_file")),
             custom_symbols=list(universe_raw.get("custom_symbols", [])),
             allowed_ticker_types=list(universe_raw.get("allowed_ticker_types", ["CS"])),
             exclude_symbols_containing=list(universe_raw.get("exclude_symbols_containing", ["."])),

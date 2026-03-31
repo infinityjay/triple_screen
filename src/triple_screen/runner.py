@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
 
     scanner = TripleScreenScanner(
         settings=settings,
-        market_data=PolygonClient(settings.polygon),
+        market_data=PolygonClient(settings.polygon, storage=storage),
         storage=storage,
         notifier=TelegramNotifier(settings.alerts.telegram, settings.risk),
     )

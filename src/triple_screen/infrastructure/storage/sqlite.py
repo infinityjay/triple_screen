@@ -4,6 +4,8 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
+import pandas as pd
+
 
 class SQLiteStorage:
     def __init__(self, database_path: Path) -> None:
@@ -98,7 +100,24 @@ class SQLiteStorage:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS price_bars (
+                    symbol TEXT,
+                    timeframe TEXT,
+                    timestamp TEXT,
+                    open REAL,
+                    high REAL,
+                    low REAL,
+                    close REAL,
+                    volume REAL,
+                    updated_at TEXT,
+                    PRIMARY KEY (symbol, timeframe, timestamp)
+                )
+                """
+            )
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_bars_lookup ON price_bars(symbol, timeframe, timestamp)")
 
     def upsert_symbol(self, symbol: str, market_cap: float | None, sector: str | None) -> None:
         with self._connect() as connection:
@@ -237,4 +256,107 @@ class SQLiteStorage:
                 VALUES (?, ?, ?)
                 """,
                 (symbol, datetime.utcnow().isoformat(), direction),
+            )
+
+    def get_price_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT timestamp, open, high, low, close, volume
+                FROM price_bars
+                WHERE symbol = ? AND timeframe = ?
+                ORDER BY timestamp ASC
+                """,
+                (symbol, timeframe),
+            ).fetchall()
+
+        if not rows:
+            return None
+
+        frame = pd.DataFrame([dict(row) for row in rows])
+        frame["timestamp"] = pd.to_datetime(frame["timestamp"])
+        frame.set_index("timestamp", inplace=True)
+        return frame
+
+    def get_latest_bar_timestamp(self, symbol: str, timeframe: str) -> datetime | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT timestamp
+                FROM price_bars
+                WHERE symbol = ? AND timeframe = ?
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """,
+                (symbol, timeframe),
+            ).fetchone()
+
+        if not row:
+            return None
+        return datetime.fromisoformat(row["timestamp"])
+
+    def get_latest_bar_sync_time(self, symbol: str, timeframe: str) -> datetime | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT updated_at
+                FROM price_bars
+                WHERE symbol = ? AND timeframe = ?
+                ORDER BY updated_at DESC
+                LIMIT 1
+                """,
+                (symbol, timeframe),
+            ).fetchone()
+
+        if not row:
+            return None
+        return datetime.fromisoformat(row["updated_at"])
+
+    def upsert_price_bars(self, symbol: str, timeframe: str, frame: pd.DataFrame) -> None:
+        if frame is None or frame.empty:
+            return
+
+        records = []
+        now = datetime.utcnow().isoformat()
+        for timestamp, row in frame.iterrows():
+            records.append(
+                (
+                    symbol,
+                    timeframe,
+                    pd.Timestamp(timestamp).to_pydatetime().isoformat(),
+                    float(row["open"]),
+                    float(row["high"]),
+                    float(row["low"]),
+                    float(row["close"]),
+                    float(row.get("volume", 0.0)),
+                    now,
+                )
+            )
+
+        with self._connect() as connection:
+            connection.executemany(
+                """
+                INSERT OR REPLACE INTO price_bars
+                (symbol, timeframe, timestamp, open, high, low, close, volume, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                records,
+            )
+
+    def trim_price_bars(self, symbol: str, timeframe: str, keep_rows: int) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                DELETE FROM price_bars
+                WHERE symbol = ?
+                  AND timeframe = ?
+                  AND timestamp NOT IN (
+                      SELECT timestamp
+                      FROM price_bars
+                      WHERE symbol = ? AND timeframe = ?
+                      ORDER BY timestamp DESC
+                      LIMIT ?
+                  )
+                """,
+                (symbol, timeframe, symbol, timeframe, keep_rows),
             )

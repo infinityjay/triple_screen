@@ -15,10 +15,16 @@ data_source:
       weekly_weeks: 60
       daily_days: 90
       hourly_hours: 160
+    rate_limit:
+      max_requests_per_minute: 4
+    cache:
+      enabled: true
+      overlap_bars: 3
 
 universe:
-  mode: "market_cap_top"
+  mode: "static_file"
   top_n: 300
+  static_file: "config/universe_us_top300.yaml"
   custom_symbols: []
   allowed_ticker_types:
     - "CS"
@@ -61,7 +67,7 @@ market_filter:
 
 runtime:
   scan_interval_minutes: 60
-  max_workers: 5
+  max_workers: 1
   log_level: "INFO"
   log_file: "logs/scanner.log"
 

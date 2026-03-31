@@ -43,7 +43,7 @@ triple_screen/
 
 ## 配置方式
 
-业务配置统一放在 [config/settings.yaml](/Users/jay/workspace/my_github/triple_screen/config/settings.yaml)。
+业务配置统一放在 [config/settings.yaml](/Users/jay/workspace/my_github/triple_screen/config/settings.yaml)，股票池单独放在 [config/universe_us_top300.yaml](/Users/jay/workspace/my_github/triple_screen/config/universe_us_top300.yaml)。
 
 敏感信息放在 `.env`，例如：
 
@@ -79,6 +79,14 @@ cp .env.example .env
 - 并发数、扫描频率、日志路径
 - SQLite 路径
 - Telegram 是否启用
+
+如果你想手动增删股票，直接修改 [config/universe_us_top300.yaml](/Users/jay/workspace/my_github/triple_screen/config/universe_us_top300.yaml) 里的 `symbols` 列表即可。
+
+## 运行特性
+
+- 本地 SQLite 会缓存周线、日线、1 小时 K 线
+- 后续扫描默认走增量更新，而不是每次都全量重拉
+- Polygon 请求带主动速率限制，优先避免触发套餐限流
 
 4. 运行一次扫描
 

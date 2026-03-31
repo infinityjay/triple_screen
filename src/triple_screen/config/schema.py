@@ -18,6 +18,17 @@ class PolygonHistoryConfig:
 
 
 @dataclass(frozen=True)
+class PolygonRateLimitConfig:
+    max_requests_per_minute: int
+
+
+@dataclass(frozen=True)
+class PolygonCacheConfig:
+    enabled: bool
+    overlap_bars: int
+
+
+@dataclass(frozen=True)
 class PolygonConfig:
     api_key: str
     base_url: str
@@ -27,12 +38,16 @@ class PolygonConfig:
     rate_limit_sleep_seconds: int
     adjusted: bool
     history: PolygonHistoryConfig
+    rate_limit: PolygonRateLimitConfig
+    cache: PolygonCacheConfig
 
 
 @dataclass(frozen=True)
 class UniverseConfig:
     mode: str
     top_n: int
+    static_file: Path | None
+    symbols: list[dict]
     custom_symbols: list[str]
     allowed_ticker_types: list[str]
     exclude_symbols_containing: list[str]
