@@ -4,7 +4,8 @@ import logging
 import threading
 import time
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import date, datetime, time as clock_time, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -44,9 +45,16 @@ class SlidingWindowRateLimiter:
 
 
 class AlpacaClient:
-    def __init__(self, config: AlpacaConfig, storage: SQLiteStorage | None = None) -> None:
+    def __init__(
+        self,
+        config: AlpacaConfig,
+        storage: SQLiteStorage | None = None,
+        market_timezone: str = "America/New_York",
+    ) -> None:
         self.config = config
         self.storage = storage
+        self.market_timezone = ZoneInfo(market_timezone)
+        self.market_close_time = clock_time(hour=16, minute=0)
         self.rate_limiter = SlidingWindowRateLimiter(config.rate_limit.max_requests_per_minute)
 
     @staticmethod
@@ -103,8 +111,31 @@ class AlpacaClient:
             }
         raise ValueError(f"Unsupported timeframe: {timeframe}")
 
+    def _to_market_datetime(self, timestamp: datetime) -> datetime:
+        value = pd.Timestamp(timestamp)
+        if value.tzinfo is None:
+            value = value.tz_localize("UTC")
+        else:
+            value = value.tz_convert("UTC")
+        return value.tz_convert(self.market_timezone).to_pydatetime()
+
+    def _market_close_at(self, session_date: date) -> datetime:
+        return datetime.combine(session_date, self.market_close_time, tzinfo=self.market_timezone)
+
     @staticmethod
-    def _is_cache_stale(last_sync_time: datetime | None, timeframe: str) -> bool:
+    def _previous_weekday(session_date: date) -> date:
+        candidate = session_date - timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate -= timedelta(days=1)
+        return candidate
+
+    def _latest_completed_market_close(self, now_local: datetime) -> datetime:
+        today_close = self._market_close_at(now_local.date())
+        if now_local.weekday() < 5 and now_local >= today_close:
+            return today_close
+        return self._market_close_at(self._previous_weekday(now_local.date()))
+
+    def _is_cache_stale(self, last_sync_time: datetime | None, timeframe: str) -> bool:
         if last_sync_time is None:
             return True
 
@@ -113,10 +144,10 @@ class AlpacaClient:
             current_bucket = now.replace(minute=0, second=0, microsecond=0)
             last_bucket = last_sync_time.replace(minute=0, second=0, microsecond=0)
             return current_bucket > last_bucket
-        if timeframe == "day":
-            return now.date() > last_sync_time.date()
-        if timeframe == "week":
-            return now.isocalendar()[:2] != last_sync_time.isocalendar()[:2]
+        if timeframe in {"day", "week"}:
+            now_local = self._to_market_datetime(now)
+            last_sync_local = self._to_market_datetime(last_sync_time)
+            return last_sync_local < self._latest_completed_market_close(now_local)
         return True
 
     def _bootstrap_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:

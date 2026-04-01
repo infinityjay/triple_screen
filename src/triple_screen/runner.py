@@ -51,7 +51,11 @@ def main(argv: list[str] | None = None) -> int:
 
     scanner = TripleScreenScanner(
         settings=settings,
-        market_data=AlpacaClient(settings.alpaca, storage=storage),
+        market_data=AlpacaClient(
+            settings.alpaca,
+            storage=storage,
+            market_timezone=settings.app.timezone,
+        ),
         storage=storage,
         notifier=TelegramNotifier(settings.alerts.telegram, settings.risk),
         dry_run=args.dry_run,
