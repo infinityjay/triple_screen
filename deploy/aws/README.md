@@ -47,6 +47,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now triple-screen.timer
 ```
 
+The bundled timer is configured for U.S. regular trading hours in `America/New_York`:
+
+- Monday to Friday at `09:30, 10:30, 11:30, 12:30, 13:30, 14:30, 15:30`
+- Monday to Friday again at `16:10` for a post-close scan
+
+This uses explicit `OnCalendar=` entries with the `America/New_York` timezone suffix, so DST is handled by systemd's calendar parser.
+
 ## Verify
 
 ```bash

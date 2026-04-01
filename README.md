@@ -141,6 +141,11 @@ python src/scanner.py --loop
 
 AWS EC2 + systemd 的部署模板已经放在 [deploy/aws/README.md](/Users/jay/workspace/my_github/triple_screen/deploy/aws/README.md) 和 [triple-screen.service](/Users/jay/workspace/my_github/triple_screen/deploy/aws/systemd/triple-screen.service)、[triple-screen.timer](/Users/jay/workspace/my_github/triple_screen/deploy/aws/systemd/triple-screen.timer)。
 
+当前 timer 已按美东时间配置为：
+
+- 周一到周五盘中每小时一次：`09:30` 到 `15:30`
+- 每个交易日收盘后一次：`16:10`
+
 ## 当前实现说明
 
 - 已完成：集中配置、密钥隔离、包结构重组、扫描编排分层、Telegram/SQLite/Alpaca 模块化

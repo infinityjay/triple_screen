@@ -1,8 +1,11 @@
 [Unit]
-Description=Run Triple Screen Scanner hourly
+Description=Run Triple Screen Scanner during US market hours and after close
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=Mon..Fri *-*-* 09,10,11,12,13,14,15:30:00 America/New_York
+OnCalendar=Mon..Fri *-*-* 16:10:00 America/New_York
+AccuracySec=1s
+RandomizedDelaySec=0
 Persistent=true
 Unit=triple-screen.service
 
