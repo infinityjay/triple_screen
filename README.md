@@ -50,6 +50,8 @@ triple_screen/
 ```env
 ALPACA_API_KEY_ID=your_alpaca_api_key_id
 ALPACA_API_SECRET_KEY=your_alpaca_api_secret_key
+ALPACA_MARKET_DATA_BASE_URL=https://data.alpaca.markets/v2
+ALPACA_TRADING_BASE_URL=https://paper-api.alpaca.markets/v2
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 ```
@@ -88,13 +90,15 @@ cp .env.example .env
 - 本地 SQLite 会缓存周线、日线、1 小时 K 线
 - 后续扫描默认走增量更新，而不是每次都全量重拉
 - Alpaca 股票历史数据默认走 `feed: iex`，适合免费账户直接使用
+- base URL 现在支持两种写法：`https://.../v2` 或不带 `/v2` 的根域名，代码会自动规整
 - 小时线增量刷新已改成精确时间窗口，不再只按日期拉取
 - 扫描开始时会先对 YAML 股票池做批量请求预热缓存，再在本地逐票计算指标，避免 300 只股票逐票逐周期打 API
 
 ## Alpaca 配置说明
 
-- 股票历史数据域名使用 `https://data.alpaca.markets`
-- 资产列表（用于非 `static_file` 股票池）使用 `https://api.alpaca.markets/v2/assets`
+- 股票历史数据域名默认使用 `https://data.alpaca.markets/v2`
+- Trading API 默认使用 `https://paper-api.alpaca.markets/v2`
+- 资产列表（用于非 `static_file` 股票池）会自动请求 `assets`，无需你手动关心 `/v2` 是否重复
 - 认证使用请求头 `APCA-API-KEY-ID` 与 `APCA-API-SECRET-KEY`
 - `static_file` / `custom` 股票池模式可直接使用；若使用原来的动态 Top N 模式，当前会退化为从 Alpaca active assets 中筛选前 N 个，因为 Alpaca 不提供 Polygon 那种市值排序接口
 - 默认 `feed: iex`
@@ -105,7 +109,7 @@ cp .env.example .env
   Alpaca 文档中的 Trading API Basic 计划历史数据上限是 `200 / min`，这里预留了缓冲，避免在分页和重试时贴线
 - 当前批量策略会对 `config/universe_us_top300.yaml` 中的 300 只股票按 timeframe 分别请求批量 bars 接口
   常规扫描会收敛到少量批量请求加分页，而不是原先的几百次单票请求
-- 如果你使用 paper 账户且后续想依赖 Alpaca Trading API 的账户资源，可把 `trading_base_url` 改成 `https://paper-api.alpaca.markets`
+- 如果你使用 paper 账户，可直接在 `.env` 里设置 `ALPACA_TRADING_BASE_URL=https://paper-api.alpaca.markets/v2`
 
 4. 运行一次扫描
 

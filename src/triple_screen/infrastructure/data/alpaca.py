@@ -53,6 +53,20 @@ class AlpacaClient:
     def _normalize_symbol(symbol: str) -> str:
         return symbol.replace(".", "-")
 
+    @staticmethod
+    def _normalize_base_url(base_url: str) -> str:
+        return base_url.rstrip("/")
+
+    @classmethod
+    def _build_url(cls, base_url: str, endpoint: str) -> str:
+        normalized_base = cls._normalize_base_url(base_url)
+        normalized_endpoint = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+
+        if normalized_base.endswith("/v2") and normalized_endpoint.startswith("/v2/"):
+            normalized_endpoint = normalized_endpoint[3:]
+
+        return f"{normalized_base}{normalized_endpoint}"
+
     def _headers(self) -> dict[str, str]:
         return {
             "APCA-API-KEY-ID": self.config.api_key_id,
@@ -174,7 +188,7 @@ class AlpacaClient:
             try:
                 self.rate_limiter.acquire()
                 response = requests.get(
-                    f"{base_url}{endpoint}",
+                    self._build_url(base_url, endpoint),
                     params=params,
                     headers=self._headers(),
                     timeout=self.config.timeout_seconds,

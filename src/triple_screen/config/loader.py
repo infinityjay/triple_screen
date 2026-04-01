@@ -44,6 +44,11 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    return value if value else default
+
+
 def _load_yaml(path: Path) -> dict:
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
@@ -102,8 +107,14 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
         alpaca=AlpacaConfig(
             api_key_id=_require_env(alpaca_raw["api_key_id_env"]),
             api_secret_key=_require_env(alpaca_raw["api_secret_key_env"]),
-            market_data_base_url=alpaca_raw.get("market_data_base_url", "https://data.alpaca.markets"),
-            trading_base_url=alpaca_raw.get("trading_base_url", "https://api.alpaca.markets"),
+            market_data_base_url=_env_or_default(
+                "ALPACA_MARKET_DATA_BASE_URL",
+                alpaca_raw.get("market_data_base_url", "https://data.alpaca.markets/v2"),
+            ),
+            trading_base_url=_env_or_default(
+                "ALPACA_TRADING_BASE_URL",
+                alpaca_raw.get("trading_base_url", "https://paper-api.alpaca.markets/v2"),
+            ),
             timeout_seconds=int(alpaca_raw.get("timeout_seconds", 15)),
             retry_attempts=int(alpaca_raw.get("retry_attempts", 3)),
             retry_sleep_seconds=int(alpaca_raw.get("retry_sleep_seconds", 5)),

@@ -4,8 +4,8 @@ app:
 
 data_source:
   alpaca:
-    market_data_base_url: "https://data.alpaca.markets"
-    trading_base_url: "https://api.alpaca.markets"
+    market_data_base_url: "https://data.alpaca.markets/v2"
+    trading_base_url: "https://paper-api.alpaca.markets/v2"
     api_key_id_env: "ALPACA_API_KEY_ID"
     api_secret_key_env: "ALPACA_API_SECRET_KEY"
     timeout_seconds: 15
