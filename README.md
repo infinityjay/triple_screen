@@ -117,6 +117,12 @@ cp .env.example .env
 python src/scanner.py --once
 ```
 
+如果你想验证整条链路但不发送 Telegram：
+
+```bash
+python src/scanner.py --once --dry-run
+```
+
 5. 持续运行
 
 ```bash
@@ -132,6 +138,8 @@ python src/scanner.py --loop
 ```
 
 这样比在 Python 里常驻 `while True` 更易维护，也更符合生产环境习惯。
+
+AWS EC2 + systemd 的部署模板已经放在 [deploy/aws/README.md](/Users/jay/workspace/my_github/triple_screen/deploy/aws/README.md) 和 [triple-screen.service](/Users/jay/workspace/my_github/triple_screen/deploy/aws/systemd/triple-screen.service)、[triple-screen.timer](/Users/jay/workspace/my_github/triple_screen/deploy/aws/systemd/triple-screen.timer)。
 
 ## 当前实现说明
 

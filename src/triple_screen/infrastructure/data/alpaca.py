@@ -51,7 +51,7 @@ class AlpacaClient:
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
-        return symbol.replace(".", "-")
+        return symbol.replace("-", ".")
 
     @staticmethod
     def _normalize_base_url(base_url: str) -> str:

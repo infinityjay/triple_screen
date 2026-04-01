@@ -21,11 +21,13 @@ class TripleScreenScanner:
         market_data: AlpacaClient,
         storage: SQLiteStorage,
         notifier: TelegramNotifier,
+        dry_run: bool = False,
     ) -> None:
         self.settings = settings
         self.market_data = market_data
         self.storage = storage
         self.notifier = notifier
+        self.dry_run = dry_run
 
     def _is_recently_alerted(self, symbol: str, direction: str) -> bool:
         row = self.storage.get_last_alert(symbol)
@@ -86,7 +88,7 @@ class TripleScreenScanner:
                 hourly["breakout_short"],
             )
 
-            if self._is_recently_alerted(symbol, trend):
+            if not self.dry_run and self._is_recently_alerted(symbol, trend):
                 logger.info("[%s] skipped because alert cooldown is active.", symbol)
                 return None
 
@@ -143,6 +145,8 @@ class TripleScreenScanner:
         started_at = time.time()
         logger.info("==================================================")
         logger.info("scan started at %s", datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"))
+        if self.dry_run:
+            logger.info("dry-run enabled: notifications and alert-log updates are suppressed")
 
         symbol_rows = self.market_data.get_top_symbols(self.settings.universe)
         for row in symbol_rows:
@@ -150,7 +154,8 @@ class TripleScreenScanner:
         symbols = [row["symbol"] for row in symbol_rows]
 
         logger.info("universe loaded: %s symbols", len(symbols))
-        self.notifier.send_scan_start(len(symbols))
+        if not self.dry_run:
+            self.notifier.send_scan_start(len(symbols))
 
         benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
         self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
@@ -169,13 +174,17 @@ class TripleScreenScanner:
         signals.sort(key=lambda item: item["signal_score"], reverse=True)
         top_signals = signals[: self.settings.alerts.max_signals_per_scan]
 
-        for signal in top_signals:
-            self.notifier.send_signal(signal)
-            self.storage.update_alert_log(signal["symbol"], signal["direction"])
-            time.sleep(1)
+        if self.dry_run:
+            logger.info("dry-run would emit %s notifications", len(top_signals))
+        else:
+            for signal in top_signals:
+                self.notifier.send_signal(signal)
+                self.storage.update_alert_log(signal["symbol"], signal["direction"])
+                time.sleep(1)
 
         elapsed = time.time() - started_at
-        self.notifier.send_summary(top_signals, elapsed)
+        if not self.dry_run:
+            self.notifier.send_summary(top_signals, elapsed)
         logger.info(
             "scan finished: %s total signals, %s pushed, elapsed %.1fs",
             len(signals),

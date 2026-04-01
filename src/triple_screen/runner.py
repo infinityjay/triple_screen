@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", default=None, help="Path to YAML config file")
     parser.add_argument("--once", action="store_true", help="Run a single scan and exit")
     parser.add_argument("--loop", action="store_true", help="Run forever using configured interval")
+    parser.add_argument("--dry-run", action="store_true", help="Run scan without Telegram sends or alert-log updates")
     return parser
 
 
@@ -42,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     logger = logging.getLogger(__name__)
     logger.info("bootstrapping %s", settings.app.name)
     logger.info("config loaded from %s", settings.config_path)
+    if args.dry_run:
+        logger.info("dry-run CLI flag enabled")
 
     storage = SQLiteStorage(settings.storage.database_path)
     storage.init_db()
@@ -51,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         market_data=AlpacaClient(settings.alpaca, storage=storage),
         storage=storage,
         notifier=TelegramNotifier(settings.alerts.telegram, settings.risk),
+        dry_run=args.dry_run,
     )
 
     run_forever = args.loop or not args.once
@@ -59,7 +63,8 @@ def main(argv: list[str] | None = None) -> int:
             scanner.run_scan()
         except Exception as exc:
             logger.exception("scan loop failed: %s", exc)
-            scanner.notifier.send_error(str(exc))
+            if not args.dry_run:
+                scanner.notifier.send_error(str(exc))
 
         if not run_forever:
             return 0

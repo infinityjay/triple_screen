@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Triple Screen Scanner hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=triple-screen.service
+
+[Install]
+WantedBy=timers.target
