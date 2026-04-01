@@ -11,35 +11,38 @@ class AppMetaConfig:
 
 
 @dataclass(frozen=True)
-class PolygonHistoryConfig:
+class AlpacaHistoryConfig:
     weekly_weeks: int
     daily_days: int
     hourly_hours: int
 
 
 @dataclass(frozen=True)
-class PolygonRateLimitConfig:
+class AlpacaRateLimitConfig:
     max_requests_per_minute: int
 
 
 @dataclass(frozen=True)
-class PolygonCacheConfig:
+class AlpacaCacheConfig:
     enabled: bool
     overlap_bars: int
 
 
 @dataclass(frozen=True)
-class PolygonConfig:
-    api_key: str
-    base_url: str
+class AlpacaConfig:
+    api_key_id: str
+    api_secret_key: str
+    market_data_base_url: str
+    trading_base_url: str
     timeout_seconds: int
     retry_attempts: int
     retry_sleep_seconds: int
     rate_limit_sleep_seconds: int
-    adjusted: bool
-    history: PolygonHistoryConfig
-    rate_limit: PolygonRateLimitConfig
-    cache: PolygonCacheConfig
+    adjustment: str
+    feed: str
+    history: AlpacaHistoryConfig
+    rate_limit: AlpacaRateLimitConfig
+    cache: AlpacaCacheConfig
 
 
 @dataclass(frozen=True)
@@ -129,7 +132,7 @@ class AppConfig:
     project_root: Path
     config_path: Path
     app: AppMetaConfig
-    polygon: PolygonConfig
+    alpaca: AlpacaConfig
     universe: UniverseConfig
     strategy: StrategyConfig
     risk: RiskConfig

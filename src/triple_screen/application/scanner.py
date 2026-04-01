@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from triple_screen.config.schema import AppConfig
-from triple_screen.infrastructure.data.polygon import PolygonClient
+from triple_screen.infrastructure.data.alpaca import AlpacaClient
 from triple_screen.infrastructure.notifications.telegram import TelegramNotifier
 from triple_screen.infrastructure.storage.sqlite import SQLiteStorage
 from triple_screen.strategy import indicators
@@ -18,7 +18,7 @@ class TripleScreenScanner:
     def __init__(
         self,
         settings: AppConfig,
-        market_data: PolygonClient,
+        market_data: AlpacaClient,
         storage: SQLiteStorage,
         notifier: TelegramNotifier,
     ) -> None:
@@ -151,6 +151,9 @@ class TripleScreenScanner:
 
         logger.info("universe loaded: %s symbols", len(symbols))
         self.notifier.send_scan_start(len(symbols))
+
+        benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
+        self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
 
         market_trend = self._check_market_trend()
         logger.info("market trend: %s", market_trend)

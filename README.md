@@ -31,7 +31,7 @@ triple_screen/
 │       │   └── schema.py          # 配置数据结构
 │       ├── infrastructure/
 │       │   ├── data/
-│       │   │   └── polygon.py     # Polygon 数据接入
+│       │   │   └── alpaca.py      # Alpaca 数据接入
 │       │   ├── notifications/
 │       │   │   └── telegram.py    # Telegram 推送
 │       │   └── storage/
@@ -48,7 +48,8 @@ triple_screen/
 敏感信息放在 `.env`，例如：
 
 ```env
-POLYGON_API_KEY=your_polygon_api_key
+ALPACA_API_KEY_ID=your_alpaca_api_key_id
+ALPACA_API_SECRET_KEY=your_alpaca_api_secret_key
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 ```
@@ -86,7 +87,25 @@ cp .env.example .env
 
 - 本地 SQLite 会缓存周线、日线、1 小时 K 线
 - 后续扫描默认走增量更新，而不是每次都全量重拉
-- Polygon 请求带主动速率限制，优先避免触发套餐限流
+- Alpaca 股票历史数据默认走 `feed: iex`，适合免费账户直接使用
+- 小时线增量刷新已改成精确时间窗口，不再只按日期拉取
+- 扫描开始时会先对 YAML 股票池做批量请求预热缓存，再在本地逐票计算指标，避免 300 只股票逐票逐周期打 API
+
+## Alpaca 配置说明
+
+- 股票历史数据域名使用 `https://data.alpaca.markets`
+- 资产列表（用于非 `static_file` 股票池）使用 `https://api.alpaca.markets/v2/assets`
+- 认证使用请求头 `APCA-API-KEY-ID` 与 `APCA-API-SECRET-KEY`
+- `static_file` / `custom` 股票池模式可直接使用；若使用原来的动态 Top N 模式，当前会退化为从 Alpaca active assets 中筛选前 N 个，因为 Alpaca 不提供 Polygon 那种市值排序接口
+- 默认 `feed: iex`
+  IEX 是 Alpaca 文档里说明的免费可用股票 feed；如果你有 SIP 订阅，可把 [config/settings.yaml](/Users/jay/workspace/my_github/triple_screen/config/settings.yaml) 里的 `feed` 改成 `sip`
+- 默认 `adjustment: split`
+  这更接近原来 Polygon `adjusted=true` 的拆股调整语义
+- 默认主动限速为 `180 req/min`
+  Alpaca 文档中的 Trading API Basic 计划历史数据上限是 `200 / min`，这里预留了缓冲，避免在分页和重试时贴线
+- 当前批量策略会对 `config/universe_us_top300.yaml` 中的 300 只股票按 timeframe 分别请求批量 bars 接口
+  常规扫描会收敛到少量批量请求加分页，而不是原先的几百次单票请求
+- 如果你使用 paper 账户且后续想依赖 Alpaca Trading API 的账户资源，可把 `trading_base_url` 改成 `https://paper-api.alpaca.markets`
 
 4. 运行一次扫描
 
@@ -112,5 +131,5 @@ python src/scanner.py --loop
 
 ## 当前实现说明
 
-- 已完成：集中配置、密钥隔离、包结构重组、扫描编排分层、Telegram/SQLite/Polygon 模块化
+- 已完成：集中配置、密钥隔离、包结构重组、扫描编排分层、Telegram/SQLite/Alpaca 模块化
 - 仍可继续增强：原始 K 线增量缓存、失败重试队列、指标快照版本化、更多通知渠道

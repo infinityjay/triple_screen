@@ -7,16 +7,16 @@ import yaml
 from dotenv import load_dotenv
 
 from triple_screen.config.schema import (
+    AlpacaCacheConfig,
+    AlpacaConfig,
+    AlpacaHistoryConfig,
+    AlpacaRateLimitConfig,
     AlertConfig,
     AppConfig,
     AppMetaConfig,
     DailyStrategyConfig,
     HourlyStrategyConfig,
     MarketFilterConfig,
-    PolygonConfig,
-    PolygonCacheConfig,
-    PolygonHistoryConfig,
-    PolygonRateLimitConfig,
     RiskConfig,
     RuntimeConfig,
     StorageConfig,
@@ -69,10 +69,10 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
     raw = _load_yaml(resolved_path)
 
     app_raw = raw.get("app", {})
-    polygon_raw = raw.get("data_source", {}).get("polygon", {})
-    polygon_history_raw = polygon_raw.get("history", {})
-    polygon_rate_limit_raw = polygon_raw.get("rate_limit", {})
-    polygon_cache_raw = polygon_raw.get("cache", {})
+    alpaca_raw = raw.get("data_source", {}).get("alpaca", {})
+    alpaca_history_raw = alpaca_raw.get("history", {})
+    alpaca_rate_limit_raw = alpaca_raw.get("rate_limit", {})
+    alpaca_cache_raw = alpaca_raw.get("cache", {})
     universe_raw = raw.get("universe", {})
     strategy_raw = raw.get("strategy", {})
     weekly_raw = strategy_raw.get("weekly", {})
@@ -99,25 +99,28 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
             name=app_raw.get("name", "Triple Screen Scanner"),
             timezone=app_raw.get("timezone", "UTC"),
         ),
-        polygon=PolygonConfig(
-            api_key=_require_env(polygon_raw["api_key_env"]),
-            base_url=polygon_raw.get("base_url", "https://api.polygon.io"),
-            timeout_seconds=int(polygon_raw.get("timeout_seconds", 15)),
-            retry_attempts=int(polygon_raw.get("retry_attempts", 3)),
-            retry_sleep_seconds=int(polygon_raw.get("retry_sleep_seconds", 5)),
-            rate_limit_sleep_seconds=int(polygon_raw.get("rate_limit_sleep_seconds", 60)),
-            adjusted=bool(polygon_raw.get("adjusted", True)),
-            history=PolygonHistoryConfig(
-                weekly_weeks=int(polygon_history_raw.get("weekly_weeks", 60)),
-                daily_days=int(polygon_history_raw.get("daily_days", 90)),
-                hourly_hours=int(polygon_history_raw.get("hourly_hours", 160)),
+        alpaca=AlpacaConfig(
+            api_key_id=_require_env(alpaca_raw["api_key_id_env"]),
+            api_secret_key=_require_env(alpaca_raw["api_secret_key_env"]),
+            market_data_base_url=alpaca_raw.get("market_data_base_url", "https://data.alpaca.markets"),
+            trading_base_url=alpaca_raw.get("trading_base_url", "https://api.alpaca.markets"),
+            timeout_seconds=int(alpaca_raw.get("timeout_seconds", 15)),
+            retry_attempts=int(alpaca_raw.get("retry_attempts", 3)),
+            retry_sleep_seconds=int(alpaca_raw.get("retry_sleep_seconds", 5)),
+            rate_limit_sleep_seconds=int(alpaca_raw.get("rate_limit_sleep_seconds", 60)),
+            adjustment=alpaca_raw.get("adjustment", "split"),
+            feed=alpaca_raw.get("feed", "iex"),
+            history=AlpacaHistoryConfig(
+                weekly_weeks=int(alpaca_history_raw.get("weekly_weeks", 60)),
+                daily_days=int(alpaca_history_raw.get("daily_days", 90)),
+                hourly_hours=int(alpaca_history_raw.get("hourly_hours", 160)),
             ),
-            rate_limit=PolygonRateLimitConfig(
-                max_requests_per_minute=int(polygon_rate_limit_raw.get("max_requests_per_minute", 4)),
+            rate_limit=AlpacaRateLimitConfig(
+                max_requests_per_minute=int(alpaca_rate_limit_raw.get("max_requests_per_minute", 180)),
             ),
-            cache=PolygonCacheConfig(
-                enabled=bool(polygon_cache_raw.get("enabled", True)),
-                overlap_bars=int(polygon_cache_raw.get("overlap_bars", 3)),
+            cache=AlpacaCacheConfig(
+                enabled=bool(alpaca_cache_raw.get("enabled", True)),
+                overlap_bars=int(alpaca_cache_raw.get("overlap_bars", 3)),
             ),
         ),
         universe=UniverseConfig(

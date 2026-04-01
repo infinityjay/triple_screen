@@ -7,7 +7,7 @@ import time
 
 from triple_screen.application.scanner import TripleScreenScanner
 from triple_screen.config.loader import load_settings
-from triple_screen.infrastructure.data.polygon import PolygonClient
+from triple_screen.infrastructure.data.alpaca import AlpacaClient
 from triple_screen.infrastructure.notifications.telegram import TelegramNotifier
 from triple_screen.infrastructure.storage.sqlite import SQLiteStorage
 
@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
 
     scanner = TripleScreenScanner(
         settings=settings,
-        market_data=PolygonClient(settings.polygon, storage=storage),
+        market_data=AlpacaClient(settings.alpaca, storage=storage),
         storage=storage,
         notifier=TelegramNotifier(settings.alerts.telegram, settings.risk),
     )

@@ -3,20 +3,23 @@ app:
   timezone: "America/New_York"
 
 data_source:
-  polygon:
-    base_url: "https://api.polygon.io"
-    api_key_env: "POLYGON_API_KEY"
+  alpaca:
+    market_data_base_url: "https://data.alpaca.markets"
+    trading_base_url: "https://api.alpaca.markets"
+    api_key_id_env: "ALPACA_API_KEY_ID"
+    api_secret_key_env: "ALPACA_API_SECRET_KEY"
     timeout_seconds: 15
     retry_attempts: 3
     retry_sleep_seconds: 5
     rate_limit_sleep_seconds: 60
-    adjusted: true
+    adjustment: "split"
+    feed: "iex"
     history:
       weekly_weeks: 60
       daily_days: 90
       hourly_hours: 160
     rate_limit:
-      max_requests_per_minute: 4
+      max_requests_per_minute: 180
     cache:
       enabled: true
       overlap_bars: 3
