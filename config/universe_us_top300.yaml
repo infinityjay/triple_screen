@@ -2,1506 +2,1206 @@ metadata:
   source: CompaniesMarketCap
   source_url: https://companiesmarketcap.com/usa/largest-companies-in-the-usa-by-market-cap/
   as_of: '2026-03-31'
-  description: Top 300 U.S. companies by market capitalization. Editable static universe
-    file.
+  description: Fixed editable U.S. stock universe file. Ranking is retained only as list
+    order metadata.
 symbols:
 - ticker: NVDA
   name: NVIDIA
   rank: 1
-  market_cap: 4238791933952
   country: USA
 - ticker: AAPL
   name: Apple
   rank: 2
-  market_cap: 3730186436608
   country: USA
 - ticker: GOOG
   name: Alphabet (Google)
   rank: 3
-  market_cap: 3470145355776
   country: USA
 - ticker: MSFT
   name: Microsoft
   rank: 4
-  market_cap: 2751243485184
   country: USA
 - ticker: AMZN
   name: Amazon
   rank: 5
-  market_cap: 2235761950720
   country: USA
 - ticker: AVGO
   name: Broadcom
   rank: 6
-  market_cap: 1467471626240
   country: USA
 - ticker: META
   name: Meta Platforms (Facebook)
   rank: 7
-  market_cap: 1447234633728
   country: USA
 - ticker: TSLA
   name: Tesla
   rank: 8
-  market_cap: 1394966528000
   country: USA
 - ticker: BRK-B
   name: Berkshire Hathaway
   rank: 9
-  market_cap: 1033572581376
   country: USA
 - ticker: WMT
   name: Walmart
   rank: 10
-  market_cap: 990810210304
   country: USA
 - ticker: LLY
   name: Eli Lilly
   rank: 11
-  market_cap: 823211393024
   country: USA
 - ticker: JPM
   name: JPMorgan Chase
   rank: 12
-  market_cap: 793359089664
   country: USA
 - ticker: XOM
   name: Exxon Mobil
   rank: 13
-  market_cap: 706933096448
   country: USA
 - ticker: JNJ
   name: Johnson & Johnson
   rank: 14
-  market_cap: 589075709952
   country: USA
 - ticker: V
   name: Visa
   rank: 15
-  market_cap: 582730645504
   country: USA
 - ticker: MA
   name: Mastercard
   rank: 16
-  market_cap: 445915430912
   country: USA
 - ticker: COST
   name: Costco
   rank: 17
-  market_cap: 442284802048
   country: USA
 - ticker: ORCL
   name: Oracle
   rank: 18
-  market_cap: 423095140352
   country: USA
 - ticker: CVX
   name: Chevron
   rank: 19
-  market_cap: 413666246656
   country: USA
 - ticker: NFLX
   name: Netflix
   rank: 20
-  market_cap: 407857692672
   country: USA
 - ticker: ABBV
   name: AbbVie
   rank: 21
-  market_cap: 384688128000
   country: USA
 - ticker: MU
   name: Micron Technology
   rank: 22
-  market_cap: 380993667072
   country: USA
 - ticker: BAC
   name: Bank of America
   rank: 23
-  market_cap: 349863247872
   country: USA
 - ticker: PLTR
   name: Palantir
   rank: 24
-  market_cap: 349854302208
   country: USA
 - ticker: PG
   name: Procter & Gamble
   rank: 25
-  market_cap: 337517772800
   country: USA
 - ticker: AMD
   name: AMD
   rank: 26
-  market_cap: 331674484736
   country: USA
 - ticker: CAT
   name: Caterpillar
   rank: 27
-  market_cap: 331544821760
   country: USA
 - ticker: HD
   name: Home Depot
   rank: 28
-  market_cap: 327578222592
   country: USA
 - ticker: KO
   name: Coca-Cola
   rank: 29
-  market_cap: 327330856960
   country: USA
 - ticker: CSCO
   name: Cisco
   rank: 30
-  market_cap: 306565414912
   country: USA
 - ticker: GE
   name: General Electric
   rank: 31
-  market_cap: 299324538880
   country: USA
 - ticker: MRK
   name: Merck
   rank: 32
-  market_cap: 297404039168
   country: USA
 - ticker: AMAT
   name: Applied Materials
   rank: 33
-  market_cap: 271247917056
   country: USA
 - ticker: LRCX
   name: Lam Research
   rank: 34
-  market_cap: 268363366400
   country: USA
 - ticker: MS
   name: Morgan Stanley
   rank: 35
-  market_cap: 261314166784
   country: USA
 - ticker: RTX
   name: RTX
   rank: 36
-  market_cap: 259638427648
   country: USA
 - ticker: PM
   name: Philip Morris International
   rank: 37
-  market_cap: 257687388160
   country: USA
 - ticker: GS
   name: Goldman Sachs
   rank: 38
-  market_cap: 251050000384
   country: USA
 - ticker: WFC
   name: Wells Fargo
   rank: 39
-  market_cap: 245647458304
   country: USA
 - ticker: UNH
   name: UnitedHealth
   rank: 40
-  market_cap: 245608005632
   country: USA
 - ticker: GEV
   name: GE Vernova
   rank: 41
-  market_cap: 236835618816
   country: USA
 - ticker: TMUS
   name: T-Mobile US
   rank: 42
-  market_cap: 234919952384
   country: USA
 - ticker: IBM
   name: IBM
   rank: 43
-  market_cap: 227460972544
   country: USA
 - ticker: MCD
   name: McDonald
   rank: 44
-  market_cap: 221781114880
   country: USA
 - ticker: INTC
   name: Intel
   rank: 45
-  market_cap: 221577199616
   country: USA
 - ticker: PEP
   name: Pepsico
   rank: 46
-  market_cap: 212272250880
   country: USA
 - ticker: VZ
   name: Verizon
   rank: 47
-  market_cap: 211727745024
   country: USA
 - ticker: AXP
   name: American Express
   rank: 48
-  market_cap: 207687008256
   country: USA
 - ticker: T
   name: AT&T
   rank: 49
-  market_cap: 202946723840
   country: USA
 - ticker: C
   name: Citigroup
   rank: 50
-  market_cap: 198390284288
   country: USA
 - ticker: NEE
   name: Nextera Energy
   rank: 51
-  market_cap: 193517502464
   country: USA
 - ticker: KLAC
   name: KLA
   rank: 52
-  market_cap: 193463386112
   country: USA
 - ticker: AMGN
   name: Amgen
   rank: 53
-  market_cap: 189670948864
   country: USA
 - ticker: TMO
   name: Thermo Fisher Scientific
   rank: 54
-  market_cap: 182595649536
   country: USA
 - ticker: ABT
   name: Abbott Laboratories
   rank: 55
-  market_cap: 178407899136
   country: USA
 - ticker: TJX
   name: TJX Companies
   rank: 56
-  market_cap: 177736318976
   country: USA
 - ticker: TXN
   name: Texas Instruments
   rank: 57
-  market_cap: 176757358592
   country: USA
 - ticker: CRM
   name: Salesforce
   rank: 58
-  market_cap: 174909784064
   country: USA
 - ticker: GILD
   name: Gilead Sciences
   rank: 59
-  market_cap: 172986548224
   country: USA
 - ticker: DIS
   name: Walt Disney
   rank: 60
-  market_cap: 170919034880
   country: USA
 - ticker: SCHW
   name: Charles Schwab
   rank: 61
-  market_cap: 166996525056
   country: USA
 - ticker: ISRG
   name: Intuitive Surgical
   rank: 62
-  market_cap: 163729670144
   country: USA
 - ticker: COP
   name: ConocoPhillips
   rank: 63
-  market_cap: 161348780032
   country: USA
 - ticker: PFE
   name: Pfizer
   rank: 64
-  market_cap: 159729041408
   country: USA
 - ticker: BA
   name: Boeing
   rank: 65
-  market_cap: 156406562816
   country: USA
 - ticker: ADI
   name: Analog Devices
   rank: 66
-  market_cap: 155317272576
   country: USA
 - ticker: APH
   name: Amphenol
   rank: 67
-  market_cap: 155311308800
   country: USA
 - ticker: ANET
   name: Arista Networks
   rank: 68
-  market_cap: 154615021568
   country: USA
 - ticker: DE
   name: Deere & Company (John Deere)
   rank: 69
-  market_cap: 152151441408
   country: USA
 - ticker: BLK
   name: BlackRock
   rank: 70
-  market_cap: 149585854464
   country: USA
 - ticker: UBER
   name: Uber
   rank: 71
-  market_cap: 148040286208
   country: USA
 - ticker: UNP
   name: Union Pacific Corporation
   rank: 72
-  market_cap: 144038215680
   country: USA
 - ticker: HON
   name: Honeywell
   rank: 73
-  market_cap: 143681781760
   country: USA
 - ticker: SCCO
   name: Southern Copper
   rank: 74
-  market_cap: 142132822016
   country: USA
 - ticker: BX
   name: Blackstone Group
   rank: 75
-  market_cap: 140547899392
   country: USA
 - ticker: LMT
   name: Lockheed Martin
   rank: 76
-  market_cap: 139289001984
   country: USA
 - ticker: WELL
   name: Welltower
   rank: 77
-  market_cap: 137952657408
   country: USA
 - ticker: QCOM
   name: QUALCOMM
   rank: 78
-  market_cap: 137542844416
   country: USA
 - ticker: BKNG
   name: Booking Holdings (Booking.com)
   rank: 79
-  market_cap: 135714676736
   country: USA
 - ticker: APP
   name: AppLovin
   rank: 80
-  market_cap: 134506094592
   country: USA
 - ticker: DHR
   name: Danaher
   rank: 81
-  market_cap: 134179807232
   country: USA
 - ticker: LOW
   name: Lowe's Companies
   rank: 82
-  market_cap: 132541620224
   country: USA
 - ticker: PANW
   name: Palo Alto Networks
   rank: 83
-  market_cap: 130821128192
   country: USA
 - ticker: SPGI
   name: S&P Global
   rank: 84
-  market_cap: 128792952832
   country: USA
 - ticker: SYK
   name: Stryker Corporation
   rank: 85
-  market_cap: 125844791296
   country: USA
 - ticker: BMY
   name: Bristol-Myers Squibb
   rank: 86
-  market_cap: 123831255040
   country: USA
 - ticker: PLD
   name: Prologis
   rank: 87
-  market_cap: 123222245376
   country: USA
 - ticker: INTU
   name: Intuit
   rank: 88
-  market_cap: 120320147456
   country: USA
 - ticker: NEM
   name: Newmont
   rank: 89
-  market_cap: 117762375680
   country: USA
 - ticker: GLW
   name: Corning
   rank: 90
-  market_cap: 116800249856
   country: USA
 - ticker: PGR
   name: Progressive
   rank: 91
-  market_cap: 116150083584
   country: USA
 - ticker: IBKR
   name: Interactive Brokers
   rank: 92
-  market_cap: 114031763456
   country: USA
 - ticker: COF
   name: Capital One
   rank: 93
-  market_cap: 113458970624
   country: USA
 - ticker: VRTX
   name: Vertex Pharmaceuticals
   rank: 94
-  market_cap: 113436426240
   country: USA
 - ticker: PH
   name: Parker-Hannifin
   rank: 95
-  market_cap: 112994082816
   country: USA
 - ticker: MO
   name: Altria Group
   rank: 96
-  market_cap: 110775533568
   country: USA
 - ticker: NOW
   name: ServiceNow
   rank: 97
-  market_cap: 110315200512
   country: USA
 - ticker: DELL
   name: Dell
   rank: 98
-  market_cap: 108767248384
   country: USA
 - ticker: SO
   name: Southern Company
   rank: 99
-  market_cap: 108043640832
   country: USA
 - ticker: CME
   name: CME Group
   rank: 100
-  market_cap: 107155374080
   country: USA
 - ticker: MCK
   name: McKesson
   rank: 101
-  market_cap: 106808483840
   country: USA
 - ticker: HCA
   name: HCA Healthcare
   rank: 102
-  market_cap: 105826967552
   country: USA
 - ticker: CMCSA
   name: Comcast
   rank: 103
-  market_cap: 104616206336
   country: USA
 - ticker: SBUX
   name: Starbucks
   rank: 104
-  market_cap: 102069878784
   country: USA
 - ticker: DUK
   name: Duke Energy
   rank: 105
-  market_cap: 101899698176
   country: USA
 - ticker: CEG
   name: Constellation Energy
   rank: 106
-  market_cap: 101170782208
   country: USA
 - ticker: ADBE
   name: Adobe
   rank: 107
-  market_cap: 99088384000
   country: USA
 - ticker: CRWD
   name: CrowdStrike
   rank: 108
-  market_cap: 99013476352
   country: USA
 - ticker: NOC
   name: Northrop Grumman
   rank: 109
-  market_cap: 97369333760
   country: USA
 - ticker: EQIX
   name: Equinix
   rank: 110
-  market_cap: 96313409536
   country: USA
 - ticker: VRT
   name: Vertiv Holdings
   rank: 111
-  market_cap: 95871524864
   country: USA
 - ticker: SNDK
   name: Sandisk
   rank: 112
-  market_cap: 93776805888
   country: USA
 - ticker: BSX
   name: Boston Scientific
   rank: 113
-  market_cap: 93257490432
   country: USA
 - ticker: GD
   name: General Dynamics
   rank: 114
-  market_cap: 92959711232
   country: USA
 - ticker: HWM
   name: Howmet Aerospace
   rank: 115
-  market_cap: 92760154112
   country: USA
 - ticker: WM
   name: Waste Management
   rank: 116
-  market_cap: 92682526720
   country: USA
 - ticker: WDC
   name: Western Digital
   rank: 117
-  market_cap: 92480339968
   country: USA
 - ticker: CVS
   name: CVS Health
   rank: 118
-  market_cap: 91370201088
   country: USA
 - ticker: ICE
   name: Intercontinental Exchange
   rank: 119
-  market_cap: 89677684736
   country: USA
 - ticker: WMB
   name: Williams Companies
   rank: 120
-  market_cap: 88905367552
   country: USA
 - ticker: MAR
   name: Marriott International
   rank: 121
-  market_cap: 86668500992
   country: USA
 - ticker: MRVL
   name: Marvell Technology
   rank: 122
-  market_cap: 86615089152
   country: USA
 - ticker: KKR
   name: KKR & Co.
   rank: 123
-  market_cap: 85666054144
   country: USA
 - ticker: FDX
   name: FedEx
   rank: 124
-  market_cap: 84986953728
   country: USA
 - ticker: MRSH
   name: Marsh & McLennan Companies
   rank: 125
-  market_cap: 84974837760
   country: USA
 - ticker: FCX
   name: Freeport-McMoRan
   rank: 126
-  market_cap: 84478713856
   country: USA
 - ticker: PNC
   name: PNC Financial Services
   rank: 127
-  market_cap: 84133675008
   country: USA
 - ticker: UPS
   name: United Parcel Service
   rank: 128
-  market_cap: 83590815744
   country: USA
 - ticker: BK
   name: BNY Mellon (Bank of New York Mellon)
   rank: 129
-  market_cap: 82726526976
   country: USA
 - ticker: ADP
   name: Automatic Data Processing
   rank: 130
-  market_cap: 82175893504
   country: USA
 - ticker: PWR
   name: Quanta Services
   rank: 131
-  market_cap: 82144059392
   country: USA
 - ticker: EPD
   name: Enterprise Products
   rank: 132
-  market_cap: 81801027584
   country: USA
 - ticker: REGN
   name: Regeneron Pharmaceuticals
   rank: 133
-  market_cap: 81683357696
   country: USA
 - ticker: USB
   name: U.S. Bancorp
   rank: 134
-  market_cap: 80807714816
   country: USA
 - ticker: AMT
   name: American Tower
   rank: 135
-  market_cap: 80792748032
   country: USA
 - ticker: SHW
   name: Sherwin-Williams
   rank: 136
-  market_cap: 79424200704
   country: USA
 - ticker: NKE
   name: Nike
   rank: 137
-  market_cap: 78193852416
   country: USA
 - ticker: MCO
   name: Moody's
   rank: 138
-  market_cap: 77654188032
   country: USA
 - ticker: EOG
   name: EOG Resources
   rank: 139
-  market_cap: 77560578048
   country: USA
 - ticker: ORLY
   name: O'Reilly Automotive
   rank: 140
-  market_cap: 77400735744
   country: USA
 - ticker: SLB
   name: SLB (Schlumberger)
   rank: 141
-  market_cap: 77143236608
   country: USA
 - ticker: CDNS
   name: Cadence Design Systems
   rank: 142
-  market_cap: 76717703168
   country: USA
 - ticker: MMM
   name: 3M
   rank: 143
-  market_cap: 76492636160
   country: USA
 - ticker: CSX
   name: CSX Corporation
   rank: 144
-  market_cap: 76334800896
   country: USA
 - ticker: SNPS
   name: Synopsys
   rank: 145
-  market_cap: 75950514176
   country: USA
 - ticker: ABNB
   name: Airbnb
   rank: 146
-  market_cap: 75706621952
   country: USA
 - ticker: ECL
   name: Ecolab
   rank: 147
-  market_cap: 75130372096
   country: USA
 - ticker: RCL
   name: Royal Caribbean Group
   rank: 148
-  market_cap: 75045150720
   country: USA
 - ticker: ITW
   name: Illinois Tool Works
   rank: 149
-  market_cap: 75015577600
   country: USA
 - ticker: KMI
   name: Kinder Morgan
   rank: 150
-  market_cap: 74597752832
   country: USA
 - ticker: MDLZ
   name: Mondelez International
   rank: 151
-  market_cap: 74376265728
   country: USA
 - ticker: CMI
   name: Cummins
   rank: 152
-  market_cap: 74335780864
   country: USA
 - ticker: VLO
   name: Valero Energy
   rank: 153
-  market_cap: 73883402240
   country: USA
 - ticker: EMR
   name: Emerson
   rank: 154
-  market_cap: 73672818688
   country: USA
 - ticker: PSX
   name: Phillips 66
   rank: 155
-  market_cap: 73007546368
   country: USA
 - ticker: NET
   name: Cloudflare
   rank: 156
-  market_cap: 72627609600
   country: USA
 - ticker: MSI
   name: Motorola Solutions
   rank: 157
-  market_cap: 72279867392
   country: USA
 - ticker: MPC
   name: Marathon Petroleum
   rank: 158
-  market_cap: 71969652736
   country: USA
 - ticker: CI
   name: The Cigna Group
   rank: 159
-  market_cap: 71255810048
   country: USA
 - ticker: AEP
   name: American Electric Power
   rank: 160
-  market_cap: 71250296832
   country: USA
 - ticker: MNST
   name: Monster Beverage
   rank: 161
-  market_cap: 70885498880
   country: USA
 - ticker: HLT
   name: Hilton Worldwide
   rank: 162
-  market_cap: 70678880256
   country: USA
 - ticker: ROST
   name: Ross Stores
   rank: 163
-  market_cap: 70453772288
   country: USA
 - ticker: GM
   name: General Motors
   rank: 164
-  market_cap: 69498167296
   country: USA
 - ticker: CVNA
   name: Carvana
   rank: 165
-  market_cap: 69303705600
   country: USA
 - ticker: WBD
   name: Warner Bros. Discovery
   rank: 166
-  market_cap: 68835860480
   country: USA
 - ticker: CL
   name: Colgate-Palmolive
   rank: 167
-  market_cap: 68380192768
   country: USA
 - ticker: RSG
   name: Republic Services
   rank: 168
-  market_cap: 67667587072
   country: USA
 - ticker: CTAS
   name: Cintas
   rank: 169
-  market_cap: 67661402112
   country: USA
 - ticker: ET
   name: Energy Transfer LP
   rank: 170
-  market_cap: 66398068736
   country: USA
 - ticker: TDG
   name: TransDigm Group
   rank: 171
-  market_cap: 65450598400
   country: USA
 - ticker: DASH
   name: DoorDash
   rank: 172
-  market_cap: 65229115392
   country: USA
 - ticker: TRV
   name: The Travelers Companies
   rank: 173
-  market_cap: 65063137280
   country: USA
 - ticker: APD
   name: Air Products and Chemicals
   rank: 174
-  market_cap: 64679337984
   country: USA
 - ticker: APO
   name: Apollo Global Management
   rank: 175
-  market_cap: 64670683136
   country: USA
 - ticker: ELV
   name: Elevance Health
   rank: 176
-  market_cap: 64611291136
   country: USA
 - ticker: LHX
   name: L3Harris Technologies
   rank: 177
-  market_cap: 64561291264
   country: USA
 - ticker: OXY
   name: Occidental Petroleum
   rank: 178
-  market_cap: 64460185600
   country: USA
 - ticker: NSC
   name: Norfolk Southern
   rank: 179
-  market_cap: 64452173824
   country: USA
 - ticker: SRE
   name: Sempra
   rank: 180
-  market_cap: 63484321792
   country: USA
 - ticker: DLR
   name: Digital Realty
   rank: 181
-  market_cap: 63038263296
   country: USA
 - ticker: HOOD
   name: Robinhood
   rank: 182
-  market_cap: 62391377920
   country: USA
 - ticker: COR
   name: Cencora
   rank: 183
-  market_cap: 61109874688
   country: USA
 - ticker: LNG
   name: Cheniere Energy
   rank: 184
-  market_cap: 61075025920
   country: USA
 - ticker: FTNT
   name: Fortinet
   rank: 185
-  market_cap: 60770926592
   country: USA
 - ticker: PCAR
   name: Paccar
   rank: 186
-  market_cap: 60740808704
   country: USA
 - ticker: SPG
   name: Simon Property Group
   rank: 187
-  market_cap: 60613533696
   country: USA
 - ticker: BKR
   name: Baker Hughes
   rank: 188
-  market_cap: 60331835392
   country: USA
 - ticker: TFC
   name: Truist Financial Corporation
   rank: 189
-  market_cap: 58806956032
   country: USA
 - ticker: MPLX
   name: MPLX
   rank: 190
-  market_cap: 58043908096
   country: USA
 - ticker: AFL
   name: Aflac
   rank: 191
-  market_cap: 57500536832
   country: USA
 - ticker: O
   name: Realty Income
   rank: 192
-  market_cap: 57047330816
   country: USA
 - ticker: BDX
   name: Becton Dickinson
   rank: 193
-  market_cap: 56963657728
   country: USA
 - ticker: OKE
   name: Oneok
   rank: 194
-  market_cap: 56926142464
   country: USA
 - ticker: CTVA
   name: Corteva
   rank: 195
-  market_cap: 56296984576
   country: USA
 - ticker: AZO
   name: AutoZone
   rank: 196
-  market_cap: 55962460160
   country: USA
 - ticker: FANG
   name: Diamondback Energy
   rank: 197
-  market_cap: 55792398336
   country: USA
 - ticker: AJG
   name: Arthur J. Gallagher & Co.
   rank: 198
-  market_cap: 55682719744
   country: USA
 - ticker: CIEN
   name: Ciena
   rank: 199
-  market_cap: 54920359936
   country: USA
 - ticker: TGT
   name: Target
   rank: 200
-  market_cap: 54886096896
   country: USA
 - ticker: D
   name: Dominion Energy
   rank: 201
-  market_cap: 54337601536
   country: USA
 - ticker: TRGP
   name: Targa Resources
   rank: 202
-  market_cap: 53894860800
   country: USA
 - ticker: ALL
   name: Allstate
   rank: 203
-  market_cap: 53812158464
   country: USA
 - ticker: MPWR
   name: Monolithic Power Systems
   rank: 204
-  market_cap: 53703163904
   country: USA
 - ticker: FAST
   name: Fastenal
   rank: 205
-  market_cap: 53282447360
   country: USA
 - ticker: SNOW
   name: Snowflake
   rank: 206
-  market_cap: 52138475520
   country: USA
 - ticker: ZTS
   name: Zoetis
   rank: 207
-  market_cap: 52094345216
   country: USA
 - ticker: GWW
   name: W. W. Grainger
   rank: 208
-  market_cap: 51674972160
   country: USA
 - ticker: ETR
   name: Entergy
   rank: 209
-  market_cap: 51438252032
   country: USA
 - ticker: EA
   name: Electronic Arts
   rank: 210
-  market_cap: 51019223040
   country: USA
 - ticker: VST
   name: Vistra
   rank: 211
-  market_cap: 50894114816
   country: USA
 - ticker: ADSK
   name: Autodesk
   rank: 212
-  market_cap: 50752798720
   country: USA
 - ticker: LITE
   name: Lumentum
   rank: 213
-  market_cap: 50177064960
   country: USA
 - ticker: EXC
   name: Exelon Corporation
   rank: 214
-  market_cap: 50156044288
   country: USA
 - ticker: CAH
   name: Cardinal Health
   rank: 215
-  market_cap: 49724624896
   country: USA
 - ticker: XEL
   name: Xcel Energy
   rank: 216
-  market_cap: 49560772608
   country: USA
 - ticker: AME
   name: Ametek
   rank: 217
-  market_cap: 49102462976
   country: USA
 - ticker: FIX
   name: Comfort Systems USA
   rank: 218
-  market_cap: 48639668224
   country: USA
 - ticker: NDAQ
   name: Nasdaq
   rank: 219
-  market_cap: 48471805952
   country: USA
 - ticker: KEYS
   name: Keysight
   rank: 220
-  market_cap: 48431468544
   country: USA
 - ticker: UI
   name: Ubiquiti
   rank: 221
-  market_cap: 47828975616
   country: USA
 - ticker: PSA
   name: Public Storage
   rank: 222
-  market_cap: 47550889984
   country: USA
 - ticker: COIN
   name: Coinbase
   rank: 223
-  market_cap: 47084912640
   country: USA
 - ticker: CARR
   name: Carrier Global
   rank: 224
-  market_cap: 47066370048
   country: USA
 - ticker: MET
   name: MetLife
   rank: 225
-  market_cap: 46596816896
   country: USA
 - ticker: EW
   name: Edwards Lifesciences
   rank: 226
-  market_cap: 46510465024
   country: USA
 - ticker: TER
   name: Teradyne
   rank: 227
-  market_cap: 46412574720
   country: USA
 - ticker: F
   name: Ford
   rank: 228
-  market_cap: 46287888384
   country: USA
 - ticker: URI
   name: United Rentals
   rank: 229
-  market_cap: 45897928704
   country: USA
 - ticker: IDXX
   name: IDEXX Laboratories
   rank: 230
-  market_cap: 44739948544
   country: USA
 - ticker: COHR
   name: Coherent Corp.
   rank: 231
-  market_cap: 44660056064
   country: USA
 - ticker: KR
   name: Kroger
   rank: 232
-  market_cap: 44429041664
   country: USA
 - ticker: ALNY
   name: Alnylam Pharmaceuticals
   rank: 233
-  market_cap: 43881017344
   country: USA
 - ticker: DAL
   name: Delta Air Lines
   rank: 234
-  market_cap: 43420131328
   country: USA
 - ticker: YUM
   name: Yum! Brands
   rank: 235
-  market_cap: 43169460224
   country: USA
 - ticker: MSTR
   name: "Strategy \n (MicroStrategy)"
   rank: 236
-  market_cap: 43130183680
   country: USA
 - ticker: WAB
   name: Wabtec
   rank: 237
-  market_cap: 42723909632
   country: USA
 - ticker: CMG
   name: Chipotle Mexican Grill
   rank: 238
-  market_cap: 42326118400
   country: USA
 - ticker: PYPL
   name: PayPal
   rank: 239
-  market_cap: 42319536128
   country: USA
 - ticker: HSY
   name: The Hershey Company
   rank: 240
-  market_cap: 42137423872
   country: USA
 - ticker: FITB
   name: Fifth Third Bank
   rank: 241
-  market_cap: 42072481792
   country: USA
 - ticker: DDOG
   name: Datadog
   rank: 242
-  market_cap: 41772150784
   country: USA
 - ticker: WCN
   name: Waste Connections
   rank: 243
-  market_cap: 41525014528
   country: USA
 - ticker: AMP
   name: Ameriprise Financial
   rank: 244
-  market_cap: 41287299072
   country: USA
 - ticker: EBAY
   name: eBay
   rank: 245
-  market_cap: 41141039104
   country: USA
 - ticker: ED
   name: Consolidated Edison
   rank: 246
-  market_cap: 40892239872
   country: USA
 - ticker: ODFL
   name: Old Dominion Freight Line
   rank: 247
-  market_cap: 40857833472
   country: USA
 - ticker: CRWV
   name: CoreWeave
   rank: 248
-  market_cap: 40725061632
   country: USA
 - ticker: AIG
   name: American International Group
   rank: 249
-  market_cap: 40603099136
   country: USA
 - ticker: PEG
   name: PSEG
   rank: 250
-  market_cap: 40406511616
   country: USA
 - ticker: ROK
   name: Rockwell Automation
   rank: 251
-  market_cap: 40350019584
   country: USA
 - ticker: CBRE
   name: CBRE Group
   rank: 252
-  market_cap: 40311947264
   country: USA
 - ticker: RKT
   name: Rocket Companies
   rank: 253
-  market_cap: 40182370304
   country: USA
 - ticker: RBLX
   name: Roblox
   rank: 254
-  market_cap: 40084414464
   country: USA
 - ticker: DHI
   name: D. R. Horton
   rank: 255
-  market_cap: 39944679424
   country: USA
 - ticker: EQT
   name: EQT Corporation
   rank: 256
-  market_cap: 39728795648
   country: USA
 - ticker: MSCI
   name: MSCI
   rank: 257
-  market_cap: 39603245056
   country: USA
 - ticker: VTR
   name: Ventas
   rank: 258
-  market_cap: 38842654720
   country: USA
 - ticker: VG
   name: Venture Global
   rank: 259
-  market_cap: 38721851392
   country: USA
 - ticker: PCG
   name: PG&E Corporation
   rank: 260
-  market_cap: 38618296320
   country: USA
 - ticker: NUE
   name: Nucor
   rank: 261
-  market_cap: 38516686848
   country: USA
 - ticker: HEI
   name: HEICO
   rank: 262
-  market_cap: 38255947776
   country: USA
 - ticker: ROP
   name: Roper Technologies
   rank: 263
-  market_cap: 38088581120
   country: USA
 - ticker: BE
   name: Bloom Energy
   rank: 264
-  market_cap: 38011482112
   country: USA
 - ticker: HIG
   name: The Hartford
   rank: 265
-  market_cap: 37715685376
   country: USA
 - ticker: WEC
   name: WEC Energy Group
   rank: 266
-  market_cap: 37706244096
   country: USA
 - ticker: TTWO
   name: Take-Two Interactive
   rank: 267
-  market_cap: 36572151808
   country: USA
 - ticker: XYZ
   name: Block
   rank: 268
-  market_cap: 36569280512
   country: USA
 - ticker: RKLB
   name: Rocket Lab
   rank: 269
-  market_cap: 36567363584
   country: USA
 - ticker: GBTC
   name: Grayscale Bitcoin Trust
   rank: 270
-  market_cap: 36529438720
   country: USA
 - ticker: LVS
   name: Las Vegas Sands
   rank: 271
-  market_cap: 36430127104
   country: USA
 - ticker: MDLN
   name: Medline
   rank: 272
-  market_cap: 36118315008
   country: USA
 - ticker: ARES
   name: Ares Management
   rank: 273
-  market_cap: 36103303168
   country: USA
 - ticker: CCL
   name: Carnival Corporation
   rank: 274
-  market_cap: 35847409664
   country: USA
 - ticker: LYV
   name: Live Nation
   rank: 275
-  market_cap: 35809640448
   country: USA
 - ticker: KDP
   name: Keurig Dr Pepper
   rank: 276
-  market_cap: 35773677568
   country: USA
 - ticker: VMC
   name: Vulcan Materials
   rank: 277
-  market_cap: 35557036032
   country: USA
 - ticker: MLM
   name: Martin Marietta Materials
   rank: 278
-  market_cap: 35504496640
   country: USA
 - ticker: CCI
   name: Crown Castle
   rank: 279
-  market_cap: 35456884736
   country: USA
 - ticker: STT
   name: State Street Corporation
   rank: 280
-  market_cap: 35349782528
   country: USA
 - ticker: INSM
   name: Insmed
   rank: 281
-  market_cap: 35247046656
   country: USA
 - ticker: ADM
   name: Archer Daniels Midland (ADM)
   rank: 282
-  market_cap: 35028955136
   country: USA
 - ticker: MCHP
   name: Microchip Technology
   rank: 283
-  market_cap: 34962763776
   country: USA
 - ticker: CPNG
   name: Coupang
   rank: 284
-  market_cap: 34516254720
   country: USA
 - ticker: WDAY
   name: Workday
   rank: 285
-  market_cap: 34168958976
   country: USA
 - ticker: SYY
   name: Sysco
   rank: 286
-  market_cap: 34162124800
   country: USA
 - ticker: AXON
   name: Axon Enterprise
   rank: 287
-  market_cap: 34144088064
   country: USA
 - ticker: ONC
   name: BeOne Medicines
   rank: 288
-  market_cap: 34108635136
   country: USA
 - ticker: PRU
   name: Prudential Financial
   rank: 289
-  market_cap: 33996120064
   country: USA
 - ticker: SATS
   name: EchoStar
   rank: 290
-  market_cap: 33818697728
   country: USA
 - ticker: EME
   name: Emcor
   rank: 291
-  market_cap: 33051084800
   country: USA
 - ticker: KVUE
   name: Kenvue
   rank: 292
-  market_cap: 33044459520
   country: USA
 - ticker: PAYX
   name: Paychex
   rank: 293
-  market_cap: 33005756416
   country: USA
 - ticker: HAL
   name: Halliburton
   rank: 294
-  market_cap: 32815024128
   country: USA
 - ticker: RMD
   name: ResMed
   rank: 295
-  market_cap: 32766511104
   country: USA
 - ticker: TPL
   name: Texas Pacific Land Corporation
   rank: 296
-  market_cap: 32716902400
   country: USA
 - ticker: GEHC
   name: GE HealthCare Technologies
   rank: 297
-  market_cap: 32478732288
   country: USA
 - ticker: A
   name: Agilent Technologies
   rank: 298
-  market_cap: 32238063616
   country: USA
 - ticker: CPRT
   name: Copart
   rank: 299
-  market_cap: 32138186752
   country: USA
 - ticker: SYM
   name: Symbotic
   rank: 300
-  market_cap: 32041072640
   country: USA

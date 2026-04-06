@@ -56,17 +56,18 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
     hist_now = histogram.iloc[-1]
     hist_prev = histogram.iloc[-2]
     hist_delta = hist_now - hist_prev
+    histogram_deltas = histogram.diff().dropna()
 
     confirmed = 0
-    for value in reversed(histogram.values):
-        if (hist_now > 0 and value > 0) or (hist_now < 0 and value < 0):
+    for value in reversed(histogram_deltas.values):
+        if (hist_delta > 0 and value > 0) or (hist_delta < 0 and value < 0):
             confirmed += 1
         else:
             break
 
-    if hist_now > 0:
+    if hist_delta > 0:
         trend = "LONG"
-    elif hist_now < 0:
+    elif hist_delta < 0:
         trend = "SHORT"
     else:
         trend = "NEUTRAL"
@@ -76,17 +77,17 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
     confirmed_pass = confirmed >= settings.weekly.confirm_bars
     trend_score = 0.0
     if actionable:
-        trend_score += min(abs(float(hist_now)) * 12, 2.5)
+        trend_score += min(abs(float(hist_delta)) * 40, 2.5)
         trend_score += min(confirmed, 4) * 0.35
-        if (trend == "LONG" and hist_delta > 0) or (trend == "SHORT" and hist_delta < 0):
+        if (trend == "LONG" and hist_now < 0) or (trend == "SHORT" and hist_now > 0):
             trend_score += 0.8
 
     if trend == "LONG":
-        setup_state = "UPTREND" if hist_delta >= 0 else "UPTREND_PULLBACK"
-        reason = f"周线偏多，MACD柱 {'继续走强' if hist_delta >= 0 else '回调中'} ({hist_now:+.4f})"
+        setup_state = "BULLISH_SLOPE"
+        reason = f"周线偏多，MACD柱线抬升 {hist_prev:+.4f} -> {hist_now:+.4f}"
     elif trend == "SHORT":
-        setup_state = "DOWNTREND" if hist_delta <= 0 else "DOWNTREND_BOUNCE"
-        reason = f"周线偏空，MACD柱 {'继续走弱' if hist_delta <= 0 else '反弹中'} ({hist_now:+.4f})"
+        setup_state = "BEARISH_SLOPE"
+        reason = f"周线偏空，MACD柱线回落 {hist_prev:+.4f} -> {hist_now:+.4f}"
     else:
         setup_state = "NEUTRAL"
         reason = "周线无明确方向"
@@ -99,7 +100,7 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         "histogram_prev": round(float(hist_prev), 6),
         "histogram_delta": round(float(hist_delta), 6),
         "histogram_strength": abs(float(hist_now)),
-        "histogram_growing": abs(float(hist_now)) > abs(float(hist_prev)),
+        "histogram_growing": hist_delta > 0,
         "macd": round(float(macd.iloc[-1]), 6),
         "macd_signal": round(float(signal.iloc[-1]), 6),
         "confirmed_bars": confirmed,
