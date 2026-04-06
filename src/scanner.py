@@ -1,4 +1,4 @@
-from triple_screen.runner import main
+from runner import main
 
 
 if __name__ == "__main__":

@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 
-from triple_screen.config.schema import AlpacaConfig, UniverseConfig
-from triple_screen.infrastructure.storage.sqlite import SQLiteStorage
+from schema import AlpacaConfig, UniverseConfig
+from sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 

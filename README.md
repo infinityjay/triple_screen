@@ -2,11 +2,11 @@
 
 基于 Alexander Elder 三重过滤系统的多时间框架信号扫描器，面向美股 Top 300 批量资产、小时级扫描和 Telegram 实时推送。
 
-这次重构后的重点不是把逻辑继续堆在单个 `scanner.py` 里，而是把项目整理成适合长期维护的工程化结构：
+当前结构重点是保持职责分离，同时避免同名目录嵌套：
 
 - 业务参数集中放在 `config/settings.yaml`
 - 密钥只放在 `.env`，不再写进 Python 文件
-- 策略、数据源、通知、存储、应用入口分层
+- 策略、数据源、通知、存储、入口模块并列放在同一层
 - 保留 `python src/scanner.py` 这种简单启动方式
 
 ## 目录结构
@@ -19,25 +19,15 @@ triple_screen/
 ├── logs/                          # 日志目录（运行时生成）
 ├── requirements.txt
 ├── src/
-│   ├── scanner.py                 # 兼容入口
-│   └── triple_screen/
-│       ├── __init__.py
-│       ├── __main__.py
-│       ├── runner.py              # CLI / 调度入口
-│       ├── application/
-│       │   └── scanner.py         # 扫描编排
-│       ├── config/
-│       │   ├── loader.py          # YAML + .env 配置加载
-│       │   └── schema.py          # 配置数据结构
-│       ├── infrastructure/
-│       │   ├── data/
-│       │   │   └── alpaca.py      # Alpaca 数据接入
-│       │   ├── notifications/
-│       │   │   └── telegram.py    # Telegram 推送
-│       │   └── storage/
-│       │       └── sqlite.py      # SQLite 存储
-│       └── strategy/
-│           └── indicators.py      # 三重过滤指标与评分
+│   ├── scanner.py                 # CLI 入口
+│   ├── runner.py                  # 调度入口
+│   ├── scan_engine.py             # 扫描编排
+│   ├── loader.py                  # YAML + .env 配置加载
+│   ├── schema.py                  # 配置数据结构
+│   ├── alpaca.py                  # Alpaca 数据接入
+│   ├── telegram.py                # Telegram 推送
+│   ├── sqlite.py                  # SQLite 存储
+│   └── indicators.py              # 三重过滤指标与评分
 └── .env.example                   # 密钥示例
 ```
 

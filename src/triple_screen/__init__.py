@@ -1,2 +1,0 @@
-"""Triple Screen Scanner package."""
-

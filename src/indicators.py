@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from triple_screen.config.schema import RiskConfig, StrategyConfig
+from schema import RiskConfig, StrategyConfig
 
 
 def calc_ema(series: pd.Series, period: int) -> pd.Series:

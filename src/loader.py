@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
-from triple_screen.config.schema import (
+from schema import (
     AlpacaCacheConfig,
     AlpacaConfig,
     AlpacaHistoryConfig,
@@ -26,7 +26,7 @@ from triple_screen.config.schema import (
     WeeklyStrategyConfig,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "settings.yaml"
 
 

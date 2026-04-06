@@ -5,11 +5,11 @@ import logging
 import sys
 import time
 
-from triple_screen.application.scanner import TripleScreenScanner
-from triple_screen.config.loader import load_settings
-from triple_screen.infrastructure.data.alpaca import AlpacaClient
-from triple_screen.infrastructure.notifications.telegram import TelegramNotifier
-from triple_screen.infrastructure.storage.sqlite import SQLiteStorage
+from alpaca import AlpacaClient
+from loader import load_settings
+from scan_engine import TripleScreenScanner
+from sqlite import SQLiteStorage
+from telegram import TelegramNotifier
 
 
 def _configure_logging(log_level: str, log_file) -> None:

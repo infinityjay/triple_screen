@@ -5,7 +5,7 @@ from datetime import datetime
 
 import requests
 
-from triple_screen.config.schema import RiskConfig, TelegramConfig
+from schema import RiskConfig, TelegramConfig
 
 logger = logging.getLogger(__name__)
 

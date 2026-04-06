@@ -5,11 +5,11 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
-from triple_screen.config.schema import AppConfig
-from triple_screen.infrastructure.data.alpaca import AlpacaClient
-from triple_screen.infrastructure.notifications.telegram import TelegramNotifier
-from triple_screen.infrastructure.storage.sqlite import SQLiteStorage
-from triple_screen.strategy import indicators
+import indicators
+from alpaca import AlpacaClient
+from schema import AppConfig
+from sqlite import SQLiteStorage
+from telegram import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
