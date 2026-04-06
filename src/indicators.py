@@ -7,6 +7,11 @@ from schema import StrategyConfig, TradePlanConfig
 
 RSI_WATCH_BUFFER = 5.0
 DAILY_REVERSAL_LOOKBACK = 3
+DAILY_CORRECTION_WINDOW_MIN = 2
+DAILY_CORRECTION_WINDOW_MAX = 8
+DAILY_EMA_PERIOD = 13
+DAILY_VALUE_ZONE_EMA_TOLERANCE = 0.01
+DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER = 0.3
 WEEKLY_TREND_SCORE_CAP = 4.5
 DAILY_SETUP_SCORE_CAP = 4.5
 HOURLY_TRIGGER_SCORE_CAP = 4.0
@@ -297,104 +302,166 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
 
 def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConfig) -> dict:
     if df_day is None or len(df_day) < settings.daily.rsi_period + 5:
-        return {"pass": False, "watch": False, "reason": "日线数据不足"}
+        return {
+            "pass": False,
+            "watch": False,
+            "state": "REJECT",
+            "reject_reason": "日线数据不足",
+            "reason": "日线数据不足",
+            "countertrend_exists": False,
+            "value_zone_reached": False,
+            "reversal_evidence_count": 0,
+            "structure_intact": False,
+            "priority_divergence": False,
+            "earnings_blocked": False,
+        }
 
     rsi = calc_rsi(df_day, settings.daily.rsi_period)
     rsi_now = float(rsi.iloc[-1])
     rsi_prev = float(rsi.iloc[-2])
-    recent_rsi = rsi.tail(DAILY_REVERSAL_LOOKBACK)
+    close = df_day["close"].astype(float)
+    high = df_day["high"].astype(float)
+    low = df_day["low"].astype(float)
+    ema13 = calc_ema(close, DAILY_EMA_PERIOD)
+    atr_series = calc_atr(df_day, settings.hourly.atr_period)
+    _, _, macd_hist = calc_macd(df_day, settings)
 
+    recent = df_day.tail(DAILY_CORRECTION_WINDOW_MAX).copy()
+    recent_close = recent["close"].astype(float)
+    recent_ema = ema13.tail(DAILY_CORRECTION_WINDOW_MAX)
+    recent_rsi = rsi.tail(DAILY_CORRECTION_WINDOW_MAX)
+    lookback_slice = slice(-DAILY_CORRECTION_WINDOW_MAX, None)
+    prior_closes = close.iloc[lookback_slice]
+
+    down_closes = int((prior_closes.diff() < 0).sum())
+    up_closes = int((prior_closes.diff() > 0).sum())
+    rsi_falling = bool(recent_rsi.iloc[-1] < recent_rsi.iloc[0])
+    rsi_rising = bool(recent_rsi.iloc[-1] > recent_rsi.iloc[0])
+    price_to_ema = abs((close.iloc[-1] - ema13.iloc[-1]) / ema13.iloc[-1]) if ema13.iloc[-1] else 0.0
+    near_ema = bool(price_to_ema <= DAILY_VALUE_ZONE_EMA_TOLERANCE)
+
+    correction_bar_count = min(len(recent_close), DAILY_CORRECTION_WINDOW_MAX)
+    correction_in_window = correction_bar_count >= DAILY_CORRECTION_WINDOW_MIN
+    rsi_state = "NEUTRAL"
+    state = "WATCH"
+    reject_reason = ""
     passed = False
     watch = False
-    rsi_state = "NEUTRAL"
-    setup_score = 0.0
 
     if trend == "LONG":
-        recent_oversold = bool((recent_rsi <= settings.daily.rsi_oversold).any())
-        turning_up = rsi_now > rsi_prev
-
-        if settings.daily.recovery_mode and recent_oversold and turning_up:
-            rsi_state = "RECOVERING"
+        countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
+        value_zone_reached = near_ema or (35.0 <= rsi_now <= 45.0)
+        higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
+        structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
+        structure_intact = bool(low.iloc[-1] >= structure_break_level)
+        lower_wick = float(min(close.iloc[-1], float(df_day["open"].iloc[-1])) - low.iloc[-1])
+        candle_range = max(float(high.iloc[-1] - low.iloc[-1]), 1e-9)
+        upper_half_close = close.iloc[-1] >= (low.iloc[-1] + candle_range * 0.5)
+        reversal_checks = [
+            rsi_now > rsi_prev,
+            float(macd_hist.iloc[-1]) > float(macd_hist.iloc[-2]),
+            close.iloc[-1] > close.iloc[-2],
+            lower_wick >= candle_range * 0.35 and upper_half_close,
+        ]
+        accelerating_correction = bool(
+            close.iloc[-1] < close.iloc[-2] < close.iloc[-3]
+            and rsi_now < rsi_prev
+            and float(macd_hist.iloc[-1]) < float(macd_hist.iloc[-2])
+        )
+        rsi_strength = max(0.0, 45.0 - rsi_now)
+        setup_score = 1.4 + min(sum(reversal_checks) * 0.8, 2.8) + (0.3 if value_zone_reached else 0.0)
+        if not countertrend_exists:
+            state = "REJECT"
+            reject_reason = "周线做多但日线未形成可识别回调，不属于可执行 setup"
+            rsi_state = "NO_PULLBACK"
+        elif not structure_intact:
+            state = "REJECT"
+            reject_reason = "回调结构已明显跌穿防守摆点，止损边界不可定义"
+            rsi_state = "STRUCTURE_BROKEN"
+        elif accelerating_correction and sum(reversal_checks) == 0:
+            state = "REJECT"
+            reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
+            rsi_state = "ACCELERATING_PULLBACK"
+        elif not value_zone_reached:
+            state = "WATCH"
+            watch = True
+            rsi_state = "PULLBACK_WAIT_VALUE_ZONE"
+        elif sum(reversal_checks) >= 2:
+            state = "QUALIFIED"
             passed = True
-        elif not settings.daily.recovery_mode and rsi_now <= settings.daily.rsi_oversold:
-            rsi_state = "OVERSOLD"
-            passed = True
-        elif rsi_now <= settings.daily.rsi_oversold:
-            rsi_state = "OVERSOLD_WAIT"
+            rsi_state = "PULLBACK_REVERSING"
+        else:
+            state = "WATCH"
             watch = True
-        elif recent_oversold:
-            rsi_state = "POST_OVERSOLD_WATCH"
-            watch = True
-        elif rsi_now <= settings.daily.rsi_oversold + RSI_WATCH_BUFFER:
-            rsi_state = "PULLBACK_WATCH"
-            watch = True
-
-        rsi_strength = max(0.0, settings.daily.rsi_oversold - rsi_now)
-        if passed:
-            setup_score = 2.6 + min(max(settings.daily.rsi_oversold - min(float(recent_rsi.min()), rsi_now), 0.0) / 4, 1.4)
-            if rsi_now <= settings.daily.rsi_oversold:
-                setup_score += 0.2
-        elif watch:
-            setup_score = 1.2 + min((settings.daily.rsi_oversold + RSI_WATCH_BUFFER - rsi_now) / 5, 0.8)
+            rsi_state = "PULLBACK_WAIT_REVERSAL"
     elif trend == "SHORT":
-        recent_overbought = bool((recent_rsi >= settings.daily.rsi_overbought).any())
-        turning_down = rsi_now < rsi_prev
-
-        if settings.daily.recovery_mode and recent_overbought and turning_down:
-            rsi_state = "ROLLING_OVER"
+        countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
+        value_zone_reached = near_ema or (55.0 <= rsi_now <= 65.0)
+        lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
+        structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
+        structure_intact = bool(high.iloc[-1] <= structure_break_level)
+        upper_wick = float(high.iloc[-1] - max(close.iloc[-1], float(df_day["open"].iloc[-1])))
+        candle_range = max(float(high.iloc[-1] - low.iloc[-1]), 1e-9)
+        lower_half_close = close.iloc[-1] <= (high.iloc[-1] - candle_range * 0.5)
+        reversal_checks = [
+            rsi_now < rsi_prev,
+            float(macd_hist.iloc[-1]) < float(macd_hist.iloc[-2]),
+            close.iloc[-1] < close.iloc[-2],
+            upper_wick >= candle_range * 0.35 and lower_half_close,
+        ]
+        accelerating_correction = bool(
+            close.iloc[-1] > close.iloc[-2] > close.iloc[-3]
+            and rsi_now > rsi_prev
+            and float(macd_hist.iloc[-1]) > float(macd_hist.iloc[-2])
+        )
+        rsi_strength = max(0.0, rsi_now - 55.0)
+        setup_score = 1.4 + min(sum(reversal_checks) * 0.8, 2.8) + (0.3 if value_zone_reached else 0.0)
+        if not countertrend_exists:
+            state = "REJECT"
+            reject_reason = "周线做空但日线未形成可识别反弹，不属于可执行 setup"
+            rsi_state = "NO_RALLY"
+        elif not structure_intact:
+            state = "REJECT"
+            reject_reason = "反弹结构已明显突破防守摆点，止损边界不可定义"
+            rsi_state = "STRUCTURE_BROKEN"
+        elif accelerating_correction and sum(reversal_checks) == 0:
+            state = "REJECT"
+            reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
+            rsi_state = "ACCELERATING_RALLY"
+        elif not value_zone_reached:
+            state = "WATCH"
+            watch = True
+            rsi_state = "RALLY_WAIT_VALUE_ZONE"
+        elif sum(reversal_checks) >= 2:
+            state = "QUALIFIED"
             passed = True
-        elif not settings.daily.recovery_mode and rsi_now >= settings.daily.rsi_overbought:
-            rsi_state = "OVERBOUGHT"
-            passed = True
-        elif rsi_now >= settings.daily.rsi_overbought:
-            rsi_state = "OVERBOUGHT_WAIT"
+            rsi_state = "RALLY_ROLLING_OVER"
+        else:
+            state = "WATCH"
             watch = True
-        elif recent_overbought:
-            rsi_state = "POST_OVERBOUGHT_WATCH"
-            watch = True
-        elif rsi_now >= settings.daily.rsi_overbought - RSI_WATCH_BUFFER:
-            rsi_state = "RALLY_WATCH"
-            watch = True
-
-        rsi_strength = max(0.0, rsi_now - settings.daily.rsi_overbought)
-        if passed:
-            setup_score = 2.6 + min(max(max(float(recent_rsi.max()), rsi_now) - settings.daily.rsi_overbought, 0.0) / 4, 1.4)
-            if rsi_now >= settings.daily.rsi_overbought:
-                setup_score += 0.2
-        elif watch:
-            setup_score = 1.2 + min((rsi_now - (settings.daily.rsi_overbought - RSI_WATCH_BUFFER)) / 5, 0.8)
+            rsi_state = "RALLY_WAIT_REVERSAL"
     else:
+        countertrend_exists = False
+        value_zone_reached = False
+        structure_intact = False
+        reversal_checks = [False, False, False, False]
         rsi_strength = 0.0
         setup_score = 0.0
+        state = "REJECT"
+        reject_reason = "周线方向不明，日线不单独提供交易资格"
+        rsi_state = "NEUTRAL"
 
-    if trend == "LONG":
-        if rsi_state == "RECOVERING":
-            reason = f"日线超卖后开始回升，回调可能接近完成，可等待小时线确认（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
-        elif rsi_state == "OVERSOLD":
-            reason = f"日线已经进入超卖区，具备逆转基础，但仍需等待拐头确认（RSI {rsi_now:.1f}）"
-        elif rsi_state == "OVERSOLD_WAIT":
-            reason = f"日线仍在超卖区内下探，先等抛压缓和再看多头接回（RSI {rsi_now:.1f}）"
-        elif rsi_state == "POST_OVERSOLD_WATCH":
-            reason = f"日线刚从超卖区边缘抬头，多头修复在启动，仍需继续观察（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
-        elif rsi_state == "PULLBACK_WATCH":
-            reason = f"日线处于回调观察区，距离理想低吸区不远，等待更明确的回升信号（RSI {rsi_now:.1f}）"
-        else:
-            reason = f"日线尚未形成理想的多头回调结构（RSI {rsi_now:.1f}）"
-    elif trend == "SHORT":
-        if rsi_state == "ROLLING_OVER":
-            reason = f"日线超买后开始回落，反弹可能接近结束，可等待小时线确认（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
-        elif rsi_state == "OVERBOUGHT":
-            reason = f"日线已经进入超买区，具备转弱基础，但仍需等待拐头确认（RSI {rsi_now:.1f}）"
-        elif rsi_state == "OVERBOUGHT_WAIT":
-            reason = f"日线仍在超买区内上冲，先等买盘降温再看空头接管（RSI {rsi_now:.1f}）"
-        elif rsi_state == "POST_OVERBOUGHT_WATCH":
-            reason = f"日线刚从超买区边缘回落，空头修复在启动，仍需继续观察（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
-        elif rsi_state == "RALLY_WATCH":
-            reason = f"日线处于反弹观察区，距离理想高空区不远，等待更明确的回落信号（RSI {rsi_now:.1f}）"
-        else:
-            reason = f"日线尚未形成理想的空头反弹结构（RSI {rsi_now:.1f}）"
+    reversal_evidence_count = int(sum(reversal_checks))
+    if state == "REJECT":
+        reason = reject_reason
+    elif state == "QUALIFIED":
+        reason = f"日线修正已进入价值区且出现 {reversal_evidence_count}/4 项拐头证据，可进入候选池"
     else:
-        reason = f"周线方向不明，日线信号暂不单独作为交易依据（RSI {rsi_now:.1f}）"
+        reason = (
+            f"日线修正存在，但仅满足 {reversal_evidence_count}/4 项拐头证据，继续观察小时线前的完成度"
+            if value_zone_reached
+            else "日线修正存在但尚未进入价值区，继续观察"
+        )
 
     return {
         "rsi": round(rsi_now, 2),
@@ -402,6 +469,14 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "rsi_state": rsi_state,
         "rsi_strength": round(rsi_strength, 2),
         "setup_score": round(min(setup_score, DAILY_SETUP_SCORE_CAP), 2),
+        "state": state,
+        "reject_reason": reject_reason or None,
+        "countertrend_exists": countertrend_exists,
+        "value_zone_reached": value_zone_reached,
+        "reversal_evidence_count": reversal_evidence_count,
+        "structure_intact": structure_intact,
+        "priority_divergence": False,
+        "earnings_blocked": False,
         "watch": watch,
         "pass": passed,
         "reason": reason,

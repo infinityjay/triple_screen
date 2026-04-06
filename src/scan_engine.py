@@ -187,6 +187,7 @@ class TripleScreenScanner:
             daily_frame = self.market_data.get_daily_bars(symbol)
             daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
             if not daily["pass"]:
+                logger.info("[%s] skipped after daily screen: %s", symbol, daily.get("reason"))
                 return None
             self.storage.upsert_daily(symbol, daily["rsi"], daily["rsi_prev"], daily["rsi_state"])
 
@@ -222,11 +223,16 @@ class TripleScreenScanner:
                 return None
 
             earnings = self._classify_earnings_event(symbol, session_date, earnings_map.get(symbol))
+            daily["earnings_blocked"] = bool(earnings["blocked"])
             if earnings["blocked"]:
                 logger.info("[%s] skipped because earnings window is blocked.", symbol)
                 return None
 
             divergence = self._build_divergence_snapshot(weekly_frame, daily_frame, direction)
+            divergence_detected = bool(divergence["weekly"].get("detected") or divergence["daily"].get("detected"))
+            daily["priority_divergence"] = divergence_detected
+            if daily.get("state") == "QUALIFIED" and divergence_detected:
+                daily["state"] = "PRIORITY_QUALIFIED"
             score = indicators.calc_signal_score(weekly, daily, hourly, exits)
             priority_tags = []
             if earnings["warning"]:
