@@ -5,6 +5,8 @@ import pandas as pd
 
 from schema import RiskConfig, StrategyConfig
 
+RSI_WATCH_BUFFER = 5.0
+
 
 def calc_ema(series: pd.Series, period: int) -> pd.Series:
     return series.ewm(span=period, adjust=False).mean()
@@ -48,11 +50,12 @@ def calc_atr(df: pd.DataFrame, period: int) -> pd.Series:
 def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dict:
     required = settings.weekly.macd_slow + settings.weekly.macd_signal + 5
     if df_week is None or len(df_week) < required:
-        return {"trend": "NEUTRAL", "pass": False, "reason": "数据不足"}
+        return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "周线数据不足"}
 
     macd, signal, histogram = calc_macd(df_week, settings)
     hist_now = histogram.iloc[-1]
     hist_prev = histogram.iloc[-2]
+    hist_delta = hist_now - hist_prev
 
     confirmed = 0
     for value in reversed(histogram.values):
@@ -68,72 +71,121 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
     else:
         trend = "NEUTRAL"
 
+    impulse = "RISING" if hist_delta > 0 else "FALLING" if hist_delta < 0 else "FLAT"
+    actionable = trend != "NEUTRAL"
+    confirmed_pass = confirmed >= settings.weekly.confirm_bars
+    trend_score = 0.0
+    if actionable:
+        trend_score += min(abs(float(hist_now)) * 12, 2.5)
+        trend_score += min(confirmed, 4) * 0.35
+        if (trend == "LONG" and hist_delta > 0) or (trend == "SHORT" and hist_delta < 0):
+            trend_score += 0.8
+
+    if trend == "LONG":
+        setup_state = "UPTREND" if hist_delta >= 0 else "UPTREND_PULLBACK"
+        reason = f"周线偏多，MACD柱 {'继续走强' if hist_delta >= 0 else '回调中'} ({hist_now:+.4f})"
+    elif trend == "SHORT":
+        setup_state = "DOWNTREND" if hist_delta <= 0 else "DOWNTREND_BOUNCE"
+        reason = f"周线偏空，MACD柱 {'继续走弱' if hist_delta <= 0 else '反弹中'} ({hist_now:+.4f})"
+    else:
+        setup_state = "NEUTRAL"
+        reason = "周线无明确方向"
+
     return {
         "trend": trend,
+        "impulse": impulse,
+        "setup_state": setup_state,
         "histogram": round(float(hist_now), 6),
         "histogram_prev": round(float(hist_prev), 6),
+        "histogram_delta": round(float(hist_delta), 6),
         "histogram_strength": abs(float(hist_now)),
         "histogram_growing": abs(float(hist_now)) > abs(float(hist_prev)),
         "macd": round(float(macd.iloc[-1]), 6),
         "macd_signal": round(float(signal.iloc[-1]), 6),
         "confirmed_bars": confirmed,
-        "pass": trend != "NEUTRAL" and confirmed >= settings.weekly.confirm_bars,
-        "reason": f"周线 MACD Histogram={hist_now:+.4f}",
+        "trend_score": round(min(trend_score, 4.5), 2),
+        "actionable": actionable,
+        "pass": actionable and confirmed_pass,
+        "reason": reason,
     }
 
 
 def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConfig) -> dict:
     if df_day is None or len(df_day) < settings.daily.rsi_period + 5:
-        return {"pass": False, "reason": "数据不足"}
+        return {"pass": False, "watch": False, "reason": "日线数据不足"}
 
     rsi = calc_rsi(df_day, settings.daily.rsi_period)
     rsi_now = float(rsi.iloc[-1])
     rsi_prev = float(rsi.iloc[-2])
 
     passed = False
+    watch = False
     rsi_state = "NEUTRAL"
+    setup_score = 0.0
 
     if trend == "LONG":
-        if settings.daily.recovery_mode:
-            if rsi_now < settings.daily.rsi_oversold:
-                rsi_state = "OVERSOLD"
-                passed = True
-            elif rsi_prev < 30 and rsi_now >= 30:
-                rsi_state = "RECOVERING"
-                passed = True
-        else:
-            passed = rsi_now < settings.daily.rsi_oversold
-            rsi_state = "OVERSOLD" if passed else "NEUTRAL"
+        if rsi_now <= settings.daily.rsi_oversold:
+            rsi_state = "OVERSOLD"
+            passed = True
+        elif settings.daily.recovery_mode and rsi_prev <= settings.daily.rsi_oversold and rsi_now > rsi_prev:
+            rsi_state = "RECOVERING"
+            passed = True
+        elif rsi_now <= settings.daily.rsi_oversold + RSI_WATCH_BUFFER:
+            rsi_state = "PULLBACK_WATCH"
+            watch = True
+
         rsi_strength = max(0.0, settings.daily.rsi_oversold - rsi_now)
+        if passed:
+            setup_score = 2.2 + min(rsi_strength / 4, 1.6)
+            if rsi_state == "RECOVERING":
+                setup_score += 0.6
+        elif watch:
+            setup_score = 1.2 + min((settings.daily.rsi_oversold + RSI_WATCH_BUFFER - rsi_now) / 5, 0.8)
     elif trend == "SHORT":
-        if settings.daily.recovery_mode:
-            if rsi_now > settings.daily.rsi_overbought:
-                rsi_state = "OVERBOUGHT"
-                passed = True
-            elif rsi_prev > 70 and rsi_now <= 70:
-                rsi_state = "FALLING"
-                passed = True
-        else:
-            passed = rsi_now > settings.daily.rsi_overbought
-            rsi_state = "OVERBOUGHT" if passed else "NEUTRAL"
+        if rsi_now >= settings.daily.rsi_overbought:
+            rsi_state = "OVERBOUGHT"
+            passed = True
+        elif settings.daily.recovery_mode and rsi_prev >= settings.daily.rsi_overbought and rsi_now < rsi_prev:
+            rsi_state = "ROLLING_OVER"
+            passed = True
+        elif rsi_now >= settings.daily.rsi_overbought - RSI_WATCH_BUFFER:
+            rsi_state = "RALLY_WATCH"
+            watch = True
+
         rsi_strength = max(0.0, rsi_now - settings.daily.rsi_overbought)
+        if passed:
+            setup_score = 2.2 + min(rsi_strength / 4, 1.6)
+            if rsi_state == "ROLLING_OVER":
+                setup_score += 0.6
+        elif watch:
+            setup_score = 1.2 + min((rsi_now - (settings.daily.rsi_overbought - RSI_WATCH_BUFFER)) / 5, 0.8)
     else:
         rsi_strength = 0.0
+        setup_score = 0.0
+
+    if trend == "LONG":
+        reason = f"日线 RSI={rsi_now:.1f}，状态 {rsi_state}"
+    elif trend == "SHORT":
+        reason = f"日线 RSI={rsi_now:.1f}，状态 {rsi_state}"
+    else:
+        reason = f"日线 RSI={rsi_now:.1f}，但周线无方向"
 
     return {
         "rsi": round(rsi_now, 2),
         "rsi_prev": round(rsi_prev, 2),
         "rsi_state": rsi_state,
         "rsi_strength": round(rsi_strength, 2),
+        "setup_score": round(min(setup_score, 4.5), 2),
+        "watch": watch,
         "pass": passed,
-        "reason": f"日线 RSI={rsi_now:.1f} ({rsi_state})",
+        "reason": reason,
     }
 
 
 def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyConfig) -> dict:
     minimum = settings.hourly.breakout_bars + settings.hourly.atr_period + 2
     if df_hour is None or len(df_hour) < minimum:
-        return {"pass": False, "reason": "数据不足"}
+        return {"pass": False, "reason": "小时线数据不足"}
 
     close = float(df_hour["close"].iloc[-1])
     atr = float(calc_atr(df_hour, settings.hourly.atr_period).iloc[-1])
@@ -147,24 +199,69 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
     breakout_short = close < low_n
     breakout_strength = 0.0
     passed = False
+    trigger_price = close
+    trigger_gap = 0.0
+    status = "NEUTRAL"
+    trigger_score = 0.0
 
     if trend == "LONG" and breakout_long and atr > 0:
         passed = True
         breakout_strength = (close - high_n) / atr
+        trigger_price = close
+        trigger_gap = close - high_n
+        status = "TRIGGERED"
+        trigger_score = 2.2 + min(breakout_strength * 1.2, 1.8)
+    elif trend == "LONG":
+        trigger_price = high_n
+        trigger_gap = high_n - close
+        status = "WAITING_BREAKOUT"
+        if atr > 0:
+            trigger_score = max(0.0, 1.8 - min(trigger_gap / atr, 1.8))
     elif trend == "SHORT" and breakout_short and atr > 0:
         passed = True
         breakout_strength = (low_n - close) / atr
+        trigger_price = close
+        trigger_gap = low_n - close
+        status = "TRIGGERED"
+        trigger_score = 2.2 + min(breakout_strength * 1.2, 1.8)
+    elif trend == "SHORT":
+        trigger_price = low_n
+        trigger_gap = close - low_n
+        status = "WAITING_BREAKDOWN"
+        if atr > 0:
+            trigger_score = max(0.0, 1.8 - min(trigger_gap / atr, 1.8))
+
+    gap_atr = (trigger_gap / atr) if atr > 0 else 0.0
+    if trend == "LONG":
+        reason = (
+            f"小时线已触发向上突破，强度 {breakout_strength:.2f} ATR"
+            if passed
+            else f"小时线待突破，距离触发价 {trigger_gap:.2f} ({gap_atr:.2f} ATR)"
+        )
+    elif trend == "SHORT":
+        reason = (
+            f"小时线已触发向下跌破，强度 {breakout_strength:.2f} ATR"
+            if passed
+            else f"小时线待跌破，距离触发价 {trigger_gap:.2f} ({gap_atr:.2f} ATR)"
+        )
+    else:
+        reason = "小时线未匹配周线方向"
 
     return {
         "close": round(close, 4),
         "high_n": round(high_n, 4),
         "low_n": round(low_n, 4),
         "atr": round(atr, 4),
+        "status": status,
+        "entry_price": round(trigger_price, 4),
+        "trigger_gap": round(trigger_gap, 4),
+        "trigger_gap_atr": round(gap_atr, 3),
         "breakout_long": breakout_long,
         "breakout_short": breakout_short,
         "breakout_strength": round(breakout_strength, 3),
+        "trigger_score": round(min(trigger_score, 4.0), 2),
         "pass": passed,
-        "reason": f"1H breakout={passed}",
+        "reason": reason,
     }
 
 
@@ -208,14 +305,15 @@ def calc_exits(
 def calc_signal_score(weekly_result: dict, daily_result: dict, hourly_result: dict) -> float:
     score = 0.0
 
-    score += min(weekly_result.get("histogram_strength", 0) * 10, 3)
-    if weekly_result.get("histogram_growing"):
-        score += 0.5
+    score += weekly_result.get("trend_score", 0) * 0.8
+    score += daily_result.get("setup_score", 0) * 0.9
+    score += hourly_result.get("trigger_score", 0) * 0.7
 
-    score += min(daily_result.get("rsi_strength", 0) / 5, 3)
-    score += min(hourly_result.get("breakout_strength", 0) * 4, 4)
-
-    if weekly_result.get("confirmed_bars", 0) >= 3:
+    if weekly_result.get("pass"):
+        score += 0.2
+    if daily_result.get("pass"):
+        score += 0.3
+    if hourly_result.get("pass"):
         score += 0.5
 
     return round(min(score, 10), 2)

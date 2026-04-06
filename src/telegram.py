@@ -54,6 +54,12 @@ class TelegramNotifier:
         stars = int(score / 2)
         return "⭐" * stars + "☆" * (5 - stars)
 
+    @staticmethod
+    def _status_label(signal: dict) -> str:
+        if signal.get("opportunity_status") == "TRIGGERED":
+            return "已触发"
+        return "观察中"
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -80,7 +86,8 @@ class TelegramNotifier:
             )
 
         return (
-            f"{dir_emoji} <b>{symbol} · {dir_label}信号</b>\n"
+            f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>\n"
+            f"状态：<b>{self._status_label(signal)}</b>\n"
             f"综合评分：{self._score_stars(score)} <code>{score:.1f}/10</code>\n"
             f"{'─' * 32}\n"
             f"<b>第一重 · 周线 MACD</b>\n"
@@ -88,16 +95,20 @@ class TelegramNotifier:
             f"MACD：{weekly['macd']:.4f}  Signal：{weekly['macd_signal']:.4f}\n"
             f"Histogram：<code>{weekly['histogram']:+.4f}</code>\n"
             f"强度条：[{hist_bar}]  连续确认：{weekly['confirmed_bars']} 根\n"
+            f"解读：{weekly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>第二重 · 日线 RSI</b>\n"
             f"RSI(14)：<code>{daily['rsi']:.1f}</code> ({daily['rsi_state']})\n"
             f"上根 RSI：{daily['rsi_prev']:.1f}\n"
             f"RSI 条：[{rsi_bar}] {daily['rsi']:.0f}\n"
+            f"解读：{daily['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>第三重 · 1小时突破</b>\n"
             f"{breakout_line}\n"
             f"突破强度：[{breakout_bar}] {hourly.get('breakout_strength', 0):.2f}xATR\n"
             f"ATR：<code>{hourly['atr']:.4f}</code>\n"
+            f"触发状态：<b>{hourly['status']}</b>\n"
+            f"解读：{hourly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>交易建议</b>\n"
             f"入场：<code>{exits['entry']:.2f}</code>\n"
@@ -113,22 +124,32 @@ class TelegramNotifier:
     def format_summary_message(self, signals: list[dict], scan_time_sec: float) -> str:
         if not signals:
             return (
-                "🔍 <b>扫描完成 · 无信号</b>\n"
+                "🔍 <b>扫描完成 · 暂无周线/日线同向机会</b>\n"
                 f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
             )
 
+        triggered_count = sum(1 for signal in signals if signal.get("opportunity_status") == "TRIGGERED")
         lines = [
-            f"📋 <b>扫描完成 · 发现 {len(signals)} 个信号</b>\n",
+            f"📋 <b>扫描完成 · Top {len(signals)} 交易机会</b>\n",
+            f"已触发 {triggered_count} 个 · 观察中 {len(signals) - triggered_count} 个\n",
             f"{'─' * 32}\n",
         ]
-        for index, signal in enumerate(sorted(signals, key=lambda item: item["signal_score"], reverse=True)[:10], start=1):
+        for index, signal in enumerate(signals[:10], start=1):
             emoji = "🚀" if signal["direction"] == "LONG" else "🔻"
+            status = "已触发" if signal.get("opportunity_status") == "TRIGGERED" else "待触发"
+            hourly = signal["hourly"]
+            trigger_text = (
+                f"现价 {hourly['close']:.2f}"
+                if signal.get("opportunity_status") == "TRIGGERED"
+                else f"触发价 {hourly['entry_price']:.2f}"
+            )
             lines.append(
                 f"{index}. {emoji} <b>{signal['symbol']}</b> "
-                f"评分 {signal['signal_score']:.1f} "
-                f"入场 {signal['exits']['entry']:.2f} "
-                f"SL {signal['exits']['sl_atr']:.2f} "
-                f"TP {signal['exits']['tp_fixed_rr']:.2f}\n"
+                f"{'做多' if signal['direction'] == 'LONG' else '做空'} "
+                f"{status} "
+                f"评分 {signal['signal_score']:.1f}\n"
+                f"    日线 {signal['daily']['rsi_state']} · {trigger_text} · "
+                f"SL {signal['exits']['sl_atr']:.2f} · TP {signal['exits']['tp_fixed_rr']:.2f}\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")

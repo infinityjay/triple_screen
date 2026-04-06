@@ -45,11 +45,57 @@ class TripleScreenScanner:
         result = indicators.screen_weekly(frame, self.settings.strategy)
         return result.get("trend", "UNKNOWN")
 
+    @staticmethod
+    def _opportunity_sort_key(item: dict) -> tuple[int, float]:
+        status_priority = 0 if item["opportunity_status"] == "TRIGGERED" else 1
+        return (status_priority, -item["signal_score"])
+
+    def _build_opportunity(
+        self,
+        symbol: str,
+        trend: str,
+        weekly: dict,
+        daily: dict,
+        hourly: dict,
+        hourly_frame,
+    ) -> dict:
+        if hourly_frame is not None and len(hourly_frame) >= 2:
+            prev_low = float(hourly_frame["low"].iloc[-2])
+            prev_high = float(hourly_frame["high"].iloc[-2])
+        else:
+            prev_low = None
+            prev_high = None
+
+        exits = indicators.calc_exits(
+            trend,
+            hourly["entry_price"],
+            hourly["atr"],
+            self.settings.risk,
+            prev_candle_low=prev_low,
+            prev_candle_high=prev_high,
+        )
+        score = indicators.calc_signal_score(weekly, daily, hourly)
+        opportunity_status = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
+        cooldown_active = (not self.dry_run) and hourly["pass"] and self._is_recently_alerted(symbol, trend)
+
+        return {
+            "symbol": symbol,
+            "direction": trend,
+            "opportunity_status": opportunity_status,
+            "cooldown_active": cooldown_active,
+            "signal_score": score,
+            "weekly": weekly,
+            "daily": daily,
+            "hourly": hourly,
+            "exits": exits,
+            "summary": f"{weekly['reason']} | {daily['reason']} | {hourly['reason']}",
+        }
+
     def _process_symbol(self, symbol: str, market_trend: str) -> dict | None:
         try:
             weekly_frame = self.market_data.get_weekly_bars(symbol)
             weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
-            if not weekly["pass"]:
+            if not weekly.get("actionable"):
                 return None
 
             trend = weekly["trend"]
@@ -75,7 +121,8 @@ class TripleScreenScanner:
 
             hourly_frame = self.market_data.get_hourly_bars(symbol)
             hourly = indicators.screen_hourly(hourly_frame, trend, self.settings.strategy)
-            if not hourly["pass"]:
+            if "close" not in hourly:
+                logger.info("[%s] skipped after daily setup because hourly data is insufficient.", symbol)
                 return None
 
             self.storage.upsert_hourly(
@@ -88,55 +135,36 @@ class TripleScreenScanner:
                 hourly["breakout_short"],
             )
 
-            if not self.dry_run and self._is_recently_alerted(symbol, trend):
-                logger.info("[%s] skipped because alert cooldown is active.", symbol)
-                return None
+            opportunity = self._build_opportunity(symbol, trend, weekly, daily, hourly, hourly_frame)
 
-            if hourly_frame is not None and len(hourly_frame) >= 2:
-                prev_low = float(hourly_frame["low"].iloc[-2])
-                prev_high = float(hourly_frame["high"].iloc[-2])
-            else:
-                prev_low = None
-                prev_high = None
+            if hourly["pass"] and not opportunity["cooldown_active"]:
+                self.storage.save_signal(
+                    symbol,
+                    trend,
+                    hourly["entry_price"],
+                    opportunity["exits"]["sl_atr"],
+                    opportunity["exits"]["sl_prev_candle"],
+                    opportunity["exits"]["tp_fixed_rr"],
+                    opportunity["signal_score"],
+                    weekly["histogram"],
+                    weekly["trend"],
+                    daily["rsi"],
+                    hourly["close"],
+                    hourly["atr"],
+                    opportunity["exits"]["position_size"],
+                )
 
-            exits = indicators.calc_exits(
-                trend,
-                hourly["close"],
-                hourly["atr"],
-                self.settings.risk,
-                prev_candle_low=prev_low,
-                prev_candle_high=prev_high,
-            )
-            score = indicators.calc_signal_score(weekly, daily, hourly)
-
-            signal = {
-                "symbol": symbol,
-                "direction": trend,
-                "signal_score": score,
-                "weekly": weekly,
-                "daily": daily,
-                "hourly": hourly,
-                "exits": exits,
-            }
-
-            self.storage.save_signal(
+            logger.info(
+                "[%s] %s %s score=%.2f | %s",
                 symbol,
-                trend,
-                hourly["close"],
-                exits["sl_atr"],
-                exits["sl_prev_candle"],
-                exits["tp_fixed_rr"],
-                score,
-                weekly["histogram"],
-                weekly["trend"],
-                daily["rsi"],
-                hourly["close"],
-                hourly["atr"],
-                exits["position_size"],
+                "做多" if trend == "LONG" else "做空",
+                "已触发" if opportunity["opportunity_status"] == "TRIGGERED" else "待触发",
+                opportunity["signal_score"],
+                opportunity["summary"],
             )
-
-            logger.info("[%s] signal found: %s (score=%.2f)", symbol, trend, score)
-            return signal
+            if opportunity["cooldown_active"]:
+                logger.info("[%s] triggered but alert cooldown is active.", symbol)
+            return opportunity
         except Exception as exc:
             logger.exception("[%s] failed during processing: %s", symbol, exc)
             return None
@@ -163,32 +191,55 @@ class TripleScreenScanner:
         market_trend = self._check_market_trend()
         logger.info("market trend: %s", market_trend)
 
-        signals: list[dict] = []
+        opportunities: list[dict] = []
         with ThreadPoolExecutor(max_workers=self.settings.runtime.max_workers) as executor:
             futures = {executor.submit(self._process_symbol, symbol, market_trend): symbol for symbol in symbols}
             for future in as_completed(futures):
                 result = future.result()
                 if result:
-                    signals.append(result)
+                    opportunities.append(result)
 
-        signals.sort(key=lambda item: item["signal_score"], reverse=True)
-        top_signals = signals[: self.settings.alerts.max_signals_per_scan]
+        top_limit = min(5, self.settings.alerts.max_signals_per_scan)
+        opportunities.sort(key=self._opportunity_sort_key)
+        top_opportunities = opportunities[:top_limit]
+        triggered_opportunities = [
+            item for item in top_opportunities if item["opportunity_status"] == "TRIGGERED" and not item["cooldown_active"]
+        ]
+        watchlist_count = sum(1 for item in top_opportunities if item["opportunity_status"] == "WATCHLIST")
+
+        for index, opportunity in enumerate(top_opportunities, start=1):
+            logger.info(
+                "TOP %s [%s] %s %s score=%.2f entry=%.2f | %s",
+                index,
+                "已触发" if opportunity["opportunity_status"] == "TRIGGERED" else "待触发",
+                opportunity["symbol"],
+                "做多" if opportunity["direction"] == "LONG" else "做空",
+                opportunity["signal_score"],
+                opportunity["exits"]["entry"],
+                opportunity["summary"],
+            )
 
         if self.dry_run:
-            logger.info("dry-run would emit %s notifications", len(top_signals))
+            logger.info(
+                "dry-run top opportunities=%s, triggered alerts=%s, watchlist=%s",
+                len(top_opportunities),
+                len(triggered_opportunities),
+                watchlist_count,
+            )
         else:
-            for signal in top_signals:
-                self.notifier.send_signal(signal)
-                self.storage.update_alert_log(signal["symbol"], signal["direction"])
+            for opportunity in triggered_opportunities:
+                self.notifier.send_signal(opportunity)
+                self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
                 time.sleep(1)
 
         elapsed = time.time() - started_at
         if not self.dry_run:
-            self.notifier.send_summary(top_signals, elapsed)
+            self.notifier.send_summary(top_opportunities, elapsed)
         logger.info(
-            "scan finished: %s total signals, %s pushed, elapsed %.1fs",
-            len(signals),
-            len(top_signals),
+            "scan finished: %s opportunities, %s top-ranked, %s triggered alerts, elapsed %.1fs",
+            len(opportunities),
+            len(top_opportunities),
+            len(triggered_opportunities),
             elapsed,
         )
-        return top_signals
+        return top_opportunities

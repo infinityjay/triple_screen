@@ -1,14 +1,50 @@
 # AWS Deployment
 
-This project is ready to run on a single EC2 instance with `systemd`.
+当前项目可以直接部署到单台 EC2，并通过 `systemd timer` 在美股交易时段定时扫描。
 
-## Recommended Target
+## 推荐环境
 
 - AMI: Amazon Linux 2023
-- Instance: `t3.small` or `t3.medium`
-- Disk: `gp3` 20GB+
+- 机型: `t3.small` 或 `t3.medium`
+- 磁盘: `gp3` 20GB+
 
-## Server Setup
+## 当前项目结构
+
+部署时不再使用 `src/triple_screen/...` 这种嵌套包结构，当前入口和核心模块都是扁平放在 `src/` 下：
+
+```text
+src/
+├── scanner.py       # CLI 入口
+├── runner.py        # 调度入口
+├── scan_engine.py   # 扫描主流程
+├── indicators.py    # 三重过滤指标逻辑
+├── alpaca.py        # Alpaca 数据访问
+├── telegram.py      # Telegram 推送
+├── sqlite.py        # SQLite 存储
+├── loader.py        # 配置加载
+└── schema.py        # 配置结构
+```
+
+生产环境的启动命令就是：
+
+```bash
+python src/scanner.py --once
+```
+
+## 当前扫描逻辑
+
+当前实现遵循《以交易为生》的三重过滤主线，但输出方式做了更适合盘中扫描的调整：
+
+- 周线负责判断大方向，只要有明确偏多或偏空趋势，就会继续进入下一层
+- 日线负责寻找与周线方向一致的回调机会
+- 小时线负责判断是否已经触发突破/跌破，或者仍处于待触发观察状态
+- 扫描结束后会给出按交易价值排序的 Top 5 机会
+- 如果某个标的已经触发，会单独发送机会消息
+- 即使本次没有触发型信号，也会发送扫描汇总，列出观察中的机会
+
+换句话说，当前不会像旧逻辑那样因为小时线尚未突破就直接把前两层已经成立的 setup 丢掉。
+
+## 服务器初始化
 
 ```bash
 sudo dnf update -y
@@ -22,11 +58,34 @@ pip install -r requirements.txt
 mkdir -p data logs
 ```
 
-Create `/home/ec2-user/triple_screen/.env` with your real credentials.
+把真实凭证写入：
+
+`/home/ec2-user/triple_screen/.env`
+
+至少需要这些变量：
+
+```env
+ALPACA_API_KEY_ID=...
+ALPACA_API_SECRET_KEY=...
+ALPACA_MARKET_DATA_BASE_URL=https://data.alpaca.markets/v2
+ALPACA_TRADING_BASE_URL=https://paper-api.alpaca.markets/v2
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_CHAT_ID=...
+```
+
+## 上线前检查
+
+先确认配置和依赖都正常：
+
+```bash
+cd /home/ec2-user/triple_screen
+source .venv/bin/activate
+python src/scanner.py --help
+```
 
 ## Dry Run
 
-Use this before enabling the hourly timer:
+启用定时器前，先做一次 dry-run：
 
 ```bash
 cd /home/ec2-user/triple_screen
@@ -34,11 +93,39 @@ source .venv/bin/activate
 python src/scanner.py --once --dry-run
 ```
 
-`--dry-run` keeps cache/database updates but suppresses Telegram sends and alert-log updates.
+`--dry-run` 的行为是：
 
-## Install systemd Units
+- 会真实访问 Alpaca
+- 会更新本地缓存和 SQLite
+- 不会发送 Telegram
+- 不会更新 alert cooldown 记录
 
-Copy the provided files:
+你应该在日志里看到：
+
+- 股票池加载成功
+- 周线 / 日线 / 小时线批量请求成功
+- `market trend: ...`
+- `TOP 1 ...` 到最多 `TOP 5 ...`
+
+## 正式单次扫描
+
+在启用 timer 之前，建议再做一次真实扫描：
+
+```bash
+cd /home/ec2-user/triple_screen
+source .venv/bin/activate
+python src/scanner.py --once
+```
+
+预期行为：
+
+- Telegram 会收到“开始扫描”消息
+- 如果有已触发机会，会逐条收到机会消息
+- 最后会收到一条汇总消息，列出 Top 5 机会
+
+## 安装 systemd
+
+复制模板文件：
 
 ```bash
 sudo cp deploy/aws/systemd/triple-screen.service /etc/systemd/system/
@@ -47,29 +134,50 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now triple-screen.timer
 ```
 
-The bundled timer is configured for U.S. regular trading hours in `America/New_York`:
+当前 service 的执行命令是：
 
-- Monday to Friday at `09:30, 10:30, 11:30, 12:30, 13:30, 14:30, 15:30`
-- Monday to Friday again at `16:10` for a post-close scan
+```ini
+ExecStart=/home/ec2-user/triple_screen/.venv/bin/python src/scanner.py --once
+```
 
-This uses explicit `OnCalendar=` entries with the `America/New_York` timezone suffix, so DST is handled by systemd's calendar parser.
+这与当前项目结构一致，不需要再改成包形式入口。
 
-## Verify
+## 定时规则
+
+当前 timer 使用 `America/New_York` 时区，覆盖美股常规交易时段：
+
+- 周一到周五 `09:30, 10:30, 11:30, 12:30, 13:30, 14:30, 15:30`
+- 周一到周五 `16:10` 再补一次收盘后扫描
+
+因为 `OnCalendar=` 明确带了 `America/New_York`，夏令时由 systemd 自动处理。
+
+## 验证部署
 
 ```bash
 systemctl list-timers | grep triple-screen
+systemctl status triple-screen.timer
+systemctl status triple-screen.service
 journalctl -u triple-screen.service -n 100 --no-pager
 tail -f /home/ec2-user/triple_screen/logs/systemd.log
 ```
 
-## Manual Run
+如果要手动触发一轮：
 
 ```bash
 sudo systemctl start triple-screen.service
 ```
 
-## Notes
+## 常见检查点
 
-- The service file assumes the repo lives at `/home/ec2-user/triple_screen`
-- Adjust `User`, `WorkingDirectory`, and `ExecStart` if your paths differ
-- Keep `.env` on the server only; do not commit it
+- `.env` 必须放在仓库根目录，不是 `src/` 目录
+- `config/settings.yaml` 默认会从项目根目录读取
+- `data/` 和 `logs/` 目录需要可写
+- 首次运行时会批量回补 K 线缓存，耗时会比后续增量扫描更长
+- 如果 Telegram 没消息，先看 `journalctl` 和 `logs/systemd.log` 是否有 `Telegram send failed`
+- 如果 Alpaca 拉数失败，优先检查安全组、实例出网和 DNS
+
+## 备注
+
+- 本模板假设仓库路径是 `/home/ec2-user/triple_screen`
+- 如果你的实际路径不同，需要同步修改 `User`、`WorkingDirectory` 和 `ExecStart`
+- `.env` 只保留在服务器上，不要提交到仓库
