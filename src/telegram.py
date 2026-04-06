@@ -5,15 +5,14 @@ from datetime import datetime
 
 import requests
 
-from schema import RiskConfig, TelegramConfig
+from schema import TelegramConfig
 
 logger = logging.getLogger(__name__)
 
 
 class TelegramNotifier:
-    def __init__(self, settings: TelegramConfig, risk: RiskConfig) -> None:
+    def __init__(self, settings: TelegramConfig) -> None:
         self.settings = settings
-        self.risk = risk
         self.base_url = (
             f"https://api.telegram.org/bot{settings.bot_token}"
             if settings.enabled and settings.bot_token
@@ -87,6 +86,15 @@ class TelegramNotifier:
         }
         return labels.get(status, status)
 
+    @staticmethod
+    def _stop_basis_label(stop_basis: str) -> str:
+        labels = {
+            "SAFEZONE": "日线 SafeZone 止损",
+            "TWO_BAR": "日线两根K结构止损",
+            "UNKNOWN": "保护止损",
+        }
+        return labels.get(stop_basis, stop_basis)
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -100,19 +108,29 @@ class TelegramNotifier:
         dir_label = "做多" if direction == "LONG" else "做空"
         daily_state_label = self._daily_state_label(daily["rsi_state"])
         hourly_status_label = self._hourly_status_label(hourly["status"])
+        stop_basis_label = self._stop_basis_label(exits["stop_basis"])
         hist_bar = self._bar(abs(weekly["histogram"]) * 1000, 5, length=8)
         rsi_bar = self._bar(daily["rsi"], 100, length=10)
         breakout_bar = self._bar(hourly.get("breakout_strength", 0), 1.0, length=8)
-        pos_value = round(exits["position_size"] * exits["entry"], 2)
 
         if direction == "LONG":
-            breakout_line = (
-                f"N高：{hourly['high_n']:.2f}  Close：{hourly['close']:.2f}  突破：{hourly['close'] - hourly['high_n']:.2f}"
-            )
+            if signal.get("opportunity_status") == "TRIGGERED":
+                breakout_line = (
+                    f"上一根高点：{hourly['signal_bar_high']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
+                )
+            else:
+                breakout_line = (
+                    f"当前小时高点：{hourly['current_high']:.2f}  当前价：{hourly['close']:.2f}  下一触发价：{hourly['entry_price']:.2f}"
+                )
         else:
-            breakout_line = (
-                f"N低：{hourly['low_n']:.2f}  Close：{hourly['close']:.2f}  跌破：{hourly['low_n'] - hourly['close']:.2f}"
-            )
+            if signal.get("opportunity_status") == "TRIGGERED":
+                breakout_line = (
+                    f"上一根低点：{hourly['signal_bar_low']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
+                )
+            else:
+                breakout_line = (
+                    f"当前小时低点：{hourly['current_low']:.2f}  当前价：{hourly['close']:.2f}  下一触发价：{hourly['entry_price']:.2f}"
+                )
 
         return (
             f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>\n"
@@ -140,12 +158,12 @@ class TelegramNotifier:
             f"解读：{hourly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>交易建议</b>\n"
-            f"入场：<code>{exits['entry']:.2f}</code>\n"
-            f"SL(ATR)：<code>{exits['sl_atr']:.2f}</code>\n"
-            f"SL(前K线)：<code>{exits['sl_prev_candle']:.2f}</code>\n"
-            f"TP(固定RR)：<code>{exits['tp_fixed_rr']:.2f}</code>\n"
-            f"推荐仓位：<b>{exits['position_size']:.0f} 股</b> ≈ ${pos_value:,.0f}\n"
-            f"账户风险：{self.risk.account_risk_pct:.0%} / 最大持仓 {self.risk.max_hold_bars} 小时\n"
+            f"建议入场：<code>{exits['entry']:.2f}</code>\n"
+            f"保护止损：<code>{exits['stop_loss']:.2f}</code> ({stop_basis_label})\n"
+            f"日线 SafeZone：<code>{exits['stop_loss_safezone']:.2f}</code>  日线两根K：<code>{exits['stop_loss_two_bar']:.2f}</code>\n"
+            f"首个止盈：<code>{exits['take_profit']:.2f}</code>\n"
+            f"日线 Thermometer EMA：<code>{exits['thermometer_ema']:.2f}</code>  投影基准：{exits['target_reference']:.2f}\n"
+            f"每股风险：{exits['risk_per_share']:.2f}  预估盈亏比：{exits['reward_risk_ratio']:.2f}R\n"
             f"{'─' * 32}\n"
             f"<i>{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</i>"
         )
@@ -179,7 +197,7 @@ class TelegramNotifier:
                 f"{status} "
                 f"评分 {signal['signal_score']:.1f}\n"
                 f"    日线 {daily_state_label} · {trigger_text} · "
-                f"SL {signal['exits']['sl_atr']:.2f} · TP {signal['exits']['tp_fixed_rr']:.2f}\n"
+                f"SL {signal['exits']['stop_loss']:.2f} · TP {signal['exits']['take_profit']:.2f}\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")

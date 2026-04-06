@@ -74,7 +74,7 @@ class DailyStrategyConfig:
 
 @dataclass(frozen=True)
 class HourlyStrategyConfig:
-    breakout_bars: int
+    trigger_mode: str
     atr_period: int
 
 
@@ -86,12 +86,11 @@ class StrategyConfig:
 
 
 @dataclass(frozen=True)
-class RiskConfig:
-    account_size: float
-    account_risk_pct: float
-    atr_multiplier: float
-    reward_risk_ratio: float
-    max_hold_bars: int
+class TradePlanConfig:
+    safezone_lookback: int
+    safezone_coefficient: float
+    thermometer_period: int
+    thermometer_target_multiplier: float
 
 
 @dataclass(frozen=True)
@@ -135,7 +134,7 @@ class AppConfig:
     alpaca: AlpacaConfig
     universe: UniverseConfig
     strategy: StrategyConfig
-    risk: RiskConfig
+    trade_plan: TradePlanConfig
     alerts: AlertConfig
     market_filter: MarketFilterConfig
     runtime: RuntimeConfig

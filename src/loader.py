@@ -17,17 +17,24 @@ from schema import (
     DailyStrategyConfig,
     HourlyStrategyConfig,
     MarketFilterConfig,
-    RiskConfig,
     RuntimeConfig,
     StorageConfig,
     StrategyConfig,
     TelegramConfig,
+    TradePlanConfig,
     UniverseConfig,
     WeeklyStrategyConfig,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "settings.yaml"
+
+
+def _validate_trigger_mode(raw_value: str | None) -> str:
+    trigger_mode = (raw_value or "trailing_bar").strip().lower()
+    if trigger_mode != "trailing_bar":
+        raise ValueError(f"Unsupported hourly trigger_mode: {trigger_mode}")
+    return trigger_mode
 
 
 def _resolve_path(project_root: Path, raw_path: str) -> Path:
@@ -83,7 +90,7 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
     weekly_raw = strategy_raw.get("weekly", {})
     daily_raw = strategy_raw.get("daily", {})
     hourly_raw = strategy_raw.get("hourly", {})
-    risk_raw = raw.get("risk", {})
+    trade_plan_raw = raw.get("trade_plan", raw.get("risk", {}))
     alerts_raw = raw.get("alerts", {})
     telegram_raw = alerts_raw.get("telegram", {})
     market_filter_raw = raw.get("market_filter", {})
@@ -157,16 +164,15 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
                 recovery_mode=bool(daily_raw.get("recovery_mode", True)),
             ),
             hourly=HourlyStrategyConfig(
-                breakout_bars=int(hourly_raw.get("breakout_bars", 6)),
+                trigger_mode=_validate_trigger_mode(hourly_raw.get("trigger_mode")),
                 atr_period=int(hourly_raw.get("atr_period", 14)),
             ),
         ),
-        risk=RiskConfig(
-            account_size=float(risk_raw.get("account_size", 100000)),
-            account_risk_pct=float(risk_raw.get("account_risk_pct", 0.01)),
-            atr_multiplier=float(risk_raw.get("atr_multiplier", 1.5)),
-            reward_risk_ratio=float(risk_raw.get("reward_risk_ratio", 2.0)),
-            max_hold_bars=int(risk_raw.get("max_hold_bars", 72)),
+        trade_plan=TradePlanConfig(
+            safezone_lookback=int(trade_plan_raw.get("safezone_lookback", 10)),
+            safezone_coefficient=float(trade_plan_raw.get("safezone_coefficient", 2.0)),
+            thermometer_period=int(trade_plan_raw.get("thermometer_period", 22)),
+            thermometer_target_multiplier=float(trade_plan_raw.get("thermometer_target_multiplier", 1.0)),
         ),
         alerts=AlertConfig(
             cooldown_hours=int(alerts_raw.get("cooldown_hours", 6)),

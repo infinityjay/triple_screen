@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from schema import RiskConfig, StrategyConfig
+from schema import StrategyConfig, TradePlanConfig
 
 RSI_WATCH_BUFFER = 5.0
 DAILY_REVERSAL_LOOKBACK = 3
@@ -46,6 +46,37 @@ def calc_atr(df: pd.DataFrame, period: int) -> pd.Series:
         axis=1,
     ).max(axis=1)
     return tr.ewm(com=period - 1, adjust=False).mean()
+
+
+def calc_market_thermometer(df: pd.DataFrame, period: int) -> tuple[pd.Series, pd.Series]:
+    high = df["high"]
+    low = df["low"]
+    prev_high = high.shift(1)
+    prev_low = low.shift(1)
+    upside_extension = (high - prev_high).clip(lower=0)
+    downside_extension = (prev_low - low).clip(lower=0)
+    temperature = pd.concat([upside_extension, downside_extension], axis=1).max(axis=1).fillna(0.0)
+    average_temperature = temperature.ewm(span=period, adjust=False).mean()
+    return temperature, average_temperature
+
+
+def calc_safezone_stop(df: pd.DataFrame, direction: str, plan: TradePlanConfig) -> tuple[float | None, float]:
+    if df is None or len(df) < 2:
+        return None, 0.0
+
+    lookback = max(plan.safezone_lookback, 1)
+    if direction == "LONG":
+        penetrations = (df["low"].shift(1) - df["low"]).clip(lower=0).dropna()
+        reference_price = float(df["low"].iloc[-1])
+        average_penetration = float(penetrations.tail(lookback).mean()) if not penetrations.empty else 0.0
+        stop = reference_price - (average_penetration * plan.safezone_coefficient)
+    else:
+        penetrations = (df["high"] - df["high"].shift(1)).clip(lower=0).dropna()
+        reference_price = float(df["high"].iloc[-1])
+        average_penetration = float(penetrations.tail(lookback).mean()) if not penetrations.empty else 0.0
+        stop = reference_price + (average_penetration * plan.safezone_coefficient)
+
+    return stop, average_penetration
 
 
 def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dict:
@@ -226,20 +257,19 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
 
 
 def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyConfig) -> dict:
-    minimum = settings.hourly.breakout_bars + settings.hourly.atr_period + 2
+    minimum = settings.hourly.atr_period + 2
     if df_hour is None or len(df_hour) < minimum:
         return {"pass": False, "reason": "小时线数据不足"}
 
     close = float(df_hour["close"].iloc[-1])
+    current_high = float(df_hour["high"].iloc[-1])
+    current_low = float(df_hour["low"].iloc[-1])
     atr = float(calc_atr(df_hour, settings.hourly.atr_period).iloc[-1])
+    signal_bar_high = float(df_hour["high"].iloc[-2])
+    signal_bar_low = float(df_hour["low"].iloc[-2])
 
-    prev_highs = df_hour["high"].iloc[-(settings.hourly.breakout_bars + 1) : -1]
-    prev_lows = df_hour["low"].iloc[-(settings.hourly.breakout_bars + 1) : -1]
-    high_n = float(prev_highs.max())
-    low_n = float(prev_lows.min())
-
-    breakout_long = close > high_n
-    breakout_short = close < low_n
+    breakout_long = current_high > signal_bar_high
+    breakout_short = current_low < signal_bar_low
     breakout_strength = 0.0
     passed = False
     trigger_price = close
@@ -249,27 +279,27 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
 
     if trend == "LONG" and breakout_long and atr > 0:
         passed = True
-        breakout_strength = (close - high_n) / atr
-        trigger_price = close
-        trigger_gap = close - high_n
+        breakout_strength = (current_high - signal_bar_high) / atr
+        trigger_price = signal_bar_high
+        trigger_gap = current_high - signal_bar_high
         status = "TRIGGERED"
         trigger_score = 2.2 + min(breakout_strength * 1.2, 1.8)
     elif trend == "LONG":
-        trigger_price = high_n
-        trigger_gap = high_n - close
+        trigger_price = current_high
+        trigger_gap = current_high - close
         status = "WAITING_BREAKOUT"
         if atr > 0:
             trigger_score = max(0.0, 1.8 - min(trigger_gap / atr, 1.8))
     elif trend == "SHORT" and breakout_short and atr > 0:
         passed = True
-        breakout_strength = (low_n - close) / atr
-        trigger_price = close
-        trigger_gap = low_n - close
+        breakout_strength = (signal_bar_low - current_low) / atr
+        trigger_price = signal_bar_low
+        trigger_gap = signal_bar_low - current_low
         status = "TRIGGERED"
         trigger_score = 2.2 + min(breakout_strength * 1.2, 1.8)
     elif trend == "SHORT":
-        trigger_price = low_n
-        trigger_gap = close - low_n
+        trigger_price = current_low
+        trigger_gap = close - current_low
         status = "WAITING_BREAKDOWN"
         if atr > 0:
             trigger_score = max(0.0, 1.8 - min(trigger_gap / atr, 1.8))
@@ -277,23 +307,27 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
     gap_atr = (trigger_gap / atr) if atr > 0 else 0.0
     if trend == "LONG":
         reason = (
-            f"小时线已触发向上突破，强度 {breakout_strength:.2f} ATR"
+            f"小时线已向上突破上一根K线高点，trailing buy-stop 触发（强度 {breakout_strength:.2f} ATR）"
             if passed
-            else f"小时线待突破，距离触发价 {trigger_gap:.2f} ({gap_atr:.2f} ATR)"
+            else f"小时线尚未触发，下一笔可关注上一根K线高点上方的买入止损（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
         )
     elif trend == "SHORT":
         reason = (
-            f"小时线已触发向下跌破，强度 {breakout_strength:.2f} ATR"
+            f"小时线已向下跌破上一根K线低点，trailing sell-stop 触发（强度 {breakout_strength:.2f} ATR）"
             if passed
-            else f"小时线待跌破，距离触发价 {trigger_gap:.2f} ({gap_atr:.2f} ATR)"
+            else f"小时线尚未触发，下一笔可关注上一根K线低点下方的卖出止损（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
         )
     else:
         reason = "小时线未匹配周线方向"
 
     return {
         "close": round(close, 4),
-        "high_n": round(high_n, 4),
-        "low_n": round(low_n, 4),
+        "current_high": round(current_high, 4),
+        "current_low": round(current_low, 4),
+        "high_n": round(signal_bar_high, 4),
+        "low_n": round(signal_bar_low, 4),
+        "signal_bar_high": round(signal_bar_high, 4),
+        "signal_bar_low": round(signal_bar_low, 4),
         "atr": round(atr, 4),
         "status": status,
         "entry_price": round(trigger_price, 4),
@@ -311,37 +345,71 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
 def calc_exits(
     direction: str,
     entry: float,
+    daily_frame: pd.DataFrame | None,
     atr: float,
-    risk: RiskConfig,
-    prev_candle_low: float | None = None,
-    prev_candle_high: float | None = None,
+    trade_plan: TradePlanConfig,
 ) -> dict:
-    sl_distance = atr * risk.atr_multiplier
-    tp_distance = sl_distance * risk.reward_risk_ratio
-
-    if direction == "LONG":
-        sl_atr = entry - sl_distance
-        sl_prev = prev_candle_low if prev_candle_low is not None else sl_atr
-        stop_loss = min(sl_atr, sl_prev)
-        take_profit = entry + tp_distance
+    if daily_frame is None or daily_frame.empty:
+        stop_loss = entry
+        take_profit = entry
+        thermometer = 0.0
+        thermometer_ema = 0.0
+        safezone_stop = entry
+        two_bar_stop = entry
+        stop_basis = "UNKNOWN"
+        target_reference = entry
+        safezone_noise = 0.0
     else:
-        sl_atr = entry + sl_distance
-        sl_prev = prev_candle_high if prev_candle_high is not None else sl_atr
-        stop_loss = max(sl_atr, sl_prev)
-        take_profit = entry - tp_distance
+        latest_high = float(daily_frame["high"].iloc[-1])
+        latest_low = float(daily_frame["low"].iloc[-1])
+        if len(daily_frame) >= 2:
+            two_bar_stop_long = min(float(daily_frame["low"].iloc[-2]), latest_low)
+            two_bar_stop_short = max(float(daily_frame["high"].iloc[-2]), latest_high)
+        else:
+            two_bar_stop_long = latest_low
+            two_bar_stop_short = latest_high
+
+        safezone_stop, safezone_noise = calc_safezone_stop(daily_frame, direction, trade_plan)
+        temperature, average_temperature = calc_market_thermometer(daily_frame, trade_plan.thermometer_period)
+        thermometer = float(temperature.iloc[-1])
+        thermometer_ema = float(average_temperature.iloc[-1])
+        projected_move = thermometer_ema * trade_plan.thermometer_target_multiplier
+
+        if direction == "LONG":
+            two_bar_stop = two_bar_stop_long
+            safezone_stop = safezone_stop if safezone_stop is not None else two_bar_stop
+            stop_loss = min(two_bar_stop, safezone_stop)
+            stop_basis = "SAFEZONE" if safezone_stop < two_bar_stop else "TWO_BAR"
+            target_reference = max(entry, latest_high)
+            take_profit = target_reference + projected_move
+        else:
+            two_bar_stop = two_bar_stop_short
+            safezone_stop = safezone_stop if safezone_stop is not None else two_bar_stop
+            stop_loss = max(two_bar_stop, safezone_stop)
+            stop_basis = "SAFEZONE" if safezone_stop > two_bar_stop else "TWO_BAR"
+            target_reference = min(entry, latest_low)
+            take_profit = target_reference - projected_move
 
     risk_per_share = abs(entry - stop_loss)
-    position_size = (risk.account_size * risk.account_risk_pct) / risk_per_share if risk_per_share > 0 else 0.0
+    reward_per_share = abs(take_profit - entry)
+    reward_risk = (reward_per_share / risk_per_share) if risk_per_share > 0 else 0.0
 
     return {
         "entry": round(entry, 4),
-        "sl_atr": round(sl_atr, 4),
-        "sl_prev_candle": round(sl_prev, 4),
-        "stop_loss_final": round(stop_loss, 4),
-        "tp_fixed_rr": round(take_profit, 4),
+        "stop_loss": round(stop_loss, 4),
+        "stop_loss_safezone": round(safezone_stop, 4),
+        "stop_loss_two_bar": round(two_bar_stop, 4),
+        "stop_basis": stop_basis,
+        "take_profit": round(take_profit, 4),
+        "target_reference": round(target_reference, 4),
+        "thermometer": round(thermometer, 4),
+        "thermometer_ema": round(thermometer_ema, 4),
+        "safezone_noise": round(safezone_noise, 4),
         "risk_per_share": round(risk_per_share, 4),
-        "position_size": round(position_size, 2),
+        "reward_per_share": round(reward_per_share, 4),
+        "reward_risk_ratio": round(reward_risk, 2),
         "atr": round(atr, 4),
+        "exit_timeframe": "DAY",
     }
 
 

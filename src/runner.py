@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
             market_timezone=settings.app.timezone,
         ),
         storage=storage,
-        notifier=TelegramNotifier(settings.alerts.telegram, settings.risk),
+        notifier=TelegramNotifier(settings.alerts.telegram),
         dry_run=args.dry_run,
     )
 

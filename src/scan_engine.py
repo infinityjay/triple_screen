@@ -57,22 +57,14 @@ class TripleScreenScanner:
         weekly: dict,
         daily: dict,
         hourly: dict,
-        hourly_frame,
+        daily_frame,
     ) -> dict:
-        if hourly_frame is not None and len(hourly_frame) >= 2:
-            prev_low = float(hourly_frame["low"].iloc[-2])
-            prev_high = float(hourly_frame["high"].iloc[-2])
-        else:
-            prev_low = None
-            prev_high = None
-
         exits = indicators.calc_exits(
             trend,
             hourly["entry_price"],
+            daily_frame,
             hourly["atr"],
-            self.settings.risk,
-            prev_candle_low=prev_low,
-            prev_candle_high=prev_high,
+            self.settings.trade_plan,
         )
         score = indicators.calc_signal_score(weekly, daily, hourly)
         opportunity_status = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
@@ -135,23 +127,23 @@ class TripleScreenScanner:
                 hourly["breakout_short"],
             )
 
-            opportunity = self._build_opportunity(symbol, trend, weekly, daily, hourly, hourly_frame)
+            opportunity = self._build_opportunity(symbol, trend, weekly, daily, hourly, daily_frame)
 
             if hourly["pass"] and not opportunity["cooldown_active"]:
                 self.storage.save_signal(
                     symbol,
                     trend,
                     hourly["entry_price"],
-                    opportunity["exits"]["sl_atr"],
-                    opportunity["exits"]["sl_prev_candle"],
-                    opportunity["exits"]["tp_fixed_rr"],
+                    opportunity["exits"]["stop_loss_safezone"],
+                    opportunity["exits"]["stop_loss_two_bar"],
+                    opportunity["exits"]["take_profit"],
                     opportunity["signal_score"],
                     weekly["histogram"],
                     weekly["trend"],
                     daily["rsi"],
                     hourly["close"],
                     hourly["atr"],
-                    opportunity["exits"]["position_size"],
+                    None,
                 )
 
             logger.info(

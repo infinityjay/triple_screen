@@ -46,15 +46,14 @@ strategy:
     rsi_overbought: 65
     recovery_mode: true
   hourly:
-    breakout_bars: 6
+    trigger_mode: "trailing_bar"
     atr_period: 14
 
-risk:
-  account_size: 100000
-  account_risk_pct: 0.01
-  atr_multiplier: 1.5
-  reward_risk_ratio: 2.0
-  max_hold_bars: 72
+trade_plan:
+  safezone_lookback: 10
+  safezone_coefficient: 2.0
+  thermometer_period: 22
+  thermometer_target_multiplier: 1.0
 
 alerts:
   cooldown_hours: 6
