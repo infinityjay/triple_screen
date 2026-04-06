@@ -60,6 +60,33 @@ class TelegramNotifier:
             return "已触发"
         return "观察中"
 
+    @staticmethod
+    def _daily_state_label(state: str) -> str:
+        labels = {
+            "RECOVERING": "超卖后回升",
+            "ROLLING_OVER": "超买后回落",
+            "OVERSOLD": "超卖",
+            "OVERBOUGHT": "超买",
+            "OVERSOLD_WAIT": "超卖中等待拐头",
+            "OVERBOUGHT_WAIT": "超买中等待拐头",
+            "POST_OVERSOLD_WATCH": "超卖后观察",
+            "POST_OVERBOUGHT_WATCH": "超买后观察",
+            "PULLBACK_WATCH": "回调观察",
+            "RALLY_WATCH": "反弹观察",
+            "NEUTRAL": "中性",
+        }
+        return labels.get(state, state)
+
+    @staticmethod
+    def _hourly_status_label(status: str) -> str:
+        labels = {
+            "TRIGGERED": "已触发",
+            "WAITING_BREAKOUT": "等待向上突破",
+            "WAITING_BREAKDOWN": "等待向下跌破",
+            "NEUTRAL": "中性",
+        }
+        return labels.get(status, status)
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -71,6 +98,8 @@ class TelegramNotifier:
 
         dir_emoji = "🚀" if direction == "LONG" else "🔻"
         dir_label = "做多" if direction == "LONG" else "做空"
+        daily_state_label = self._daily_state_label(daily["rsi_state"])
+        hourly_status_label = self._hourly_status_label(hourly["status"])
         hist_bar = self._bar(abs(weekly["histogram"]) * 1000, 5, length=8)
         rsi_bar = self._bar(daily["rsi"], 100, length=10)
         breakout_bar = self._bar(hourly.get("breakout_strength", 0), 1.0, length=8)
@@ -98,7 +127,7 @@ class TelegramNotifier:
             f"解读：{weekly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>第二重 · 日线 RSI</b>\n"
-            f"RSI(14)：<code>{daily['rsi']:.1f}</code> ({daily['rsi_state']})\n"
+            f"RSI(14)：<code>{daily['rsi']:.1f}</code> ({daily_state_label})\n"
             f"上根 RSI：{daily['rsi_prev']:.1f}\n"
             f"RSI 条：[{rsi_bar}] {daily['rsi']:.0f}\n"
             f"解读：{daily['reason']}\n"
@@ -107,7 +136,7 @@ class TelegramNotifier:
             f"{breakout_line}\n"
             f"突破强度：[{breakout_bar}] {hourly.get('breakout_strength', 0):.2f}xATR\n"
             f"ATR：<code>{hourly['atr']:.4f}</code>\n"
-            f"触发状态：<b>{hourly['status']}</b>\n"
+            f"触发状态：<b>{hourly_status_label}</b>\n"
             f"解读：{hourly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>交易建议</b>\n"
@@ -138,6 +167,7 @@ class TelegramNotifier:
             emoji = "🚀" if signal["direction"] == "LONG" else "🔻"
             status = "已触发" if signal.get("opportunity_status") == "TRIGGERED" else "待触发"
             hourly = signal["hourly"]
+            daily_state_label = self._daily_state_label(signal["daily"]["rsi_state"])
             trigger_text = (
                 f"现价 {hourly['close']:.2f}"
                 if signal.get("opportunity_status") == "TRIGGERED"
@@ -148,7 +178,7 @@ class TelegramNotifier:
                 f"{'做多' if signal['direction'] == 'LONG' else '做空'} "
                 f"{status} "
                 f"评分 {signal['signal_score']:.1f}\n"
-                f"    日线 {signal['daily']['rsi_state']} · {trigger_text} · "
+                f"    日线 {daily_state_label} · {trigger_text} · "
                 f"SL {signal['exits']['sl_atr']:.2f} · TP {signal['exits']['tp_fixed_rr']:.2f}\n"
             )
 

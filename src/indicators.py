@@ -6,6 +6,7 @@ import pandas as pd
 from schema import RiskConfig, StrategyConfig
 
 RSI_WATCH_BUFFER = 5.0
+DAILY_REVERSAL_LOOKBACK = 3
 
 
 def calc_ema(series: pd.Series, period: int) -> pd.Series:
@@ -84,13 +85,13 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
 
     if trend == "LONG":
         setup_state = "BULLISH_SLOPE"
-        reason = f"周线偏多，MACD柱线抬升 {hist_prev:+.4f} -> {hist_now:+.4f}"
+        reason = f"周线动能回升，多头占优，可继续观察回调后的做多机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
     elif trend == "SHORT":
         setup_state = "BEARISH_SLOPE"
-        reason = f"周线偏空，MACD柱线回落 {hist_prev:+.4f} -> {hist_now:+.4f}"
+        reason = f"周线动能回落，空头占优，可继续观察反弹后的做空机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
     else:
         setup_state = "NEUTRAL"
-        reason = "周线无明确方向"
+        reason = "周线动能方向不清晰，暂不作为重点交易对象"
 
     return {
         "trend": trend,
@@ -118,6 +119,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     rsi = calc_rsi(df_day, settings.daily.rsi_period)
     rsi_now = float(rsi.iloc[-1])
     rsi_prev = float(rsi.iloc[-2])
+    recent_rsi = rsi.tail(DAILY_REVERSAL_LOOKBACK)
 
     passed = False
     watch = False
@@ -125,39 +127,57 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     setup_score = 0.0
 
     if trend == "LONG":
-        if rsi_now <= settings.daily.rsi_oversold:
-            rsi_state = "OVERSOLD"
-            passed = True
-        elif settings.daily.recovery_mode and rsi_prev <= settings.daily.rsi_oversold and rsi_now > rsi_prev:
+        recent_oversold = bool((recent_rsi <= settings.daily.rsi_oversold).any())
+        turning_up = rsi_now > rsi_prev
+
+        if settings.daily.recovery_mode and recent_oversold and turning_up:
             rsi_state = "RECOVERING"
             passed = True
+        elif not settings.daily.recovery_mode and rsi_now <= settings.daily.rsi_oversold:
+            rsi_state = "OVERSOLD"
+            passed = True
+        elif rsi_now <= settings.daily.rsi_oversold:
+            rsi_state = "OVERSOLD_WAIT"
+            watch = True
+        elif recent_oversold:
+            rsi_state = "POST_OVERSOLD_WATCH"
+            watch = True
         elif rsi_now <= settings.daily.rsi_oversold + RSI_WATCH_BUFFER:
             rsi_state = "PULLBACK_WATCH"
             watch = True
 
         rsi_strength = max(0.0, settings.daily.rsi_oversold - rsi_now)
         if passed:
-            setup_score = 2.2 + min(rsi_strength / 4, 1.6)
-            if rsi_state == "RECOVERING":
-                setup_score += 0.6
+            setup_score = 2.6 + min(max(settings.daily.rsi_oversold - min(float(recent_rsi.min()), rsi_now), 0.0) / 4, 1.4)
+            if rsi_now <= settings.daily.rsi_oversold:
+                setup_score += 0.2
         elif watch:
             setup_score = 1.2 + min((settings.daily.rsi_oversold + RSI_WATCH_BUFFER - rsi_now) / 5, 0.8)
     elif trend == "SHORT":
-        if rsi_now >= settings.daily.rsi_overbought:
-            rsi_state = "OVERBOUGHT"
-            passed = True
-        elif settings.daily.recovery_mode and rsi_prev >= settings.daily.rsi_overbought and rsi_now < rsi_prev:
+        recent_overbought = bool((recent_rsi >= settings.daily.rsi_overbought).any())
+        turning_down = rsi_now < rsi_prev
+
+        if settings.daily.recovery_mode and recent_overbought and turning_down:
             rsi_state = "ROLLING_OVER"
             passed = True
+        elif not settings.daily.recovery_mode and rsi_now >= settings.daily.rsi_overbought:
+            rsi_state = "OVERBOUGHT"
+            passed = True
+        elif rsi_now >= settings.daily.rsi_overbought:
+            rsi_state = "OVERBOUGHT_WAIT"
+            watch = True
+        elif recent_overbought:
+            rsi_state = "POST_OVERBOUGHT_WATCH"
+            watch = True
         elif rsi_now >= settings.daily.rsi_overbought - RSI_WATCH_BUFFER:
             rsi_state = "RALLY_WATCH"
             watch = True
 
         rsi_strength = max(0.0, rsi_now - settings.daily.rsi_overbought)
         if passed:
-            setup_score = 2.2 + min(rsi_strength / 4, 1.6)
-            if rsi_state == "ROLLING_OVER":
-                setup_score += 0.6
+            setup_score = 2.6 + min(max(max(float(recent_rsi.max()), rsi_now) - settings.daily.rsi_overbought, 0.0) / 4, 1.4)
+            if rsi_now >= settings.daily.rsi_overbought:
+                setup_score += 0.2
         elif watch:
             setup_score = 1.2 + min((rsi_now - (settings.daily.rsi_overbought - RSI_WATCH_BUFFER)) / 5, 0.8)
     else:
@@ -165,11 +185,33 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         setup_score = 0.0
 
     if trend == "LONG":
-        reason = f"日线 RSI={rsi_now:.1f}，状态 {rsi_state}"
+        if rsi_state == "RECOVERING":
+            reason = f"日线超卖后开始回升，回调可能接近完成，可等待小时线确认（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
+        elif rsi_state == "OVERSOLD":
+            reason = f"日线已经进入超卖区，具备逆转基础，但仍需等待拐头确认（RSI {rsi_now:.1f}）"
+        elif rsi_state == "OVERSOLD_WAIT":
+            reason = f"日线仍在超卖区内下探，先等抛压缓和再看多头接回（RSI {rsi_now:.1f}）"
+        elif rsi_state == "POST_OVERSOLD_WATCH":
+            reason = f"日线刚从超卖区边缘抬头，多头修复在启动，仍需继续观察（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
+        elif rsi_state == "PULLBACK_WATCH":
+            reason = f"日线处于回调观察区，距离理想低吸区不远，等待更明确的回升信号（RSI {rsi_now:.1f}）"
+        else:
+            reason = f"日线尚未形成理想的多头回调结构（RSI {rsi_now:.1f}）"
     elif trend == "SHORT":
-        reason = f"日线 RSI={rsi_now:.1f}，状态 {rsi_state}"
+        if rsi_state == "ROLLING_OVER":
+            reason = f"日线超买后开始回落，反弹可能接近结束，可等待小时线确认（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
+        elif rsi_state == "OVERBOUGHT":
+            reason = f"日线已经进入超买区，具备转弱基础，但仍需等待拐头确认（RSI {rsi_now:.1f}）"
+        elif rsi_state == "OVERBOUGHT_WAIT":
+            reason = f"日线仍在超买区内上冲，先等买盘降温再看空头接管（RSI {rsi_now:.1f}）"
+        elif rsi_state == "POST_OVERBOUGHT_WATCH":
+            reason = f"日线刚从超买区边缘回落，空头修复在启动，仍需继续观察（RSI {rsi_prev:.1f} -> {rsi_now:.1f}）"
+        elif rsi_state == "RALLY_WATCH":
+            reason = f"日线处于反弹观察区，距离理想高空区不远，等待更明确的回落信号（RSI {rsi_now:.1f}）"
+        else:
+            reason = f"日线尚未形成理想的空头反弹结构（RSI {rsi_now:.1f}）"
     else:
-        reason = f"日线 RSI={rsi_now:.1f}，但周线无方向"
+        reason = f"周线方向不明，日线信号暂不单独作为交易依据（RSI {rsi_now:.1f}）"
 
     return {
         "rsi": round(rsi_now, 2),
