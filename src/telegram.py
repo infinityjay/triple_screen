@@ -177,6 +177,43 @@ class TelegramNotifier:
     def send_signal(self, signal: dict) -> bool:
         return self._send(self.format_signal_message(signal))
 
+    def format_summary_message(self, signals: list[dict], scan_time_sec: float) -> str:
+        if not signals:
+            return (
+                "🔍 <b>本轮扫描未发现符合条件的前三交易机会</b>\n"
+                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+            )
+
+        triggered_count = sum(1 for signal in signals if signal.get("opportunity_status") == "TRIGGERED")
+        lines = [
+            f"📋 <b>Top {len(signals)} 交易机会摘要</b>\n",
+            f"已触发 {triggered_count} 个 · 待触发 {len(signals) - triggered_count} 个\n",
+            f"{'─' * 24}\n",
+        ]
+
+        for index, signal in enumerate(signals, start=1):
+            direction = "做多" if signal["direction"] == "LONG" else "做空"
+            status = "已触发" if signal.get("opportunity_status") == "TRIGGERED" else "待触发"
+            daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
+            hourly = signal["hourly"]
+            trigger_text = (
+                f"现价 {hourly['close']:.2f}"
+                if signal.get("opportunity_status") == "TRIGGERED"
+                else f"触发价 {hourly['entry_price']:.2f}"
+            )
+            lines.append(
+                f"{index}. <b>{signal['symbol']}</b> {direction} {status} "
+                f"评分 {signal['signal_score']:.1f}\n"
+                f"   {daily_state} · {trigger_text} · "
+                f"SL {signal['exits']['stop_loss']:.2f} · TP {signal['exits']['take_profit']:.2f}\n"
+            )
+
+        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
+        return "".join(lines)
+
+    def send_summary(self, signals: list[dict], scan_time_sec: float) -> bool:
+        return self._send(self.format_summary_message(signals, scan_time_sec))
+
     def send_no_opportunity(self, scan_time_sec: float) -> bool:
         return self._send(
             "🔍 <b>本轮扫描未发现符合条件的前三交易机会</b>\n"

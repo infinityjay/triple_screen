@@ -220,13 +220,16 @@ class TripleScreenScanner:
             if not top_opportunities:
                 self.notifier.send_no_opportunity(elapsed)
             else:
+                self.notifier.send_summary(top_opportunities, elapsed)
+                time.sleep(1)
                 for index, opportunity in enumerate(top_opportunities, start=1):
+                    if opportunity["opportunity_status"] != "TRIGGERED" or opportunity["cooldown_active"]:
+                        continue
                     payload = dict(opportunity)
                     payload["rank"] = index
                     payload["total_ranked"] = len(top_opportunities)
                     self.notifier.send_signal(payload)
-                    if opportunity["opportunity_status"] == "TRIGGERED" and not opportunity["cooldown_active"]:
-                        self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
+                    self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
                     time.sleep(1)
         logger.info(
             "scan finished: %s opportunities, %s top-ranked, %s triggered alerts, elapsed %.1fs",
