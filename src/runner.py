@@ -6,6 +6,7 @@ import sys
 import time
 
 from alpaca import AlpacaClient
+from earnings import EarningsCalendarClient
 from loader import load_settings
 from scan_engine import TripleScreenScanner
 from sqlite import SQLiteStorage
@@ -30,6 +31,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--once", action="store_true", help="Run a single scan and exit")
     parser.add_argument("--loop", action="store_true", help="Run forever using configured interval")
     parser.add_argument("--dry-run", action="store_true", help="Run scan without Telegram sends or alert-log updates")
+    parser.add_argument(
+        "--mode",
+        choices=("auto", "eod", "intraday", "full"),
+        default="auto",
+        help="Scan mode: auto chooses by market session, eod builds candidates, intraday scans stored candidates",
+    )
     return parser
 
 
@@ -56,6 +63,10 @@ def main(argv: list[str] | None = None) -> int:
             storage=storage,
             market_timezone=settings.app.timezone,
         ),
+        earnings_calendar=EarningsCalendarClient(
+            settings.earnings_calendar,
+            storage=storage,
+        ),
         storage=storage,
         notifier=TelegramNotifier(settings.alerts.telegram),
         dry_run=args.dry_run,
@@ -64,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     run_forever = args.loop or not args.once
     while True:
         try:
-            scanner.run_scan()
+            scanner.run_scan(args.mode)
         except Exception as exc:
             logger.exception("scan loop failed: %s", exc)
             if not args.dry_run:

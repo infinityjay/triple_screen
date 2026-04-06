@@ -23,6 +23,13 @@ data_source:
     cache:
       enabled: true
       overlap_bars: 3
+  earnings_calendar:
+    enabled: true
+    provider: "alphavantage"
+    base_url: "https://www.alphavantage.co/query"
+    api_key_env: "ALPHAVANTAGE_API_KEY"
+    horizon: "3month"
+    timeout_seconds: 20
 
 universe:
   mode: "static_file"
@@ -48,6 +55,13 @@ strategy:
   hourly:
     trigger_mode: "trailing_bar"
     atr_period: 14
+  qualification:
+    minimum_reward_risk: 0.0
+    intraday_minimum_reward_risk: 1.5
+    strong_divergence_exhaustion_multiplier: 2.0
+    earnings_block_days_before: 2
+    earnings_block_days_after: 1
+    earnings_warn_days_before: 5
 
 trade_plan:
   safezone_lookback: 10
@@ -57,7 +71,8 @@ trade_plan:
 
 alerts:
   cooldown_hours: 6
-  max_signals_per_scan: 10
+  qualified_display_limit: 15
+  max_triggered_signals_per_scan: 3
   telegram:
     enabled: true
     bot_token_env: "TELEGRAM_BOT_TOKEN"

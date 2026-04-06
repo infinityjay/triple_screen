@@ -15,8 +15,10 @@ from schema import (
     AppConfig,
     AppMetaConfig,
     DailyStrategyConfig,
+    EarningsCalendarConfig,
     HourlyStrategyConfig,
     MarketFilterConfig,
+    QualificationConfig,
     RuntimeConfig,
     StorageConfig,
     StrategyConfig,
@@ -85,11 +87,13 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
     alpaca_history_raw = alpaca_raw.get("history", {})
     alpaca_rate_limit_raw = alpaca_raw.get("rate_limit", {})
     alpaca_cache_raw = alpaca_raw.get("cache", {})
+    earnings_raw = raw.get("data_source", {}).get("earnings_calendar", {})
     universe_raw = raw.get("universe", {})
     strategy_raw = raw.get("strategy", {})
     weekly_raw = strategy_raw.get("weekly", {})
     daily_raw = strategy_raw.get("daily", {})
     hourly_raw = strategy_raw.get("hourly", {})
+    qualification_raw = strategy_raw.get("qualification", {})
     trade_plan_raw = raw.get("trade_plan", raw.get("risk", {}))
     alerts_raw = raw.get("alerts", {})
     telegram_raw = alerts_raw.get("telegram", {})
@@ -141,6 +145,16 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
                 overlap_bars=int(alpaca_cache_raw.get("overlap_bars", 3)),
             ),
         ),
+        earnings_calendar=EarningsCalendarConfig(
+            enabled=bool(earnings_raw.get("enabled", False)),
+            provider=(earnings_raw.get("provider", "alphavantage") or "alphavantage").strip().lower(),
+            base_url=earnings_raw.get("base_url", "https://www.alphavantage.co/query"),
+            api_key=_require_env(earnings_raw["api_key_env"])
+            if earnings_raw.get("enabled", False) and earnings_raw.get("api_key_env")
+            else None,
+            horizon=earnings_raw.get("horizon", "3month"),
+            timeout_seconds=int(earnings_raw.get("timeout_seconds", 20)),
+        ),
         universe=UniverseConfig(
             mode=universe_raw.get("mode", "market_cap_top"),
             top_n=int(universe_raw.get("top_n", 300)),
@@ -168,6 +182,16 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
                 atr_period=int(hourly_raw.get("atr_period", 14)),
             ),
         ),
+        qualification=QualificationConfig(
+            minimum_reward_risk=float(qualification_raw.get("minimum_reward_risk", 1.2)),
+            intraday_minimum_reward_risk=float(qualification_raw.get("intraday_minimum_reward_risk", 1.5)),
+            strong_divergence_exhaustion_multiplier=float(
+                qualification_raw.get("strong_divergence_exhaustion_multiplier", 2.0)
+            ),
+            earnings_block_days_before=int(qualification_raw.get("earnings_block_days_before", 2)),
+            earnings_block_days_after=int(qualification_raw.get("earnings_block_days_after", 1)),
+            earnings_warn_days_before=int(qualification_raw.get("earnings_warn_days_before", 5)),
+        ),
         trade_plan=TradePlanConfig(
             safezone_lookback=int(trade_plan_raw.get("safezone_lookback", 10)),
             safezone_coefficient=float(trade_plan_raw.get("safezone_coefficient", 2.0)),
@@ -176,7 +200,10 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
         ),
         alerts=AlertConfig(
             cooldown_hours=int(alerts_raw.get("cooldown_hours", 6)),
-            max_signals_per_scan=int(alerts_raw.get("max_signals_per_scan", 10)),
+            qualified_display_limit=int(
+                alerts_raw.get("qualified_display_limit", alerts_raw.get("max_signals_per_scan", 15))
+            ),
+            max_triggered_signals_per_scan=int(alerts_raw.get("max_triggered_signals_per_scan", 3)),
             telegram=telegram,
         ),
         market_filter=MarketFilterConfig(

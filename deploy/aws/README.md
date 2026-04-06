@@ -35,12 +35,13 @@ python src/scanner.py --once
 
 当前实现遵循《以交易为生》的三重过滤主线，但输出方式做了更适合盘中扫描的调整：
 
-- 周线负责判断大方向，只要有明确偏多或偏空趋势，就会继续进入下一层
+- 周线负责判断大方向，并以确认 bars 作为硬过滤，只保留真正可行的趋势机会
 - 日线负责寻找与周线方向一致的回调机会
-- 小时线负责判断是否已经触发突破/跌破，或者仍处于待触发观察状态
-- 扫描结束后会推送按交易价值排序的 Top 3 详细机会
-- 如果某个标的已经触发，会单独发送机会消息
-- 即使本次没有触发型信号，也会发送扫描汇总，列出观察中的机会
+- 收盘后会把所有通过过滤的标的写入候选池，默认消息展示前 15 个
+- 小时线盘中只扫描最近一次候选池，判断是否已经触发突破/跌破
+- 扫描结束后会推送按交易价值排序的 Top Qualified 列表，默认展示 15 个
+- 如果某个标的已经触发，会按 Triggered 排名单独发送机会消息，默认最多 3 个
+- 即使本次没有触发型信号，也会发送扫描汇总，列出已通过过滤的观察机会
 
 换句话说，当前不会像旧逻辑那样因为小时线尚未突破就直接把前两层已经成立的 setup 丢掉。
 
@@ -69,6 +70,7 @@ ALPACA_API_KEY_ID=...
 ALPACA_API_SECRET_KEY=...
 ALPACA_MARKET_DATA_BASE_URL=https://data.alpaca.markets/v2
 ALPACA_TRADING_BASE_URL=https://paper-api.alpaca.markets/v2
+ALPHAVANTAGE_API_KEY=...
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
 ```
@@ -103,9 +105,10 @@ python src/scanner.py --once --dry-run
 你应该在日志里看到：
 
 - 股票池加载成功
+- 候选池或盘中触发扫描完成
 - 周线 / 日线 / 小时线批量请求成功
 - `market trend: ...`
-- `TOP 1 ...` 到最多 `TOP 5 ...`
+- `QUALIFIED TOP ...` 或 `TRIGGERED TOP ...`
 
 ## 正式单次扫描
 
@@ -121,7 +124,14 @@ python src/scanner.py --once
 
 - Telegram 会收到“开始扫描”消息
 - 如果有已触发机会，会逐条收到机会消息
-- 每轮会直接收到 Top 3 机会的详细消息，不再额外发送简略汇总
+- 每轮会先收到 Top Qualified 摘要，再收到 Top Triggered 的详细消息
+
+如果你想分开调度，也可以显式指定：
+
+```bash
+python src/scanner.py --once --mode eod
+python src/scanner.py --once --mode intraday
+```
 
 ## 安装 systemd
 

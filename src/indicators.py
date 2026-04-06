@@ -7,6 +7,12 @@ from schema import StrategyConfig, TradePlanConfig
 
 RSI_WATCH_BUFFER = 5.0
 DAILY_REVERSAL_LOOKBACK = 3
+WEEKLY_TREND_SCORE_CAP = 4.5
+DAILY_SETUP_SCORE_CAP = 4.5
+HOURLY_TRIGGER_SCORE_CAP = 4.0
+REWARD_RISK_SCORE_CAP = 2.0
+DIVERGENCE_LOOKBACK = 40
+PIVOT_ORDER = 2
 
 
 def calc_ema(series: pd.Series, period: int) -> pd.Series:
@@ -58,6 +64,152 @@ def calc_market_thermometer(df: pd.DataFrame, period: int) -> tuple[pd.Series, p
     temperature = pd.concat([upside_extension, downside_extension], axis=1).max(axis=1).fillna(0.0)
     average_temperature = temperature.ewm(span=period, adjust=False).mean()
     return temperature, average_temperature
+
+
+def calc_reward_risk_score(reward_risk_ratio: float) -> float:
+    if reward_risk_ratio <= 0:
+        return 0.0
+    if reward_risk_ratio < 1.0:
+        return round(reward_risk_ratio * 0.8, 2)
+    if reward_risk_ratio < 1.5:
+        return round(0.8 + ((reward_risk_ratio - 1.0) * 1.2), 2)
+    if reward_risk_ratio < 2.0:
+        return round(1.4 + ((reward_risk_ratio - 1.5) * 0.8), 2)
+    return round(min(1.8 + ((reward_risk_ratio - 2.0) * 0.2), REWARD_RISK_SCORE_CAP), 2)
+
+
+def _find_pivots(series: pd.Series, mode: str, order: int = PIVOT_ORDER) -> list[int]:
+    if len(series) < order * 2 + 1:
+        return []
+
+    values = series.astype(float).tolist()
+    pivots: list[int] = []
+    for index in range(order, len(values) - order):
+        center = values[index]
+        left = values[index - order : index]
+        right = values[index + 1 : index + order + 1]
+        if mode == "high":
+            if center >= max(left) and center > max(right):
+                pivots.append(index)
+        else:
+            if center <= min(left) and center < min(right):
+                pivots.append(index)
+    return pivots
+
+
+def _nearest_pivot(target_index: int, pivots: list[int], max_distance: int = 3) -> int | None:
+    nearest: int | None = None
+    distance = max_distance + 1
+    for pivot in pivots:
+        pivot_distance = abs(pivot - target_index)
+        if pivot_distance <= max_distance and pivot_distance < distance:
+            nearest = pivot
+            distance = pivot_distance
+    return nearest
+
+
+def detect_divergence(
+    df: pd.DataFrame | None,
+    settings: StrategyConfig,
+    direction: str,
+    timeframe: str,
+    exhaustion_multiplier: float,
+) -> dict:
+    if df is None or len(df) < max(DIVERGENCE_LOOKBACK, 25):
+        return {
+            "detected": False,
+            "strong_alert": False,
+            "timeframe": timeframe,
+            "direction": direction,
+            "reason": f"{timeframe}数据不足，无法判断背离",
+        }
+
+    frame = df.tail(DIVERGENCE_LOOKBACK).copy()
+    _, _, histogram = calc_macd(frame, settings)
+    close = frame["close"].astype(float)
+    high = frame["high"].astype(float)
+    low = frame["low"].astype(float)
+
+    price_pivots = _find_pivots(high if direction == "SHORT" else low, "high" if direction == "SHORT" else "low")
+    hist_pivots = _find_pivots(histogram, "high" if direction == "SHORT" else "low")
+    if len(price_pivots) < 2 or len(hist_pivots) < 2:
+        return {
+            "detected": False,
+            "strong_alert": False,
+            "timeframe": timeframe,
+            "direction": direction,
+            "reason": f"{timeframe}未形成足够清晰的摆点背离",
+        }
+
+    second_price_pivot = price_pivots[-1]
+    first_price_pivot = price_pivots[-2]
+    first_hist_pivot = _nearest_pivot(first_price_pivot, hist_pivots)
+    second_hist_pivot = _nearest_pivot(second_price_pivot, hist_pivots)
+    if first_hist_pivot is None or second_hist_pivot is None:
+        return {
+            "detected": False,
+            "strong_alert": False,
+            "timeframe": timeframe,
+            "direction": direction,
+            "reason": f"{timeframe}价格摆点附近缺少MACD柱线摆点",
+        }
+
+    if direction == "SHORT":
+        price_condition = high.iloc[second_price_pivot] > high.iloc[first_price_pivot]
+        histogram_condition = histogram.iloc[second_hist_pivot] < histogram.iloc[first_hist_pivot]
+        crossed_zero = bool((histogram.iloc[first_hist_pivot:second_hist_pivot] < 0).any())
+        label = "熊市顶背离"
+    else:
+        price_condition = low.iloc[second_price_pivot] < low.iloc[first_price_pivot]
+        histogram_condition = histogram.iloc[second_hist_pivot] > histogram.iloc[first_hist_pivot]
+        crossed_zero = bool((histogram.iloc[first_hist_pivot:second_hist_pivot] > 0).any())
+        label = "牛市底背离"
+
+    detected = bool(price_condition and histogram_condition and crossed_zero)
+    if not detected:
+        return {
+            "detected": False,
+            "strong_alert": False,
+            "timeframe": timeframe,
+            "direction": direction,
+            "reason": f"{timeframe}最近两次摆点未满足{label}条件",
+        }
+
+    strong_alert = False
+    exhaustion_reason = "未出现显著的三柱衰竭形态"
+    if len(frame) >= 23:
+        ranges = (frame["high"] - frame["low"]).astype(float)
+        recent_three = ranges.iloc[-3:]
+        baseline = float(ranges.iloc[-23:-3].median()) if len(ranges.iloc[-23:-3]) > 0 else float(ranges.iloc[:-3].median())
+        middle_bar = recent_three.iloc[1]
+        if baseline > 0 and middle_bar >= baseline * exhaustion_multiplier:
+            middle = frame.iloc[-2]
+            if direction == "SHORT":
+                strong_alert = bool(
+                    middle["high"] >= frame["high"].iloc[-3:].max()
+                    and middle["close"] <= (middle["high"] + middle["low"]) / 2
+                )
+            else:
+                strong_alert = bool(
+                    middle["low"] <= frame["low"].iloc[-3:].min()
+                    and middle["close"] >= (middle["high"] + middle["low"]) / 2
+                )
+            if strong_alert:
+                exhaustion_reason = (
+                    f"最近三根K线中间一根振幅达到近20根中位数的 {middle_bar / baseline:.2f} 倍"
+                )
+
+    return {
+        "detected": True,
+        "strong_alert": strong_alert,
+        "timeframe": timeframe,
+        "direction": direction,
+        "label": label,
+        "first_price_pivot_at": str(frame.index[first_price_pivot]),
+        "second_price_pivot_at": str(frame.index[second_price_pivot]),
+        "reason": f"{timeframe}{label}成立，且柱线在两次摆点之间完成零轴穿越",
+        "exhaustion_reason": exhaustion_reason,
+    }
 
 
 def calc_safezone_stop(df: pd.DataFrame, direction: str, plan: TradePlanConfig) -> tuple[float | None, float]:
@@ -136,7 +288,7 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         "macd": round(float(macd.iloc[-1]), 6),
         "macd_signal": round(float(signal.iloc[-1]), 6),
         "confirmed_bars": confirmed,
-        "trend_score": round(min(trend_score, 4.5), 2),
+        "trend_score": round(min(trend_score, WEEKLY_TREND_SCORE_CAP), 2),
         "actionable": actionable,
         "pass": actionable and confirmed_pass,
         "reason": reason,
@@ -249,7 +401,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "rsi_prev": round(rsi_prev, 2),
         "rsi_state": rsi_state,
         "rsi_strength": round(rsi_strength, 2),
-        "setup_score": round(min(setup_score, 4.5), 2),
+        "setup_score": round(min(setup_score, DAILY_SETUP_SCORE_CAP), 2),
         "watch": watch,
         "pass": passed,
         "reason": reason,
@@ -336,7 +488,7 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
         "breakout_long": breakout_long,
         "breakout_short": breakout_short,
         "breakout_strength": round(breakout_strength, 3),
-        "trigger_score": round(min(trigger_score, 4.0), 2),
+        "trigger_score": round(min(trigger_score, HOURLY_TRIGGER_SCORE_CAP), 2),
         "pass": passed,
         "reason": reason,
     }
@@ -413,18 +565,19 @@ def calc_exits(
     }
 
 
-def calc_signal_score(weekly_result: dict, daily_result: dict, hourly_result: dict) -> float:
+def calc_signal_score(weekly_result: dict, daily_result: dict, hourly_result: dict, exits: dict) -> float:
     score = 0.0
 
-    score += weekly_result.get("trend_score", 0) * 0.8
-    score += daily_result.get("setup_score", 0) * 0.9
-    score += hourly_result.get("trigger_score", 0) * 0.7
+    score += min(weekly_result.get("trend_score", 0), WEEKLY_TREND_SCORE_CAP) / WEEKLY_TREND_SCORE_CAP * 2.4
+    score += min(daily_result.get("setup_score", 0), DAILY_SETUP_SCORE_CAP) / DAILY_SETUP_SCORE_CAP * 2.5
+    score += min(hourly_result.get("trigger_score", 0), HOURLY_TRIGGER_SCORE_CAP) / HOURLY_TRIGGER_SCORE_CAP * 1.6
+    score += calc_reward_risk_score(float(exits.get("reward_risk_ratio", 0.0)))
 
     if weekly_result.get("pass"):
-        score += 0.2
+        score += 0.4
     if daily_result.get("pass"):
-        score += 0.3
-    if hourly_result.get("pass"):
         score += 0.5
+    if hourly_result.get("pass"):
+        score += 0.6
 
     return round(min(score, 10), 2)

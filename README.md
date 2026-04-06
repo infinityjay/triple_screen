@@ -42,6 +42,7 @@ ALPACA_API_KEY_ID=your_alpaca_api_key_id
 ALPACA_API_SECRET_KEY=your_alpaca_api_secret_key
 ALPACA_MARKET_DATA_BASE_URL=https://data.alpaca.markets/v2
 ALPACA_TRADING_BASE_URL=https://paper-api.alpaca.markets/v2
+ALPHAVANTAGE_API_KEY=your_alpha_vantage_api_key
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 ```
@@ -68,7 +69,8 @@ cp .env.example .env
 
 - 扫描股票池规模
 - MACD / RSI / Breakout 参数
-- 风控参数
+- 候选池 RR / 财报黑窗 / 强背离阈值
+- 候选池展示数量与 Triggered 推送数量
 - 并发数、扫描频率、日志路径
 - SQLite 路径
 - Telegram 是否启用
@@ -103,6 +105,20 @@ cp .env.example .env
 
 4. 运行一次扫描
 
+收盘后更新候选池：
+
+```bash
+python src/scanner.py --once --mode eod
+```
+
+盘中按候选池扫描触发：
+
+```bash
+python src/scanner.py --once --mode intraday
+```
+
+自动按市场时段选择模式：
+
 ```bash
 python src/scanner.py --once
 ```
@@ -135,6 +151,11 @@ AWS EC2 + systemd 的部署模板已经放在 [deploy/aws/README.md](/Users/jay/
 
 - 周一到周五盘中每小时一次：`09:30` 到 `15:30`
 - 每个交易日收盘后一次：`16:10`
+
+推荐做法是：
+
+- `16:10` 跑 `--mode eod`，更新当天候选池
+- 盘中整点跑 `--mode intraday`，只扫描最新候选池里的股票
 
 ## 当前实现说明
 

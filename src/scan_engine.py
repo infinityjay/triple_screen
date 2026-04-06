@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import date, datetime, time as clock_time, timedelta
+from zoneinfo import ZoneInfo
 
 import indicators
 from alpaca import AlpacaClient
+from earnings import EarningsCalendarClient
 from schema import AppConfig
 from sqlite import SQLiteStorage
 from telegram import TelegramNotifier
@@ -19,15 +21,20 @@ class TripleScreenScanner:
         self,
         settings: AppConfig,
         market_data: AlpacaClient,
+        earnings_calendar: EarningsCalendarClient,
         storage: SQLiteStorage,
         notifier: TelegramNotifier,
         dry_run: bool = False,
     ) -> None:
         self.settings = settings
         self.market_data = market_data
+        self.earnings_calendar = earnings_calendar
         self.storage = storage
         self.notifier = notifier
         self.dry_run = dry_run
+        self.market_timezone = ZoneInfo(settings.app.timezone)
+        self.market_open_time = clock_time(hour=9, minute=30)
+        self.market_close_time = clock_time(hour=16, minute=0)
 
     def _is_recently_alerted(self, symbol: str, direction: str) -> bool:
         row = self.storage.get_last_alert(symbol)
@@ -36,6 +43,31 @@ class TripleScreenScanner:
         last_alert_at = datetime.fromisoformat(row["last_alert_at"])
         cooldown = timedelta(hours=self.settings.alerts.cooldown_hours)
         return datetime.utcnow() - last_alert_at <= cooldown and row["last_direction"] == direction
+
+    def _market_now(self) -> datetime:
+        return datetime.now(self.market_timezone)
+
+    def _previous_weekday(self, current_date: date) -> date:
+        candidate = current_date - timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate -= timedelta(days=1)
+        return candidate
+
+    def _latest_completed_session_date(self, now_local: datetime | None = None) -> date:
+        value = now_local or self._market_now()
+        if value.weekday() < 5 and value.time() >= self.market_close_time:
+            return value.date()
+        return self._previous_weekday(value.date())
+
+    def _is_market_open(self, now_local: datetime | None = None) -> bool:
+        value = now_local or self._market_now()
+        return value.weekday() < 5 and self.market_open_time <= value.time() < self.market_close_time
+
+    def _load_universe(self) -> list[dict]:
+        symbol_rows = self.market_data.get_top_symbols(self.settings.universe)
+        for row in symbol_rows:
+            self.storage.upsert_symbol(row["symbol"], row.get("market_cap"), row.get("sector"))
+        return symbol_rows
 
     def _check_market_trend(self) -> str:
         if not self.settings.market_filter.enabled:
@@ -46,52 +78,92 @@ class TripleScreenScanner:
         return result.get("trend", "UNKNOWN")
 
     @staticmethod
-    def _opportunity_sort_key(item: dict) -> tuple[int, float]:
+    def _candidate_sort_key(item: dict) -> tuple[float, int, int]:
         status_priority = 0 if item["opportunity_status"] == "TRIGGERED" else 1
-        return (status_priority, -item["signal_score"])
+        return (-item["signal_score"], -int(bool(item.get("strong_divergence"))), status_priority)
 
-    def _build_opportunity(
-        self,
-        symbol: str,
-        trend: str,
-        weekly: dict,
-        daily: dict,
-        hourly: dict,
-        daily_frame,
-    ) -> dict:
-        exits = indicators.calc_exits(
-            trend,
-            hourly["entry_price"],
-            daily_frame,
-            hourly["atr"],
-            self.settings.trade_plan,
+    @staticmethod
+    def _triggered_sort_key(item: dict) -> tuple[float, int]:
+        return (-item["signal_score"], -int(bool(item.get("strong_divergence"))))
+
+    def _classify_earnings_event(self, symbol: str, session_date: date, raw_event: dict | None) -> dict:
+        if not raw_event or not raw_event.get("report_date"):
+            return {
+                "symbol": symbol,
+                "report_date": None,
+                "status": "UNKNOWN",
+                "blocked": False,
+                "warning": False,
+                "days_until": None,
+                "reason": "未获取到财报日期",
+            }
+
+        report_date = datetime.fromisoformat(str(raw_event["report_date"])).date()
+        days_until = (report_date - session_date).days
+        blocked = -self.settings.qualification.earnings_block_days_after <= days_until <= self.settings.qualification.earnings_block_days_before
+        warning = (
+            not blocked
+            and days_until is not None
+            and 0 <= days_until <= self.settings.qualification.earnings_warn_days_before
         )
-        score = indicators.calc_signal_score(weekly, daily, hourly)
-        opportunity_status = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
-        cooldown_active = (not self.dry_run) and hourly["pass"] and self._is_recently_alerted(symbol, trend)
+
+        if blocked:
+            status = "BLOCKED"
+            reason = f"财报日在 {report_date.isoformat()}，处于黑窗期"
+        elif warning:
+            status = "WARNING"
+            reason = f"财报日在 {report_date.isoformat()}，接近财报窗口"
+        else:
+            status = "CLEAR"
+            reason = f"下一次财报日为 {report_date.isoformat()}"
 
         return {
             "symbol": symbol,
-            "direction": trend,
-            "opportunity_status": opportunity_status,
-            "cooldown_active": cooldown_active,
-            "signal_score": score,
-            "weekly": weekly,
-            "daily": daily,
-            "hourly": hourly,
-            "exits": exits,
-            "summary": f"{weekly['reason']} | {daily['reason']} | {hourly['reason']}",
+            "report_date": report_date.isoformat(),
+            "status": status,
+            "blocked": blocked,
+            "warning": warning,
+            "days_until": days_until,
+            "reason": reason,
+            "estimate": raw_event.get("estimate"),
         }
 
-    def _process_symbol(self, symbol: str, market_trend: str) -> dict | None:
+    def _build_divergence_snapshot(self, weekly_frame, daily_frame, direction: str) -> dict:
+        weekly_divergence = indicators.detect_divergence(
+            weekly_frame,
+            self.settings.strategy,
+            direction,
+            "周线",
+            self.settings.qualification.strong_divergence_exhaustion_multiplier,
+        )
+        daily_divergence = indicators.detect_divergence(
+            daily_frame,
+            self.settings.strategy,
+            direction,
+            "日线",
+            self.settings.qualification.strong_divergence_exhaustion_multiplier,
+        )
+        strong_divergence = bool(
+            (weekly_divergence.get("detected") and weekly_divergence.get("strong_alert"))
+            or (daily_divergence.get("detected") and daily_divergence.get("strong_alert"))
+        )
+        return {
+            "weekly": weekly_divergence,
+            "daily": daily_divergence,
+            "strong_divergence": strong_divergence,
+        }
+
+    def _build_candidate(
+        self,
+        symbol: str,
+        market_trend: str,
+        session_date: date,
+        earnings_map: dict[str, dict],
+    ) -> dict | None:
         try:
             weekly_frame = self.market_data.get_weekly_bars(symbol)
             weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
             if not weekly.get("actionable"):
-                return None
-
-            trend = weekly["trend"]
-            if self.settings.market_filter.enabled and trend == "LONG" and market_trend == "SHORT":
                 return None
 
             self.storage.upsert_weekly(
@@ -104,17 +176,107 @@ class TripleScreenScanner:
                 weekly["trend"],
             )
 
-            daily_frame = self.market_data.get_daily_bars(symbol)
-            daily = indicators.screen_daily(daily_frame, trend, self.settings.strategy)
-            if not daily["pass"]:
+            if not weekly["pass"]:
+                logger.info("[%s] skipped after weekly screen because trend confirmation is insufficient.", symbol)
                 return None
 
+            direction = weekly["trend"]
+            if self.settings.market_filter.enabled and direction == "LONG" and market_trend == "SHORT":
+                return None
+
+            daily_frame = self.market_data.get_daily_bars(symbol)
+            daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
+            if not daily["pass"]:
+                return None
             self.storage.upsert_daily(symbol, daily["rsi"], daily["rsi_prev"], daily["rsi_state"])
 
             hourly_frame = self.market_data.get_hourly_bars(symbol)
-            hourly = indicators.screen_hourly(hourly_frame, trend, self.settings.strategy)
+            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy)
             if "close" not in hourly:
                 logger.info("[%s] skipped after daily setup because hourly data is insufficient.", symbol)
+                return None
+            self.storage.upsert_hourly(
+                symbol,
+                hourly["close"],
+                hourly["high_n"],
+                hourly["low_n"],
+                hourly["atr"],
+                hourly["breakout_long"],
+                hourly["breakout_short"],
+            )
+
+            exits = indicators.calc_exits(
+                direction,
+                hourly["entry_price"],
+                daily_frame,
+                hourly["atr"],
+                self.settings.trade_plan,
+            )
+            if exits["reward_risk_ratio"] < self.settings.qualification.minimum_reward_risk:
+                logger.info(
+                    "[%s] skipped after risk filter because reward/risk %.2f < %.2f",
+                    symbol,
+                    exits["reward_risk_ratio"],
+                    self.settings.qualification.minimum_reward_risk,
+                )
+                return None
+
+            earnings = self._classify_earnings_event(symbol, session_date, earnings_map.get(symbol))
+            if earnings["blocked"]:
+                logger.info("[%s] skipped because earnings window is blocked.", symbol)
+                return None
+
+            divergence = self._build_divergence_snapshot(weekly_frame, daily_frame, direction)
+            score = indicators.calc_signal_score(weekly, daily, hourly, exits)
+            priority_tags = []
+            if earnings["warning"]:
+                priority_tags.append("EARNINGS_SOON")
+            if divergence["weekly"].get("detected"):
+                priority_tags.append("WEEKLY_DIVERGENCE")
+            if divergence["daily"].get("detected"):
+                priority_tags.append("DAILY_DIVERGENCE")
+            if divergence["strong_divergence"]:
+                priority_tags.append("STRONG_DIVERGENCE")
+
+            candidate = {
+                "symbol": symbol,
+                "direction": direction,
+                "source_session_date": session_date.isoformat(),
+                "opportunity_status": "TRIGGERED" if hourly["pass"] else "WATCHLIST",
+                "signal_score": score,
+                "reward_risk_score": indicators.calc_reward_risk_score(exits["reward_risk_ratio"]),
+                "weekly": weekly,
+                "daily": daily,
+                "hourly": hourly,
+                "exits": exits,
+                "earnings": earnings,
+                "divergence": divergence,
+                "strong_divergence": divergence["strong_divergence"],
+                "priority_tags": priority_tags,
+                "summary": f"{weekly['reason']} | {daily['reason']} | {hourly['reason']}",
+            }
+            logger.info(
+                "[%s] qualified %s score=%.2f rr=%.2f strong_div=%s | %s",
+                symbol,
+                "做多" if direction == "LONG" else "做空",
+                candidate["signal_score"],
+                candidate["exits"]["reward_risk_ratio"],
+                candidate["strong_divergence"],
+                candidate["summary"],
+            )
+            return candidate
+        except Exception as exc:
+            logger.exception("[%s] failed during qualification: %s", symbol, exc)
+            return None
+
+    def _build_intraday_opportunity(self, candidate: dict) -> dict | None:
+        symbol = candidate["symbol"]
+        direction = candidate["direction"]
+        try:
+            daily_frame = self.market_data.get_daily_bars(symbol)
+            hourly_frame = self.market_data.get_hourly_bars(symbol)
+            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy)
+            if "close" not in hourly:
                 return None
 
             self.storage.upsert_hourly(
@@ -127,115 +289,187 @@ class TripleScreenScanner:
                 hourly["breakout_short"],
             )
 
-            opportunity = self._build_opportunity(symbol, trend, weekly, daily, hourly, daily_frame)
-
-            if hourly["pass"] and not opportunity["cooldown_active"]:
-                self.storage.save_signal(
-                    symbol,
-                    trend,
-                    hourly["entry_price"],
-                    opportunity["exits"]["stop_loss_safezone"],
-                    opportunity["exits"]["stop_loss_two_bar"],
-                    opportunity["exits"]["take_profit"],
-                    opportunity["signal_score"],
-                    weekly["histogram"],
-                    weekly["trend"],
-                    daily["rsi"],
-                    hourly["close"],
-                    hourly["atr"],
-                    None,
-                )
-
-            logger.info(
-                "[%s] %s %s score=%.2f | %s",
-                symbol,
-                "做多" if trend == "LONG" else "做空",
-                "已触发" if opportunity["opportunity_status"] == "TRIGGERED" else "待触发",
-                opportunity["signal_score"],
-                opportunity["summary"],
+            exits = indicators.calc_exits(
+                direction,
+                hourly["entry_price"],
+                daily_frame,
+                hourly["atr"],
+                self.settings.trade_plan,
             )
-            if opportunity["cooldown_active"]:
-                logger.info("[%s] triggered but alert cooldown is active.", symbol)
+            if exits["reward_risk_ratio"] < self.settings.qualification.intraday_minimum_reward_risk:
+                logger.info(
+                    "[%s] skipped intraday because reward/risk %.2f < %.2f",
+                    symbol,
+                    exits["reward_risk_ratio"],
+                    self.settings.qualification.intraday_minimum_reward_risk,
+                )
+                return None
+
+            opportunity = dict(candidate)
+            opportunity["hourly"] = hourly
+            opportunity["exits"] = exits
+            opportunity["signal_score"] = indicators.calc_signal_score(
+                candidate["weekly"],
+                candidate["daily"],
+                hourly,
+                exits,
+            )
+            opportunity["reward_risk_score"] = indicators.calc_reward_risk_score(exits["reward_risk_ratio"])
+            opportunity["opportunity_status"] = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
+            opportunity["cooldown_active"] = (not self.dry_run) and hourly["pass"] and self._is_recently_alerted(symbol, direction)
+            opportunity["summary"] = (
+                f"{candidate['weekly']['reason']} | {candidate['daily']['reason']} | {hourly['reason']}"
+            )
             return opportunity
         except Exception as exc:
-            logger.exception("[%s] failed during processing: %s", symbol, exc)
+            logger.exception("[%s] failed during intraday scan: %s", symbol, exc)
             return None
 
-    def run_scan(self) -> list[dict]:
+    def run_end_of_day_scan(self) -> list[dict]:
         started_at = time.time()
+        session_date = self._latest_completed_session_date()
         logger.info("==================================================")
-        logger.info("scan started at %s", datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"))
+        logger.info("end-of-day qualification started for %s", session_date.isoformat())
         if self.dry_run:
             logger.info("dry-run enabled: notifications and alert-log updates are suppressed")
 
-        symbol_rows = self.market_data.get_top_symbols(self.settings.universe)
-        for row in symbol_rows:
-            self.storage.upsert_symbol(row["symbol"], row.get("market_cap"), row.get("sector"))
+        symbol_rows = self._load_universe()
         symbols = [row["symbol"] for row in symbol_rows]
-
-        logger.info("universe loaded: %s symbols", len(symbols))
-
         benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
         self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
 
         market_trend = self._check_market_trend()
-        logger.info("market trend: %s", market_trend)
+        earnings_map = self.earnings_calendar.get_upcoming_earnings(symbols, session_date=session_date)
+        logger.info("market trend: %s | earnings events loaded for %s symbols", market_trend, len(earnings_map))
+
+        candidates: list[dict] = []
+        with ThreadPoolExecutor(max_workers=self.settings.runtime.max_workers) as executor:
+            futures = {
+                executor.submit(self._build_candidate, symbol, market_trend, session_date, earnings_map): symbol
+                for symbol in symbols
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    candidates.append(result)
+
+        candidates.sort(key=self._candidate_sort_key)
+        self.storage.replace_qualified_candidates(session_date.isoformat(), candidates)
+
+        display_limit = max(self.settings.alerts.qualified_display_limit, 0)
+        displayed_candidates = candidates[:display_limit] if display_limit else []
+        strong_divergence_count = sum(1 for item in candidates if item.get("strong_divergence"))
+
+        for index, candidate in enumerate(displayed_candidates, start=1):
+            logger.info(
+                "QUALIFIED TOP %s [%s] %s %s score=%.2f rr=%.2f strong_div=%s | %s",
+                index,
+                candidate["earnings"]["status"],
+                candidate["symbol"],
+                "做多" if candidate["direction"] == "LONG" else "做空",
+                candidate["signal_score"],
+                candidate["exits"]["reward_risk_ratio"],
+                candidate["strong_divergence"],
+                candidate["summary"],
+            )
+
+        elapsed = time.time() - started_at
+        if not self.dry_run:
+            if not candidates:
+                self.notifier.send_no_opportunity(elapsed)
+            else:
+                self.notifier.send_candidate_summary(displayed_candidates, len(candidates), session_date.isoformat(), elapsed)
+
+        logger.info(
+            "end-of-day qualification finished: %s qualified, %s displayed, %s strong divergences, elapsed %.1fs",
+            len(candidates),
+            len(displayed_candidates),
+            strong_divergence_count,
+            elapsed,
+        )
+        return candidates
+
+    def run_intraday_scan(self) -> list[dict]:
+        started_at = time.time()
+        candidate_session = self.storage.get_latest_candidate_session()
+        logger.info("==================================================")
+        logger.info("intraday trigger scan started using candidate session %s", candidate_session)
+        if self.dry_run:
+            logger.info("dry-run enabled: notifications and alert-log updates are suppressed")
+
+        candidates = self.storage.get_qualified_candidates(candidate_session)
+        if not candidates:
+            logger.info("no stored qualified candidates found, falling back to end-of-day qualification build")
+            candidates = self.run_end_of_day_scan()
+            candidate_session = self.storage.get_latest_candidate_session()
+            if not candidates:
+                return []
+
+        symbols = [item["symbol"] for item in candidates]
+        benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
+        self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
 
         opportunities: list[dict] = []
         with ThreadPoolExecutor(max_workers=self.settings.runtime.max_workers) as executor:
-            futures = {executor.submit(self._process_symbol, symbol, market_trend): symbol for symbol in symbols}
+            futures = {executor.submit(self._build_intraday_opportunity, candidate): candidate["symbol"] for candidate in candidates}
             for future in as_completed(futures):
                 result = future.result()
                 if result:
                     opportunities.append(result)
 
-        top_limit = min(3, self.settings.alerts.max_signals_per_scan)
-        opportunities.sort(key=self._opportunity_sort_key)
-        top_opportunities = opportunities[:top_limit]
-        triggered_opportunities = [item for item in top_opportunities if item["opportunity_status"] == "TRIGGERED"]
-        watchlist_count = sum(1 for item in top_opportunities if item["opportunity_status"] == "WATCHLIST")
+        triggered_limit = max(self.settings.alerts.max_triggered_signals_per_scan, 0)
+        opportunities.sort(key=self._triggered_sort_key)
+        triggered = [item for item in opportunities if item["opportunity_status"] == "TRIGGERED"]
+        top_triggered = triggered[:triggered_limit] if triggered_limit else []
 
-        for index, opportunity in enumerate(top_opportunities, start=1):
+        for index, opportunity in enumerate(top_triggered, start=1):
             logger.info(
-                "TOP %s [%s] %s %s score=%.2f entry=%.2f | %s",
+                "TRIGGERED TOP %s %s %s score=%.2f rr=%.2f strong_div=%s | %s",
                 index,
-                "已触发" if opportunity["opportunity_status"] == "TRIGGERED" else "待触发",
                 opportunity["symbol"],
                 "做多" if opportunity["direction"] == "LONG" else "做空",
                 opportunity["signal_score"],
-                opportunity["exits"]["entry"],
+                opportunity["exits"]["reward_risk_ratio"],
+                opportunity.get("strong_divergence"),
                 opportunity["summary"],
-            )
-
-        if self.dry_run:
-            logger.info(
-                "dry-run top opportunities=%s, triggered alerts=%s, watchlist=%s",
-                len(top_opportunities),
-                len(triggered_opportunities),
-                watchlist_count,
             )
 
         elapsed = time.time() - started_at
         if not self.dry_run:
-            if not top_opportunities:
-                self.notifier.send_no_opportunity(elapsed)
-            else:
-                self.notifier.send_summary(top_opportunities, elapsed)
+            self.notifier.send_trigger_summary(top_triggered, candidate_session or "UNKNOWN", len(candidates), elapsed)
+            time.sleep(1)
+            for index, opportunity in enumerate(top_triggered, start=1):
+                if opportunity.get("cooldown_active"):
+                    continue
+                payload = dict(opportunity)
+                payload["rank"] = index
+                payload["total_ranked"] = len(top_triggered)
+                payload["rank_group"] = "TRIGGERED"
+                self.notifier.send_signal(payload)
+                self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
                 time.sleep(1)
-                for index, opportunity in enumerate(top_opportunities, start=1):
-                    if opportunity["opportunity_status"] != "TRIGGERED" or opportunity["cooldown_active"]:
-                        continue
-                    payload = dict(opportunity)
-                    payload["rank"] = index
-                    payload["total_ranked"] = len(top_opportunities)
-                    self.notifier.send_signal(payload)
-                    self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
-                    time.sleep(1)
+
         logger.info(
-            "scan finished: %s opportunities, %s top-ranked, %s triggered alerts, elapsed %.1fs",
-            len(opportunities),
-            len(top_opportunities),
-            len(triggered_opportunities),
+            "intraday trigger scan finished: %s candidates scanned, %s triggered, elapsed %.1fs",
+            len(candidates),
+            len(top_triggered),
             elapsed,
         )
-        return top_opportunities
+        return top_triggered
+
+    def run_scan(self, mode: str = "auto") -> list[dict]:
+        normalized_mode = (mode or "auto").strip().lower()
+        if normalized_mode == "eod":
+            return self.run_end_of_day_scan()
+        if normalized_mode == "intraday":
+            return self.run_intraday_scan()
+        if normalized_mode == "full":
+            self.run_end_of_day_scan()
+            return self.run_intraday_scan()
+
+        now_local = self._market_now()
+        if self._is_market_open(now_local):
+            return self.run_intraday_scan()
+        if now_local.weekday() < 5 and now_local.time() >= self.market_close_time:
+            return self.run_end_of_day_scan()
+        return self.run_intraday_scan()

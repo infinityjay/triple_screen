@@ -46,6 +46,16 @@ class AlpacaConfig:
 
 
 @dataclass(frozen=True)
+class EarningsCalendarConfig:
+    enabled: bool
+    provider: str
+    base_url: str
+    api_key: str | None
+    horizon: str
+    timeout_seconds: int
+
+
+@dataclass(frozen=True)
 class UniverseConfig:
     mode: str
     top_n: int
@@ -86,6 +96,16 @@ class StrategyConfig:
 
 
 @dataclass(frozen=True)
+class QualificationConfig:
+    minimum_reward_risk: float
+    intraday_minimum_reward_risk: float
+    strong_divergence_exhaustion_multiplier: float
+    earnings_block_days_before: int
+    earnings_block_days_after: int
+    earnings_warn_days_before: int
+
+
+@dataclass(frozen=True)
 class TradePlanConfig:
     safezone_lookback: int
     safezone_coefficient: float
@@ -103,7 +123,8 @@ class TelegramConfig:
 @dataclass(frozen=True)
 class AlertConfig:
     cooldown_hours: int
-    max_signals_per_scan: int
+    qualified_display_limit: int
+    max_triggered_signals_per_scan: int
     telegram: TelegramConfig
 
 
@@ -132,8 +153,10 @@ class AppConfig:
     config_path: Path
     app: AppMetaConfig
     alpaca: AlpacaConfig
+    earnings_calendar: EarningsCalendarConfig
     universe: UniverseConfig
     strategy: StrategyConfig
+    qualification: QualificationConfig
     trade_plan: TradePlanConfig
     alerts: AlertConfig
     market_filter: MarketFilterConfig

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -16,6 +17,23 @@ class SQLiteStorage:
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    @staticmethod
+    def _json_safe(value):
+        if isinstance(value, dict):
+            return {str(key): SQLiteStorage._json_safe(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [SQLiteStorage._json_safe(item) for item in value]
+        if isinstance(value, tuple):
+            return [SQLiteStorage._json_safe(item) for item in value]
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        if hasattr(value, "item"):
+            try:
+                return SQLiteStorage._json_safe(value.item())
+            except Exception:
+                pass
+        return value
 
     def init_db(self) -> None:
         with self._connect() as connection:
@@ -116,8 +134,38 @@ class SQLiteStorage:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS earnings_events (
+                    symbol TEXT PRIMARY KEY,
+                    report_date TEXT,
+                    fiscal_date_ending TEXT,
+                    estimate TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS qualified_candidates (
+                    session_date TEXT,
+                    symbol TEXT,
+                    direction TEXT,
+                    signal_score REAL,
+                    reward_risk_ratio REAL,
+                    opportunity_status TEXT,
+                    strong_divergence INTEGER,
+                    candidate_json TEXT,
+                    created_at TEXT,
+                    PRIMARY KEY (session_date, symbol, direction)
+                )
+                """
+            )
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_bars_lookup ON price_bars(symbol, timeframe, timestamp)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_candidates_session_score ON qualified_candidates(session_date, signal_score DESC)"
+            )
 
     def upsert_symbol(self, symbol: str, market_cap: float | None, sector: str | None) -> None:
         with self._connect() as connection:
@@ -257,6 +305,133 @@ class SQLiteStorage:
                 """,
                 (symbol, datetime.utcnow().isoformat(), direction),
             )
+
+    def upsert_earnings_events(self, events: list[dict]) -> None:
+        if not events:
+            return
+
+        now = datetime.utcnow().isoformat()
+        records = [
+            (
+                item["symbol"],
+                item.get("report_date"),
+                item.get("fiscal_date_ending"),
+                item.get("estimate"),
+                now,
+            )
+            for item in events
+            if item.get("symbol")
+        ]
+        if not records:
+            return
+
+        with self._connect() as connection:
+            connection.executemany(
+                """
+                INSERT OR REPLACE INTO earnings_events
+                (symbol, report_date, fiscal_date_ending, estimate, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                records,
+            )
+
+    def get_earnings_event(self, symbol: str):
+        with self._connect() as connection:
+            return connection.execute(
+                """
+                SELECT symbol, report_date, fiscal_date_ending, estimate, updated_at
+                FROM earnings_events
+                WHERE symbol = ?
+                """,
+                (symbol,),
+            ).fetchone()
+
+    def get_latest_earnings_update_time(self) -> datetime | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT updated_at
+                FROM earnings_events
+                ORDER BY updated_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        if not row:
+            return None
+        return datetime.fromisoformat(row["updated_at"])
+
+    def replace_qualified_candidates(self, session_date: str, candidates: list[dict]) -> None:
+        now = datetime.utcnow().isoformat()
+        records = [
+            (
+                session_date,
+                item["symbol"],
+                item["direction"],
+                item["signal_score"],
+                item["exits"]["reward_risk_ratio"],
+                item["opportunity_status"],
+                int(bool(item.get("strong_divergence"))),
+                json.dumps(self._json_safe(item), ensure_ascii=True),
+                now,
+            )
+            for item in candidates
+        ]
+
+        with self._connect() as connection:
+            connection.execute("DELETE FROM qualified_candidates WHERE session_date = ?", (session_date,))
+            if records:
+                connection.executemany(
+                    """
+                    INSERT OR REPLACE INTO qualified_candidates
+                    (session_date, symbol, direction, signal_score, reward_risk_ratio,
+                     opportunity_status, strong_divergence, candidate_json, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    records,
+                )
+            connection.execute(
+                """
+                DELETE FROM qualified_candidates
+                WHERE session_date NOT IN (
+                    SELECT session_date
+                    FROM qualified_candidates
+                    GROUP BY session_date
+                    ORDER BY session_date DESC
+                    LIMIT 5
+                )
+                """
+            )
+
+    def get_latest_candidate_session(self) -> str | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT session_date
+                FROM qualified_candidates
+                GROUP BY session_date
+                ORDER BY session_date DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        return row["session_date"] if row else None
+
+    def get_qualified_candidates(self, session_date: str | None = None) -> list[dict]:
+        target_session = session_date or self.get_latest_candidate_session()
+        if not target_session:
+            return []
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT candidate_json
+                FROM qualified_candidates
+                WHERE session_date = ?
+                ORDER BY signal_score DESC, symbol ASC
+                """,
+                (target_session,),
+            ).fetchall()
+
+        return [json.loads(row["candidate_json"]) for row in rows]
 
     def get_price_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
         with self._connect() as connection:

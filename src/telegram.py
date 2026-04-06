@@ -101,10 +101,13 @@ class TelegramNotifier:
         score = signal.get("signal_score", 0)
         rank = signal.get("rank")
         total_ranked = signal.get("total_ranked")
+        rank_group = signal.get("rank_group")
         weekly = signal["weekly"]
         daily = signal["daily"]
         hourly = signal["hourly"]
         exits = signal["exits"]
+        earnings = signal.get("earnings", {})
+        divergence = signal.get("divergence", {})
 
         dir_emoji = "🚀" if direction == "LONG" else "🔻"
         dir_label = "做多" if direction == "LONG" else "做空"
@@ -136,7 +139,10 @@ class TelegramNotifier:
 
         title = f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>"
         if rank is not None and total_ranked is not None:
-            title = f"🏁 <b>Top {rank}/{total_ranked}</b>\n{title}"
+            rank_prefix = "Triggered Top" if rank_group == "TRIGGERED" else "Top"
+            title = f"🏁 <b>{rank_prefix} {rank}/{total_ranked}</b>\n{title}"
+        if signal.get("strong_divergence"):
+            title = f"🚨 <b>强背离提醒</b>\n{title}"
 
         return (
             f"{title}\n"
@@ -171,52 +177,131 @@ class TelegramNotifier:
             f"日线 Thermometer EMA：<code>{exits['thermometer_ema']:.2f}</code>  投影基准：{exits['target_reference']:.2f}\n"
             f"每股风险：{exits['risk_per_share']:.2f}  预估盈亏比：{exits['reward_risk_ratio']:.2f}R\n"
             f"{'─' * 32}\n"
+            f"<b>候选池标签</b>\n"
+            f"候选日期：<code>{signal.get('source_session_date', 'UNKNOWN')}</code>\n"
+            f"财报状态：<b>{earnings.get('status', 'UNKNOWN')}</b>  {earnings.get('reason', '未获取到财报信息')}\n"
+            f"周线背离：{'是' if divergence.get('weekly', {}).get('detected') else '否'}  "
+            f"日线背离：{'是' if divergence.get('daily', {}).get('detected') else '否'}\n"
+            f"{'强提醒：' + divergence.get('daily', {}).get('exhaustion_reason', '') if signal.get('strong_divergence') else '强提醒：无'}\n"
+            f"{'─' * 32}\n"
             f"<i>{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</i>"
         )
 
     def send_signal(self, signal: dict) -> bool:
         return self._send(self.format_signal_message(signal))
 
-    def format_summary_message(self, signals: list[dict], scan_time_sec: float) -> str:
-        if not signals:
+    def format_candidate_summary_message(
+        self,
+        qualified_signals: list[dict],
+        total_candidates: int,
+        session_date: str,
+        scan_time_sec: float,
+    ) -> str:
+        if total_candidates <= 0:
             return (
-                "🔍 <b>本轮扫描未发现符合条件的前三交易机会</b>\n"
+                "🔍 <b>本轮收盘后未发现符合条件的交易候选</b>\n"
+                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+            )
+        if not qualified_signals:
+            return (
+                f"📘 <b>{session_date} 候选池更新完成</b>\n"
+                f"共筛出 {total_candidates} 个合格标的，但当前展示条数配置为 0\n"
                 f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
             )
 
-        triggered_count = sum(1 for signal in signals if signal.get("opportunity_status") == "TRIGGERED")
+        strong_divergence_count = sum(1 for signal in qualified_signals if signal.get("strong_divergence"))
         lines = [
-            f"📋 <b>Top {len(signals)} 交易机会摘要</b>\n",
-            f"已触发 {triggered_count} 个 · 待触发 {len(signals) - triggered_count} 个\n",
+            f"📘 <b>{session_date} 候选池更新完成</b>\n",
+            f"共筛出 {total_candidates} 个合格标的，本消息展示前 {len(qualified_signals)} 个\n",
+            f"强背离提醒 {strong_divergence_count} 个\n",
             f"{'─' * 24}\n",
         ]
 
-        for index, signal in enumerate(signals, start=1):
+        for index, signal in enumerate(qualified_signals, start=1):
             direction = "做多" if signal["direction"] == "LONG" else "做空"
             status = "已触发" if signal.get("opportunity_status") == "TRIGGERED" else "待触发"
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             hourly = signal["hourly"]
-            trigger_text = (
-                f"现价 {hourly['close']:.2f}"
-                if signal.get("opportunity_status") == "TRIGGERED"
-                else f"触发价 {hourly['entry_price']:.2f}"
-            )
+            divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
+            earnings_status = signal.get("earnings", {}).get("status", "UNKNOWN")
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} {status} "
-                f"评分 {signal['signal_score']:.1f}\n"
-                f"   {daily_state} · {trigger_text} · "
-                f"SL {signal['exits']['stop_loss']:.2f} · TP {signal['exits']['take_profit']:.2f}\n"
+                f"评分 {signal['signal_score']:.1f}{divergence_badge}\n"
+                f"   {daily_state} · 预估触发价 {hourly['entry_price']:.2f} · "
+                f"RR {signal['exits']['reward_risk_ratio']:.2f}R · 财报 {earnings_status}\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
         return "".join(lines)
 
-    def send_summary(self, signals: list[dict], scan_time_sec: float) -> bool:
-        return self._send(self.format_summary_message(signals, scan_time_sec))
+    def format_trigger_summary_message(
+        self,
+        triggered_signals: list[dict],
+        session_date: str,
+        total_candidates: int,
+        scan_time_sec: float,
+    ) -> str:
+        if not triggered_signals:
+            return (
+                f"⏱ <b>盘中触发扫描完成</b>\n"
+                f"候选池日期：<code>{session_date}</code> · 候选总数 {total_candidates}\n"
+                "本轮暂无满足条件的触发机会\n"
+                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+            )
+
+        lines = [
+            f"🏁 <b>Top {len(triggered_signals)} Triggered 机会</b>\n",
+            f"候选池日期：<code>{session_date}</code> · 候选总数 {total_candidates}\n",
+            f"{'─' * 24}\n",
+        ]
+        for index, signal in enumerate(triggered_signals, start=1):
+            direction = "做多" if signal["direction"] == "LONG" else "做空"
+            divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
+            lines.append(
+                f"{index}. <b>{signal['symbol']}</b> {direction} "
+                f"评分 {signal['signal_score']:.1f}{divergence_badge}\n"
+                f"   现价 {signal['hourly']['close']:.2f} · RR {signal['exits']['reward_risk_ratio']:.2f}R · "
+                f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
+            )
+
+        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
+        return "".join(lines)
+
+    def send_candidate_summary(
+        self,
+        qualified_signals: list[dict],
+        total_candidates: int,
+        session_date: str,
+        scan_time_sec: float,
+    ) -> bool:
+        return self._send(
+            self.format_candidate_summary_message(
+                qualified_signals,
+                total_candidates,
+                session_date,
+                scan_time_sec,
+            )
+        )
+
+    def send_trigger_summary(
+        self,
+        triggered_signals: list[dict],
+        session_date: str,
+        total_candidates: int,
+        scan_time_sec: float,
+    ) -> bool:
+        return self._send(
+            self.format_trigger_summary_message(
+                triggered_signals,
+                session_date,
+                total_candidates,
+                scan_time_sec,
+            )
+        )
 
     def send_no_opportunity(self, scan_time_sec: float) -> bool:
         return self._send(
-            "🔍 <b>本轮扫描未发现符合条件的前三交易机会</b>\n"
+            "🔍 <b>本轮扫描未发现符合条件的交易机会</b>\n"
             f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
         )
 
