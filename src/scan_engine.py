@@ -174,8 +174,6 @@ class TripleScreenScanner:
         symbols = [row["symbol"] for row in symbol_rows]
 
         logger.info("universe loaded: %s symbols", len(symbols))
-        if not self.dry_run:
-            self.notifier.send_scan_start(len(symbols))
 
         benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
         self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
@@ -191,12 +189,10 @@ class TripleScreenScanner:
                 if result:
                     opportunities.append(result)
 
-        top_limit = min(5, self.settings.alerts.max_signals_per_scan)
+        top_limit = min(3, self.settings.alerts.max_signals_per_scan)
         opportunities.sort(key=self._opportunity_sort_key)
         top_opportunities = opportunities[:top_limit]
-        triggered_opportunities = [
-            item for item in top_opportunities if item["opportunity_status"] == "TRIGGERED" and not item["cooldown_active"]
-        ]
+        triggered_opportunities = [item for item in top_opportunities if item["opportunity_status"] == "TRIGGERED"]
         watchlist_count = sum(1 for item in top_opportunities if item["opportunity_status"] == "WATCHLIST")
 
         for index, opportunity in enumerate(top_opportunities, start=1):
@@ -218,15 +214,20 @@ class TripleScreenScanner:
                 len(triggered_opportunities),
                 watchlist_count,
             )
-        else:
-            for opportunity in triggered_opportunities:
-                self.notifier.send_signal(opportunity)
-                self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
-                time.sleep(1)
 
         elapsed = time.time() - started_at
         if not self.dry_run:
-            self.notifier.send_summary(top_opportunities, elapsed)
+            if not top_opportunities:
+                self.notifier.send_no_opportunity(elapsed)
+            else:
+                for index, opportunity in enumerate(top_opportunities, start=1):
+                    payload = dict(opportunity)
+                    payload["rank"] = index
+                    payload["total_ranked"] = len(top_opportunities)
+                    self.notifier.send_signal(payload)
+                    if opportunity["opportunity_status"] == "TRIGGERED" and not opportunity["cooldown_active"]:
+                        self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
+                    time.sleep(1)
         logger.info(
             "scan finished: %s opportunities, %s top-ranked, %s triggered alerts, elapsed %.1fs",
             len(opportunities),

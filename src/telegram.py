@@ -99,6 +99,8 @@ class TelegramNotifier:
         direction = signal["direction"]
         symbol = signal["symbol"]
         score = signal.get("signal_score", 0)
+        rank = signal.get("rank")
+        total_ranked = signal.get("total_ranked")
         weekly = signal["weekly"]
         daily = signal["daily"]
         hourly = signal["hourly"]
@@ -132,8 +134,12 @@ class TelegramNotifier:
                     f"当前小时低点：{hourly['current_low']:.2f}  当前价：{hourly['close']:.2f}  下一触发价：{hourly['entry_price']:.2f}"
                 )
 
+        title = f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>"
+        if rank is not None and total_ranked is not None:
+            title = f"🏁 <b>Top {rank}/{total_ranked}</b>\n{title}"
+
         return (
-            f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>\n"
+            f"{title}\n"
             f"状态：<b>{self._status_label(signal)}</b>\n"
             f"综合评分：{self._score_stars(score)} <code>{score:.1f}/10</code>\n"
             f"{'─' * 32}\n"
@@ -168,53 +174,14 @@ class TelegramNotifier:
             f"<i>{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</i>"
         )
 
-    def format_summary_message(self, signals: list[dict], scan_time_sec: float) -> str:
-        if not signals:
-            return (
-                "🔍 <b>扫描完成 · 暂无周线/日线同向机会</b>\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
-            )
-
-        triggered_count = sum(1 for signal in signals if signal.get("opportunity_status") == "TRIGGERED")
-        lines = [
-            f"📋 <b>扫描完成 · Top {len(signals)} 交易机会</b>\n",
-            f"已触发 {triggered_count} 个 · 观察中 {len(signals) - triggered_count} 个\n",
-            f"{'─' * 32}\n",
-        ]
-        for index, signal in enumerate(signals[:10], start=1):
-            emoji = "🚀" if signal["direction"] == "LONG" else "🔻"
-            status = "已触发" if signal.get("opportunity_status") == "TRIGGERED" else "待触发"
-            hourly = signal["hourly"]
-            daily_state_label = self._daily_state_label(signal["daily"]["rsi_state"])
-            trigger_text = (
-                f"现价 {hourly['close']:.2f}"
-                if signal.get("opportunity_status") == "TRIGGERED"
-                else f"触发价 {hourly['entry_price']:.2f}"
-            )
-            lines.append(
-                f"{index}. {emoji} <b>{signal['symbol']}</b> "
-                f"{'做多' if signal['direction'] == 'LONG' else '做空'} "
-                f"{status} "
-                f"评分 {signal['signal_score']:.1f}\n"
-                f"    日线 {daily_state_label} · {trigger_text} · "
-                f"SL {signal['exits']['stop_loss']:.2f} · TP {signal['exits']['take_profit']:.2f}\n"
-            )
-
-        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
-        return "".join(lines)
-
-    def send_scan_start(self, symbol_count: int) -> bool:
-        return self._send(
-            "🔄 <b>开始扫描</b>\n"
-            f"股票池：{symbol_count} 只\n"
-            f"<i>{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</i>"
-        )
-
     def send_signal(self, signal: dict) -> bool:
         return self._send(self.format_signal_message(signal))
 
-    def send_summary(self, signals: list[dict], scan_time_sec: float) -> bool:
-        return self._send(self.format_summary_message(signals, scan_time_sec))
+    def send_no_opportunity(self, scan_time_sec: float) -> bool:
+        return self._send(
+            "🔍 <b>本轮扫描未发现符合条件的前三交易机会</b>\n"
+            f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+        )
 
     def send_error(self, error_message: str) -> bool:
         return self._send(
