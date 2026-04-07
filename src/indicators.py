@@ -279,11 +279,6 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         or (trend == "SHORT" and close_now < ema_now)
         or (trend == "NEUTRAL")
     )
-    histogram_on_trend_side = (
-        (trend == "LONG" and hist_now > 0)
-        or (trend == "SHORT" and hist_now < 0)
-        or (trend == "NEUTRAL")
-    )
     trend_score = 0.0
     if actionable:
         trend_score += min(abs(float(hist_delta)) * 40, 2.5)
@@ -326,7 +321,6 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         "confirmed_bars": confirmed,
         "impulse_aligned": impulse_aligned,
         "close_on_trend_side": close_on_trend_side,
-        "histogram_on_trend_side": histogram_on_trend_side,
         "trend_score": round(min(trend_score, WEEKLY_TREND_SCORE_CAP), 2),
         "actionable": actionable,
         "pass": (
@@ -334,7 +328,6 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
             and confirmed_pass
             and (impulse_aligned or not settings.weekly.require_impulse_alignment)
             and close_on_trend_side
-            and histogram_on_trend_side
         ),
         "reason": reason,
     }
@@ -401,11 +394,9 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         upper_half_close = close.iloc[-1] >= (low.iloc[-1] + candle_range * 0.5)
         momentum_reversal = bool(rsi_now > rsi_prev and float(macd_hist.iloc[-1]) > float(macd_hist.iloc[-2]))
         price_reversal = bool(close.iloc[-1] > close.iloc[-2] and lower_wick >= candle_range * 0.35 and upper_half_close)
-        close_reclaimed_ema = bool(close.iloc[-1] >= ema13.iloc[-1])
         reversal_checks = [
             momentum_reversal,
             price_reversal,
-            close_reclaimed_ema,
             value_zone_touch,
         ]
         accelerating_correction = bool(
@@ -436,7 +427,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "WATCH"
             watch = True
             rsi_state = "PULLBACK_WAIT_VALUE_ZONE_CONFIRM"
-        elif momentum_reversal and price_reversal and close_reclaimed_ema:
+        elif momentum_reversal and price_reversal:
             state = "QUALIFIED"
             passed = True
             rsi_state = "PULLBACK_REVERSING"
@@ -456,11 +447,9 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         lower_half_close = close.iloc[-1] <= (high.iloc[-1] - candle_range * 0.5)
         momentum_reversal = bool(rsi_now < rsi_prev and float(macd_hist.iloc[-1]) < float(macd_hist.iloc[-2]))
         price_reversal = bool(close.iloc[-1] < close.iloc[-2] and upper_wick >= candle_range * 0.35 and lower_half_close)
-        close_reclaimed_ema = bool(close.iloc[-1] <= ema13.iloc[-1])
         reversal_checks = [
             momentum_reversal,
             price_reversal,
-            close_reclaimed_ema,
             value_zone_touch,
         ]
         accelerating_correction = bool(
@@ -491,7 +480,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "WATCH"
             watch = True
             rsi_state = "RALLY_WAIT_VALUE_ZONE_CONFIRM"
-        elif momentum_reversal and price_reversal and close_reclaimed_ema:
+        elif momentum_reversal and price_reversal:
             state = "QUALIFIED"
             passed = True
             rsi_state = "RALLY_ROLLING_OVER"
