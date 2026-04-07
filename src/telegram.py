@@ -219,16 +219,13 @@ class TelegramNotifier:
 
         for index, signal in enumerate(qualified_signals, start=1):
             direction = "做多" if signal["direction"] == "LONG" else "做空"
-            status = "已触发" if signal.get("opportunity_status") == "TRIGGERED" else "待触发"
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
-            hourly = signal["hourly"]
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             earnings_status = signal.get("earnings", {}).get("status", "UNKNOWN")
             lines.append(
-                f"{index}. <b>{signal['symbol']}</b> {direction} {status} "
+                f"{index}. <b>{signal['symbol']}</b> {direction} 候选 "
                 f"评分 {signal['signal_score']:.1f}{divergence_badge}\n"
-                f"   {daily_state} · 预估触发价 {hourly['entry_price']:.2f} · "
-                f"RR {signal['exits']['reward_risk_ratio']:.2f}R · 财报 {earnings_status}\n"
+                f"   {daily_state} · 等待下一交易日盘中小时线确认 · 财报 {earnings_status}\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")

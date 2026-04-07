@@ -217,37 +217,6 @@ class TripleScreenScanner:
                 return None
             self.storage.upsert_daily(symbol, daily["rsi"], daily["rsi_prev"], daily["rsi_state"])
 
-            hourly_frame = self.market_data.get_hourly_bars(symbol)
-            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy)
-            if "close" not in hourly:
-                logger.info("[%s] skipped after daily setup because hourly data is insufficient.", symbol)
-                return None
-            self.storage.upsert_hourly(
-                symbol,
-                hourly["close"],
-                hourly["high_n"],
-                hourly["low_n"],
-                hourly["atr"],
-                hourly["breakout_long"],
-                hourly["breakout_short"],
-            )
-
-            exits = indicators.calc_exits(
-                direction,
-                hourly["entry_price"],
-                daily_frame,
-                hourly["atr"],
-                self.settings.trade_plan,
-            )
-            if exits["reward_risk_ratio"] < self.settings.qualification.minimum_reward_risk:
-                logger.info(
-                    "[%s] skipped after risk filter because reward/risk %.2f < %.2f",
-                    symbol,
-                    exits["reward_risk_ratio"],
-                    self.settings.qualification.minimum_reward_risk,
-                )
-                return None
-
             earnings = self._classify_earnings_event(symbol, session_date, earnings_map.get(symbol))
             daily["earnings_blocked"] = bool(earnings["blocked"])
             if earnings["blocked"]:
@@ -259,7 +228,7 @@ class TripleScreenScanner:
             daily["priority_divergence"] = divergence_detected
             if daily.get("state") == "QUALIFIED" and divergence_detected:
                 daily["state"] = "PRIORITY_QUALIFIED"
-            score = indicators.calc_signal_score(weekly, daily, hourly, exits)
+            score = indicators.calc_signal_score(weekly, daily, {}, {"reward_risk_ratio": 0.0})
             priority_tags = []
             if earnings["warning"]:
                 priority_tags.append("EARNINGS_SOON")
@@ -274,25 +243,29 @@ class TripleScreenScanner:
                 "symbol": symbol,
                 "direction": direction,
                 "source_session_date": session_date.isoformat(),
-                "opportunity_status": "TRIGGERED" if hourly["pass"] else "WATCHLIST",
+                "opportunity_status": "WATCHLIST",
                 "signal_score": score,
-                "reward_risk_score": indicators.calc_reward_risk_score(exits["reward_risk_ratio"]),
+                "reward_risk_score": 0.0,
                 "weekly": weekly,
                 "daily": daily,
-                "hourly": hourly,
-                "exits": exits,
+                "hourly": {
+                    "status": "PENDING_INTRADAY",
+                    "reason": "收盘候选池阶段不计算小时线触发，留待下一交易日盘中扫描。",
+                },
+                "exits": {
+                    "reward_risk_ratio": 0.0,
+                },
                 "earnings": earnings,
                 "divergence": divergence,
                 "strong_divergence": divergence["strong_divergence"],
                 "priority_tags": priority_tags,
-                "summary": f"{weekly['reason']} | {daily['reason']} | {hourly['reason']}",
+                "summary": f"{weekly['reason']} | {daily['reason']}",
             }
             logger.info(
-                "[%s] qualified %s score=%.2f rr=%.2f strong_div=%s | %s",
+                "[%s] qualified %s score=%.2f strong_div=%s | %s",
                 symbol,
                 "做多" if direction == "LONG" else "做空",
                 candidate["signal_score"],
-                candidate["exits"]["reward_risk_ratio"],
                 candidate["strong_divergence"],
                 candidate["summary"],
             )
@@ -394,13 +367,12 @@ class TripleScreenScanner:
 
         for index, candidate in enumerate(displayed_candidates, start=1):
             logger.info(
-                "QUALIFIED TOP %s [%s] %s %s score=%.2f rr=%.2f strong_div=%s | %s",
+                "QUALIFIED TOP %s [%s] %s %s score=%.2f strong_div=%s | %s",
                 index,
                 candidate["earnings"]["status"],
                 candidate["symbol"],
                 "做多" if candidate["direction"] == "LONG" else "做空",
                 candidate["signal_score"],
-                candidate["exits"]["reward_risk_ratio"],
                 candidate["strong_divergence"],
                 candidate["summary"],
             )
