@@ -351,7 +351,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     if trend == "LONG":
         countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
         value_zone_reached = near_ema or (35.0 <= rsi_now <= 45.0)
-        higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
+        prior_lows = low.iloc[:-1].tail(DAILY_CORRECTION_WINDOW_MAX)
+        higher_low_ref = float(prior_lows.min()) if not prior_lows.empty else float(low.iloc[-1])
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(low.iloc[-1] >= structure_break_level)
         lower_wick = float(min(close.iloc[-1], float(df_day["open"].iloc[-1])) - low.iloc[-1])
@@ -397,7 +398,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     elif trend == "SHORT":
         countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
         value_zone_reached = near_ema or (55.0 <= rsi_now <= 65.0)
-        lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
+        prior_highs = high.iloc[:-1].tail(DAILY_CORRECTION_WINDOW_MAX)
+        lower_high_ref = float(prior_highs.max()) if not prior_highs.empty else float(high.iloc[-1])
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(high.iloc[-1] <= structure_break_level)
         upper_wick = float(high.iloc[-1] - max(close.iloc[-1], float(df_day["open"].iloc[-1])))
