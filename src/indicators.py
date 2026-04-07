@@ -10,7 +10,6 @@ DAILY_REVERSAL_LOOKBACK = 3
 DAILY_CORRECTION_WINDOW_MIN = 2
 DAILY_CORRECTION_WINDOW_MAX = 8
 DAILY_EMA_PERIOD = 13
-DAILY_VALUE_ZONE_EMA_TOLERANCE = 0.01
 DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER = 0.3
 WEEKLY_TREND_SCORE_CAP = 4.5
 DAILY_SETUP_SCORE_CAP = 4.5
@@ -242,9 +241,13 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "周线数据不足"}
 
     macd, signal, histogram = calc_macd(df_week, settings)
+    ema13 = calc_ema(df_week["close"].astype(float), DAILY_EMA_PERIOD)
     hist_now = histogram.iloc[-1]
     hist_prev = histogram.iloc[-2]
     hist_delta = hist_now - hist_prev
+    ema_now = float(ema13.iloc[-1])
+    ema_prev = float(ema13.iloc[-2])
+    ema_delta = ema_now - ema_prev
     histogram_deltas = histogram.diff().dropna()
 
     confirmed = 0
@@ -264,19 +267,32 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
     impulse = "RISING" if hist_delta > 0 else "FALLING" if hist_delta < 0 else "FLAT"
     actionable = trend != "NEUTRAL"
     confirmed_pass = confirmed >= settings.weekly.confirm_bars
+    impulse_aligned = (
+        (trend == "LONG" and ema_delta > 0 and hist_delta > 0)
+        or (trend == "SHORT" and ema_delta < 0 and hist_delta < 0)
+        or (trend == "NEUTRAL")
+    )
     trend_score = 0.0
     if actionable:
         trend_score += min(abs(float(hist_delta)) * 40, 2.5)
         trend_score += min(confirmed, 4) * 0.35
+        if impulse_aligned:
+            trend_score += 0.5
         if (trend == "LONG" and hist_now < 0) or (trend == "SHORT" and hist_now > 0):
             trend_score += 0.8
 
     if trend == "LONG":
         setup_state = "BULLISH_SLOPE"
-        reason = f"周线动能回升，多头占优，可继续观察回调后的做多机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
+        reason = (
+            f"周线柱线回升，且 13EMA {'上行' if ema_delta > 0 else '未上行'}，"
+            f"可继续观察回调后的做多机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
+        )
     elif trend == "SHORT":
         setup_state = "BEARISH_SLOPE"
-        reason = f"周线动能回落，空头占优，可继续观察反弹后的做空机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
+        reason = (
+            f"周线柱线回落，且 13EMA {'下行' if ema_delta < 0 else '未下行'}，"
+            f"可继续观察反弹后的做空机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
+        )
     else:
         setup_state = "NEUTRAL"
         reason = "周线动能方向不清晰，暂不作为重点交易对象"
@@ -292,10 +308,14 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         "histogram_growing": hist_delta > 0,
         "macd": round(float(macd.iloc[-1]), 6),
         "macd_signal": round(float(signal.iloc[-1]), 6),
+        "ema13": round(ema_now, 6),
+        "ema13_prev": round(ema_prev, 6),
+        "ema13_slope": round(float(ema_delta), 6),
         "confirmed_bars": confirmed,
+        "impulse_aligned": impulse_aligned,
         "trend_score": round(min(trend_score, WEEKLY_TREND_SCORE_CAP), 2),
         "actionable": actionable,
-        "pass": actionable and confirmed_pass,
+        "pass": actionable and confirmed_pass and (impulse_aligned or not settings.weekly.require_impulse_alignment),
         "reason": reason,
     }
 
@@ -328,6 +348,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
 
     recent = df_day.tail(DAILY_CORRECTION_WINDOW_MAX).copy()
     recent_close = recent["close"].astype(float)
+    recent_high = recent["high"].astype(float)
+    recent_low = recent["low"].astype(float)
     recent_ema = ema13.tail(DAILY_CORRECTION_WINDOW_MAX)
     recent_rsi = rsi.tail(DAILY_CORRECTION_WINDOW_MAX)
     lookback_slice = slice(-DAILY_CORRECTION_WINDOW_MAX, None)
@@ -337,8 +359,13 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     up_closes = int((prior_closes.diff() > 0).sum())
     rsi_falling = bool(recent_rsi.iloc[-1] < recent_rsi.iloc[0])
     rsi_rising = bool(recent_rsi.iloc[-1] > recent_rsi.iloc[0])
+    ema_tolerance = max(float(settings.daily.value_zone_ema_tolerance), 0.0)
     price_to_ema = abs((close.iloc[-1] - ema13.iloc[-1]) / ema13.iloc[-1]) if ema13.iloc[-1] else 0.0
-    near_ema = bool(price_to_ema <= DAILY_VALUE_ZONE_EMA_TOLERANCE)
+    value_zone_upper = recent_ema * (1 + ema_tolerance)
+    value_zone_lower = recent_ema * (1 - ema_tolerance)
+    value_zone_touch = bool(((recent_low <= value_zone_upper) & (recent_high >= value_zone_lower)).tail(DAILY_REVERSAL_LOOKBACK).any())
+    near_ema = bool(price_to_ema <= ema_tolerance)
+    entered_value_zone = value_zone_touch if settings.daily.require_value_zone_touch else (value_zone_touch or near_ema)
 
     correction_bar_count = min(len(recent_close), DAILY_CORRECTION_WINDOW_MAX)
     correction_in_window = correction_bar_count >= DAILY_CORRECTION_WINDOW_MIN
@@ -350,7 +377,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
 
     if trend == "LONG":
         countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
-        value_zone_reached = near_ema or (35.0 <= rsi_now <= 45.0)
+        rsi_in_value_zone = settings.daily.rsi_oversold <= rsi_now <= 50.0
+        value_zone_reached = entered_value_zone and rsi_in_value_zone
         higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(low.iloc[-1] >= structure_break_level)
@@ -382,11 +410,16 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
             rsi_state = "ACCELERATING_PULLBACK"
+        elif not entered_value_zone:
+            state = "WATCH"
+            watch = True
+            reject_reason = ""
+            rsi_state = "PULLBACK_WAIT_EMA_VALUE_ZONE"
         elif not value_zone_reached:
             state = "WATCH"
             watch = True
-            rsi_state = "PULLBACK_WAIT_VALUE_ZONE"
-        elif sum(reversal_checks) >= 2:
+            rsi_state = "PULLBACK_WAIT_VALUE_ZONE_CONFIRM"
+        elif sum(reversal_checks) >= settings.daily.minimum_reversal_evidence:
             state = "QUALIFIED"
             passed = True
             rsi_state = "PULLBACK_REVERSING"
@@ -396,7 +429,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             rsi_state = "PULLBACK_WAIT_REVERSAL"
     elif trend == "SHORT":
         countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
-        value_zone_reached = near_ema or (55.0 <= rsi_now <= 65.0)
+        rsi_in_value_zone = 50.0 <= rsi_now <= settings.daily.rsi_overbought
+        value_zone_reached = entered_value_zone and rsi_in_value_zone
         lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(high.iloc[-1] <= structure_break_level)
@@ -428,11 +462,16 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
             rsi_state = "ACCELERATING_RALLY"
+        elif not entered_value_zone:
+            state = "WATCH"
+            watch = True
+            reject_reason = ""
+            rsi_state = "RALLY_WAIT_EMA_VALUE_ZONE"
         elif not value_zone_reached:
             state = "WATCH"
             watch = True
-            rsi_state = "RALLY_WAIT_VALUE_ZONE"
-        elif sum(reversal_checks) >= 2:
+            rsi_state = "RALLY_WAIT_VALUE_ZONE_CONFIRM"
+        elif sum(reversal_checks) >= settings.daily.minimum_reversal_evidence:
             state = "QUALIFIED"
             passed = True
             rsi_state = "RALLY_ROLLING_OVER"
@@ -455,12 +494,15 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     if state == "REJECT":
         reason = reject_reason
     elif state == "QUALIFIED":
-        reason = f"日线修正已进入价值区且出现 {reversal_evidence_count}/4 项拐头证据，可进入候选池"
+        reason = (
+            f"日线修正已回到 13EMA 价值区，且出现 {reversal_evidence_count}/4 项拐头证据，"
+            "可进入候选池"
+        )
     else:
         reason = (
             f"日线修正存在，但仅满足 {reversal_evidence_count}/4 项拐头证据，继续观察小时线前的完成度"
             if value_zone_reached
-            else "日线修正存在但尚未进入价值区，继续观察"
+            else "日线修正存在但尚未完成 13EMA 价值区回踩确认，继续观察"
         )
 
     return {

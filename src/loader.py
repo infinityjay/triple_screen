@@ -170,12 +170,16 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
                 macd_slow=int(weekly_raw.get("macd_slow", 26)),
                 macd_signal=int(weekly_raw.get("macd_signal", 9)),
                 confirm_bars=int(weekly_raw.get("confirm_bars", 2)),
+                require_impulse_alignment=bool(weekly_raw.get("require_impulse_alignment", True)),
             ),
             daily=DailyStrategyConfig(
                 rsi_period=int(daily_raw.get("rsi_period", 14)),
                 rsi_oversold=float(daily_raw.get("rsi_oversold", 35)),
                 rsi_overbought=float(daily_raw.get("rsi_overbought", 65)),
                 recovery_mode=bool(daily_raw.get("recovery_mode", True)),
+                value_zone_ema_tolerance=float(daily_raw.get("value_zone_ema_tolerance", 0.005)),
+                require_value_zone_touch=bool(daily_raw.get("require_value_zone_touch", True)),
+                minimum_reversal_evidence=int(daily_raw.get("minimum_reversal_evidence", 3)),
             ),
             hourly=HourlyStrategyConfig(
                 trigger_mode=_validate_trigger_mode(hourly_raw.get("trigger_mode")),

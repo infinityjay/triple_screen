@@ -72,6 +72,7 @@ class WeeklyStrategyConfig:
     macd_slow: int
     macd_signal: int
     confirm_bars: int
+    require_impulse_alignment: bool
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,9 @@ class DailyStrategyConfig:
     rsi_oversold: float
     rsi_overbought: float
     recovery_mode: bool
+    value_zone_ema_tolerance: float
+    require_value_zone_touch: bool
+    minimum_reversal_evidence: int
 
 
 @dataclass(frozen=True)
