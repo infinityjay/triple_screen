@@ -372,6 +372,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     up_closes = int((prior_closes.diff() > 0).sum())
     rsi_falling = bool(recent_rsi.iloc[-1] < recent_rsi.iloc[0])
     rsi_rising = bool(recent_rsi.iloc[-1] > recent_rsi.iloc[0])
+    recent_gap_to_ema = (recent_close - recent_ema).abs()
+    latest_gap_window = recent_gap_to_ema.tail(DAILY_REVERSAL_LOOKBACK)
     value_zone_touch = bool(((recent_low <= recent_ema) & (recent_high >= recent_ema)).tail(DAILY_REVERSAL_LOOKBACK).any())
 
     correction_bar_count = min(len(recent_close), DAILY_CORRECTION_WINDOW_MAX)
@@ -384,8 +386,16 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
 
     if trend == "LONG":
         countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
+        value_zone_approach = bool(
+            len(latest_gap_window) >= 2
+            and close.iloc[-1] >= ema13.iloc[-1]
+            and latest_gap_window.iloc[-1] == latest_gap_window.min()
+            and latest_gap_window.iloc[-1] < latest_gap_window.iloc[-2]
+            and (close.iloc[-1] <= close.iloc[-2] or low.iloc[-1] <= low.iloc[-2])
+        )
+        entered_value_zone = value_zone_touch or value_zone_approach
         rsi_in_value_zone = settings.daily.rsi_oversold <= rsi_now < 50.0
-        value_zone_reached = value_zone_touch and rsi_in_value_zone
+        value_zone_reached = entered_value_zone and rsi_in_value_zone
         higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(low.iloc[-1] >= structure_break_level)
@@ -418,7 +428,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
             rsi_state = "ACCELERATING_PULLBACK"
-        elif not value_zone_touch:
+        elif not entered_value_zone:
             state = "WATCH"
             watch = True
             reject_reason = ""
@@ -437,8 +447,16 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             rsi_state = "PULLBACK_WAIT_REVERSAL"
     elif trend == "SHORT":
         countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
+        value_zone_approach = bool(
+            len(latest_gap_window) >= 2
+            and close.iloc[-1] <= ema13.iloc[-1]
+            and latest_gap_window.iloc[-1] == latest_gap_window.min()
+            and latest_gap_window.iloc[-1] < latest_gap_window.iloc[-2]
+            and (close.iloc[-1] >= close.iloc[-2] or high.iloc[-1] >= high.iloc[-2])
+        )
+        entered_value_zone = value_zone_touch or value_zone_approach
         rsi_in_value_zone = 50.0 < rsi_now <= settings.daily.rsi_overbought
-        value_zone_reached = value_zone_touch and rsi_in_value_zone
+        value_zone_reached = entered_value_zone and rsi_in_value_zone
         lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(high.iloc[-1] <= structure_break_level)
@@ -471,7 +489,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
             rsi_state = "ACCELERATING_RALLY"
-        elif not value_zone_touch:
+        elif not entered_value_zone:
             state = "WATCH"
             watch = True
             reject_reason = ""
@@ -511,7 +529,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         reason = (
             f"日线修正存在，但仅满足 {reversal_evidence_count}/4 项拐头证据，继续观察小时线前的完成度"
             if value_zone_reached
-            else "日线修正存在但尚未完成 13EMA 价值区回踩确认，继续观察"
+            else "日线修正存在但尚未进入或靠近 13EMA 价值区，继续观察"
         )
 
     return {
