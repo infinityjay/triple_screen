@@ -323,6 +323,12 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         "close_on_trend_side": close_on_trend_side,
         "trend_score": round(min(trend_score, WEEKLY_TREND_SCORE_CAP), 2),
         "actionable": actionable,
+        "pass_checks": {
+            "actionable": actionable,
+            "confirmed_bars": confirmed_pass,
+            "impulse_aligned": impulse_aligned or not settings.weekly.require_impulse_alignment,
+            "close_on_trend_side": close_on_trend_side,
+        },
         "pass": (
             actionable
             and confirmed_pass
@@ -541,9 +547,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "state": state,
         "reject_reason": reject_reason or None,
         "countertrend_exists": countertrend_exists,
+        "entered_value_zone": entered_value_zone if trend in {"LONG", "SHORT"} else False,
         "value_zone_reached": value_zone_reached,
         "reversal_evidence_count": reversal_evidence_count,
         "structure_intact": structure_intact,
+        "momentum_reversal": momentum_reversal if trend in {"LONG", "SHORT"} else False,
+        "price_reversal": price_reversal if trend in {"LONG", "SHORT"} else False,
         "priority_divergence": False,
         "earnings_blocked": False,
         "watch": watch,

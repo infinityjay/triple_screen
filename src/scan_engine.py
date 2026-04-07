@@ -16,6 +16,11 @@ from telegram import TelegramNotifier
 logger = logging.getLogger(__name__)
 
 
+def _format_check_map(values: dict[str, object]) -> str:
+    parts = [f"{key}={value}" for key, value in values.items()]
+    return ", ".join(parts)
+
+
 class TripleScreenScanner:
     def __init__(
         self,
@@ -177,7 +182,14 @@ class TripleScreenScanner:
             )
 
             if not weekly["pass"]:
-                logger.info("[%s] skipped after weekly screen because trend confirmation is insufficient.", symbol)
+                logger.info(
+                    "[%s] skipped after weekly screen: %s | trend=%s confirmed_bars=%s checks={%s}",
+                    symbol,
+                    weekly.get("reason"),
+                    weekly.get("trend"),
+                    weekly.get("confirmed_bars"),
+                    _format_check_map(weekly.get("pass_checks", {})),
+                )
                 return None
 
             direction = weekly["trend"]
@@ -187,7 +199,20 @@ class TripleScreenScanner:
             daily_frame = self.market_data.get_daily_bars(symbol)
             daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
             if not daily["pass"]:
-                logger.info("[%s] skipped after daily screen: %s", symbol, daily.get("reason"))
+                logger.info(
+                    "[%s] skipped after daily screen: %s | state=%s rsi=%.2f entered_value_zone=%s value_zone_reached=%s "
+                    "countertrend_exists=%s momentum_reversal=%s price_reversal=%s structure_intact=%s",
+                    symbol,
+                    daily.get("reason"),
+                    daily.get("state"),
+                    float(daily.get("rsi", 0.0)),
+                    daily.get("entered_value_zone"),
+                    daily.get("value_zone_reached"),
+                    daily.get("countertrend_exists"),
+                    daily.get("momentum_reversal"),
+                    daily.get("price_reversal"),
+                    daily.get("structure_intact"),
+                )
                 return None
             self.storage.upsert_daily(symbol, daily["rsi"], daily["rsi_prev"], daily["rsi_state"])
 
