@@ -401,7 +401,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         )
         entered_value_zone = value_zone_touch or value_zone_approach
         rsi_in_value_zone = settings.daily.rsi_oversold <= rsi_now < 50.0
-        value_zone_reached = entered_value_zone and rsi_in_value_zone
+        value_zone_reached = entered_value_zone
         higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(low.iloc[-1] >= structure_break_level)
@@ -439,14 +439,10 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             reject_reason = ""
             rsi_state = "PULLBACK_WAIT_EMA_VALUE_ZONE"
-        elif not value_zone_reached:
-            state = "WATCH"
-            watch = True
-            rsi_state = "PULLBACK_WAIT_VALUE_ZONE_CONFIRM"
         elif momentum_reversal and price_reversal:
             state = "QUALIFIED"
             passed = True
-            rsi_state = "PULLBACK_REVERSING"
+            rsi_state = "PULLBACK_REVERSING" if rsi_in_value_zone else "PULLBACK_REVERSING_LATE"
         else:
             state = "WATCH"
             watch = True
@@ -462,7 +458,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         )
         entered_value_zone = value_zone_touch or value_zone_approach
         rsi_in_value_zone = 50.0 < rsi_now <= settings.daily.rsi_overbought
-        value_zone_reached = entered_value_zone and rsi_in_value_zone
+        value_zone_reached = entered_value_zone
         lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(high.iloc[-1] <= structure_break_level)
@@ -500,14 +496,10 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             reject_reason = ""
             rsi_state = "RALLY_WAIT_EMA_VALUE_ZONE"
-        elif not value_zone_reached:
-            state = "WATCH"
-            watch = True
-            rsi_state = "RALLY_WAIT_VALUE_ZONE_CONFIRM"
         elif momentum_reversal and price_reversal:
             state = "QUALIFIED"
             passed = True
-            rsi_state = "RALLY_ROLLING_OVER"
+            rsi_state = "RALLY_ROLLING_OVER" if rsi_in_value_zone else "RALLY_ROLLING_OVER_LATE"
         else:
             state = "WATCH"
             watch = True
@@ -528,7 +520,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         reason = reject_reason
     elif state == "QUALIFIED":
         reason = (
-            f"日线修正已回到 13EMA 价值区，且出现 {reversal_evidence_count}/4 项拐头证据，"
+            f"日线修正已进入或靠近 13EMA 价值区，且出现 {reversal_evidence_count}/4 项拐头证据，"
             "可进入候选池"
         )
     else:
@@ -549,6 +541,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "countertrend_exists": countertrend_exists,
         "entered_value_zone": entered_value_zone if trend in {"LONG", "SHORT"} else False,
         "value_zone_reached": value_zone_reached,
+        "rsi_in_value_zone": rsi_in_value_zone if trend in {"LONG", "SHORT"} else False,
         "reversal_evidence_count": reversal_evidence_count,
         "structure_intact": structure_intact,
         "momentum_reversal": momentum_reversal if trend in {"LONG", "SHORT"} else False,
