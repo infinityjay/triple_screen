@@ -397,7 +397,7 @@ class TripleScreenScanner:
 
     def run_intraday_scan(self) -> list[dict]:
         started_at = time.time()
-        candidate_session = self.storage.get_latest_candidate_session()
+        candidate_session = self._latest_completed_session_date().isoformat()
         logger.info("==================================================")
         logger.info("intraday trigger scan started using candidate session %s", candidate_session)
         if self.dry_run:
@@ -405,11 +405,13 @@ class TripleScreenScanner:
 
         candidates = self.storage.get_qualified_candidates(candidate_session)
         if not candidates:
-            logger.info("no stored qualified candidates found, falling back to end-of-day qualification build")
-            candidates = self.run_end_of_day_scan()
-            candidate_session = self.storage.get_latest_candidate_session()
-            if not candidates:
-                return []
+            latest_available_session = self.storage.get_latest_candidate_session()
+            logger.warning(
+                "no stored qualified candidates found for expected session %s; latest available session is %s",
+                candidate_session,
+                latest_available_session,
+            )
+            return []
 
         symbols = [item["symbol"] for item in candidates]
         benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None

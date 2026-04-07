@@ -111,7 +111,7 @@ cp .env.example .env
 python src/scanner.py --once --mode eod
 ```
 
-盘中按候选池扫描触发：
+次日盘中按上一交易日候选池扫描触发：
 
 ```bash
 python src/scanner.py --once --mode intraday
@@ -155,9 +155,10 @@ AWS EC2 + systemd 的部署模板已经放在 [deploy/aws/README.md](/Users/jay/
 推荐做法是：
 
 - `16:10` 跑 `--mode eod`，更新当天候选池
-- 盘中整点跑 `--mode intraday`，只扫描最新候选池里的股票
+- 次日盘中每小时跑 `--mode intraday`，只扫描上一已收盘交易日候选池里的股票
 
 ## 当前实现说明
 
 - 已完成：集中配置、密钥隔离、包结构重组、扫描编排分层、Telegram/SQLite/Alpaca 模块化
+- 已完成：收盘后构建候选池，次日盘中严格只扫描上一交易日候选池，不再在缺少候选池时自动回退为全市场重建
 - 仍可继续增强：原始 K 线增量缓存、失败重试队列、指标快照版本化、更多通知渠道
