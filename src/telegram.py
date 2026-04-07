@@ -95,10 +95,18 @@ class TelegramNotifier:
         }
         return labels.get(stop_basis, stop_basis)
 
+    @staticmethod
+    def _candidate_score(signal: dict) -> float:
+        return float(signal.get("candidate_score", signal.get("signal_score", 0.0)) or 0.0)
+
+    @staticmethod
+    def _execution_score(signal: dict) -> float:
+        return float(signal.get("execution_score", signal.get("signal_score", 0.0)) or 0.0)
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
-        score = signal.get("signal_score", 0)
+        score = self._execution_score(signal)
         rank = signal.get("rank")
         total_ranked = signal.get("total_ranked")
         rank_group = signal.get("rank_group")
@@ -224,7 +232,7 @@ class TelegramNotifier:
             earnings_status = signal.get("earnings", {}).get("status", "UNKNOWN")
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} 候选 "
-                f"评分 {signal['signal_score']:.1f}{divergence_badge}\n"
+                f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
                 f"   {daily_state} · 等待下一交易日盘中小时线确认 · 财报 {earnings_status}\n"
             )
 
@@ -256,7 +264,7 @@ class TelegramNotifier:
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
-                f"评分 {signal['signal_score']:.1f}{divergence_badge}\n"
+                f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
                 f"   现价 {signal['hourly']['close']:.2f} · RR {signal['exits']['reward_risk_ratio']:.2f}R · "
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
             )

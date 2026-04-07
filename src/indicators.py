@@ -711,19 +711,36 @@ def calc_exits(
     }
 
 
-def calc_signal_score(weekly_result: dict, daily_result: dict, hourly_result: dict, exits: dict) -> float:
+def calc_candidate_score(weekly_result: dict, daily_result: dict) -> float:
+    score = 0.0
+
+    score += min(weekly_result.get("trend_score", 0), WEEKLY_TREND_SCORE_CAP) / WEEKLY_TREND_SCORE_CAP * 4.6
+    score += min(daily_result.get("setup_score", 0), DAILY_SETUP_SCORE_CAP) / DAILY_SETUP_SCORE_CAP * 4.5
+    if weekly_result.get("pass"):
+        score += 0.45
+    if daily_result.get("pass"):
+        score += 0.45
+
+    return round(min(score, 10), 2)
+
+
+def calc_execution_score(weekly_result: dict, daily_result: dict, hourly_result: dict, exits: dict) -> float:
     score = 0.0
 
     score += min(weekly_result.get("trend_score", 0), WEEKLY_TREND_SCORE_CAP) / WEEKLY_TREND_SCORE_CAP * 2.4
-    score += min(daily_result.get("setup_score", 0), DAILY_SETUP_SCORE_CAP) / DAILY_SETUP_SCORE_CAP * 2.5
-    score += min(hourly_result.get("trigger_score", 0), HOURLY_TRIGGER_SCORE_CAP) / HOURLY_TRIGGER_SCORE_CAP * 1.6
+    score += min(daily_result.get("setup_score", 0), DAILY_SETUP_SCORE_CAP) / DAILY_SETUP_SCORE_CAP * 2.4
+    score += min(hourly_result.get("trigger_score", 0), HOURLY_TRIGGER_SCORE_CAP) / HOURLY_TRIGGER_SCORE_CAP * 1.8
     score += calc_reward_risk_score(float(exits.get("reward_risk_ratio", 0.0)))
 
     if weekly_result.get("pass"):
         score += 0.4
     if daily_result.get("pass"):
-        score += 0.5
+        score += 0.4
     if hourly_result.get("pass"):
         score += 0.6
 
     return round(min(score, 10), 2)
+
+
+def calc_signal_score(weekly_result: dict, daily_result: dict, hourly_result: dict, exits: dict) -> float:
+    return calc_execution_score(weekly_result, daily_result, hourly_result, exits)

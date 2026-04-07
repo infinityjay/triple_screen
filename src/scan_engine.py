@@ -85,11 +85,11 @@ class TripleScreenScanner:
     @staticmethod
     def _candidate_sort_key(item: dict) -> tuple[float, int, int]:
         status_priority = 0 if item["opportunity_status"] == "TRIGGERED" else 1
-        return (-item["signal_score"], -int(bool(item.get("strong_divergence"))), status_priority)
+        return (-item.get("candidate_score", item.get("signal_score", 0.0)), -int(bool(item.get("strong_divergence"))), status_priority)
 
     @staticmethod
     def _triggered_sort_key(item: dict) -> tuple[float, int]:
-        return (-item["signal_score"], -int(bool(item.get("strong_divergence"))))
+        return (-item.get("execution_score", item.get("signal_score", 0.0)), -int(bool(item.get("strong_divergence"))))
 
     def _classify_earnings_event(self, symbol: str, session_date: date, raw_event: dict | None) -> dict:
         if not raw_event or not raw_event.get("report_date"):
@@ -228,7 +228,7 @@ class TripleScreenScanner:
             daily["priority_divergence"] = divergence_detected
             if daily.get("state") == "QUALIFIED" and divergence_detected:
                 daily["state"] = "PRIORITY_QUALIFIED"
-            score = indicators.calc_signal_score(weekly, daily, {}, {"reward_risk_ratio": 0.0})
+            candidate_score = indicators.calc_candidate_score(weekly, daily)
             priority_tags = []
             if earnings["warning"]:
                 priority_tags.append("EARNINGS_SOON")
@@ -244,7 +244,9 @@ class TripleScreenScanner:
                 "direction": direction,
                 "source_session_date": session_date.isoformat(),
                 "opportunity_status": "WATCHLIST",
-                "signal_score": score,
+                "candidate_score": candidate_score,
+                "execution_score": None,
+                "signal_score": candidate_score,
                 "reward_risk_score": 0.0,
                 "weekly": weekly,
                 "daily": daily,
@@ -262,10 +264,10 @@ class TripleScreenScanner:
                 "summary": f"{weekly['reason']} | {daily['reason']}",
             }
             logger.info(
-                "[%s] qualified %s score=%.2f strong_div=%s | %s",
+                "[%s] qualified %s candidate_score=%.2f strong_div=%s | %s",
                 symbol,
                 "做多" if direction == "LONG" else "做空",
-                candidate["signal_score"],
+                candidate["candidate_score"],
                 candidate["strong_divergence"],
                 candidate["summary"],
             )
@@ -313,12 +315,13 @@ class TripleScreenScanner:
             opportunity = dict(candidate)
             opportunity["hourly"] = hourly
             opportunity["exits"] = exits
-            opportunity["signal_score"] = indicators.calc_signal_score(
+            opportunity["execution_score"] = indicators.calc_execution_score(
                 candidate["weekly"],
                 candidate["daily"],
                 hourly,
                 exits,
             )
+            opportunity["signal_score"] = opportunity["execution_score"]
             opportunity["reward_risk_score"] = indicators.calc_reward_risk_score(exits["reward_risk_ratio"])
             opportunity["opportunity_status"] = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
             opportunity["cooldown_active"] = (not self.dry_run) and hourly["pass"] and self._is_recently_alerted(symbol, direction)
@@ -367,12 +370,12 @@ class TripleScreenScanner:
 
         for index, candidate in enumerate(displayed_candidates, start=1):
             logger.info(
-                "QUALIFIED TOP %s [%s] %s %s score=%.2f strong_div=%s | %s",
+                "QUALIFIED TOP %s [%s] %s %s candidate_score=%.2f strong_div=%s | %s",
                 index,
                 candidate["earnings"]["status"],
                 candidate["symbol"],
                 "做多" if candidate["direction"] == "LONG" else "做空",
-                candidate["signal_score"],
+                candidate.get("candidate_score", candidate.get("signal_score", 0.0)),
                 candidate["strong_divergence"],
                 candidate["summary"],
             )
@@ -430,11 +433,11 @@ class TripleScreenScanner:
 
         for index, opportunity in enumerate(top_triggered, start=1):
             logger.info(
-                "TRIGGERED TOP %s %s %s score=%.2f rr=%.2f strong_div=%s | %s",
+                "TRIGGERED TOP %s %s %s execution_score=%.2f rr=%.2f strong_div=%s | %s",
                 index,
                 opportunity["symbol"],
                 "做多" if opportunity["direction"] == "LONG" else "做空",
-                opportunity["signal_score"],
+                opportunity.get("execution_score", opportunity.get("signal_score", 0.0)),
                 opportunity["exits"]["reward_risk_ratio"],
                 opportunity.get("strong_divergence"),
                 opportunity["summary"],
