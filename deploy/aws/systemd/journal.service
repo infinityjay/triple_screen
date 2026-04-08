@@ -5,15 +5,15 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ec2-user
-WorkingDirectory=/home/ec2-user/triple_screen
+User=ubuntu
+WorkingDirectory=/home/ubuntu/triple_screen
 Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONPATH=/home/ec2-user/triple_screen/src
-ExecStart=/home/ec2-user/triple_screen/.venv/bin/python -m journal
+Environment=PYTHONPATH=/home/ubuntu/triple_screen/src
+ExecStart=/home/ubuntu/triple_screen/.venv/bin/python -m journal
 Restart=always
 RestartSec=3
-StandardOutput=append:/home/ec2-user/triple_screen/logs/journal.log
-StandardError=append:/home/ec2-user/triple_screen/logs/journal.log
+StandardOutput=append:/home/ubuntu/triple_screen/logs/journal.log
+StandardError=append:/home/ubuntu/triple_screen/logs/journal.log
 
 [Install]
 WantedBy=multi-user.target
