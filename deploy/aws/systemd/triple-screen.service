@@ -5,12 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=ec2-user
-WorkingDirectory=/home/ec2-user/triple_screen
+User=ubuntu
+WorkingDirectory=/home/ubuntu/triple_screen
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/ec2-user/triple_screen/.venv/bin/python src/scanner.py --once
-StandardOutput=append:/home/ec2-user/triple_screen/logs/systemd.log
-StandardError=append:/home/ec2-user/triple_screen/logs/systemd.log
+ExecStart=/home/ubuntu/triple_screen/.venv/bin/python src/scanner.py --once
+StandardOutput=append:/home/ubuntu/triple_screen/logs/systemd.log
+StandardError=append:/home/ubuntu/triple_screen/logs/systemd.log
 
 [Install]
 WantedBy=multi-user.target
