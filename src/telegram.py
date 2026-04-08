@@ -82,6 +82,7 @@ class TelegramNotifier:
             "TRIGGERED": "已触发",
             "WAITING_BREAKOUT": "等待向上突破",
             "WAITING_BREAKDOWN": "等待向下跌破",
+            "WAITING_NEXT_BAR": "等待下一根小时K开始跟踪",
             "NEUTRAL": "中性",
         }
         return labels.get(status, status)
@@ -129,20 +130,20 @@ class TelegramNotifier:
         if direction == "LONG":
             if signal.get("opportunity_status") == "TRIGGERED":
                 breakout_line = (
-                    f"上一根高点：{hourly['signal_bar_high']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
+                    f"上一根已收盘高点：{hourly['signal_bar_high']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
                 )
             else:
                 breakout_line = (
-                    f"当前小时高点：{hourly['current_high']:.2f}  当前价：{hourly['close']:.2f}  下一触发价：{hourly['entry_price']:.2f}"
+                    f"当前跟踪 stop：{hourly['entry_price']:.2f}  当前小时高点：{hourly['current_high']:.2f}  当前价：{hourly['close']:.2f}"
                 )
         else:
             if signal.get("opportunity_status") == "TRIGGERED":
                 breakout_line = (
-                    f"上一根低点：{hourly['signal_bar_low']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
+                    f"上一根已收盘低点：{hourly['signal_bar_low']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
                 )
             else:
                 breakout_line = (
-                    f"当前小时低点：{hourly['current_low']:.2f}  当前价：{hourly['close']:.2f}  下一触发价：{hourly['entry_price']:.2f}"
+                    f"当前跟踪 stop：{hourly['entry_price']:.2f}  当前小时低点：{hourly['current_low']:.2f}  当前价：{hourly['close']:.2f}"
                 )
 
         title = f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>"
@@ -233,7 +234,7 @@ class TelegramNotifier:
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} 候选 "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   {daily_state} · 等待下一交易日盘中小时线确认 · 财报 {earnings_status}\n"
+                f"   {daily_state} · 后续盘中持续跟踪小时线 stop · 财报 {earnings_status}\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
@@ -249,14 +250,14 @@ class TelegramNotifier:
         if not triggered_signals:
             return (
                 f"⏱ <b>盘中触发扫描完成</b>\n"
-                f"候选池日期：<code>{session_date}</code> · 候选总数 {total_candidates}\n"
+                f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n"
                 "本轮暂无满足条件的触发机会\n"
                 f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
             )
 
         lines = [
             f"🏁 <b>Top {len(triggered_signals)} Triggered 机会</b>\n",
-            f"候选池日期：<code>{session_date}</code> · 候选总数 {total_candidates}\n",
+            f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n",
             f"{'─' * 24}\n",
         ]
         for index, signal in enumerate(triggered_signals, start=1):

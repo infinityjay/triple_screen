@@ -91,6 +91,25 @@ class TripleScreenScanner:
     def _triggered_sort_key(item: dict) -> tuple[float, int]:
         return (-item.get("execution_score", item.get("signal_score", 0.0)), -int(bool(item.get("strong_divergence"))))
 
+    @staticmethod
+    def _format_session_label(session_dates: list[str]) -> str:
+        if not session_dates:
+            return "UNKNOWN"
+        ordered = sorted(set(session_dates))
+        return ordered[0] if len(ordered) == 1 else f"{ordered[0]} ~ {ordered[-1]}"
+
+    def _load_tracking_candidates(self) -> tuple[list[dict], str]:
+        recent_candidates = self.storage.get_recent_qualified_candidates(session_limit=5)
+        deduped: dict[tuple[str, str], dict] = {}
+        session_dates: list[str] = []
+        for candidate in recent_candidates:
+            key = (candidate["symbol"], candidate["direction"])
+            if key in deduped:
+                continue
+            session_dates.append(candidate.get("stored_session_date", candidate.get("source_session_date", "UNKNOWN")))
+            deduped[key] = candidate
+        return list(deduped.values()), self._format_session_label(session_dates)
+
     def _classify_earnings_event(self, symbol: str, session_date: date, raw_event: dict | None) -> dict:
         if not raw_event or not raw_event.get("report_date"):
             return {
@@ -282,7 +301,7 @@ class TripleScreenScanner:
         try:
             daily_frame = self.market_data.get_daily_bars(symbol)
             hourly_frame = self.market_data.get_hourly_bars(symbol)
-            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy)
+            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy, as_of=datetime.utcnow())
             if "close" not in hourly:
                 return None
 
@@ -331,6 +350,62 @@ class TripleScreenScanner:
             return opportunity
         except Exception as exc:
             logger.exception("[%s] failed during intraday scan: %s", symbol, exc)
+            return None
+
+    def _refresh_tracking_candidate(
+        self,
+        candidate: dict,
+        market_trend: str,
+        session_date: date,
+        earnings_map: dict[str, dict],
+    ) -> dict | None:
+        symbol = candidate["symbol"]
+        direction = candidate["direction"]
+        try:
+            weekly_frame = self.market_data.get_weekly_bars(symbol)
+            weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
+            if not weekly.get("actionable") or not weekly.get("pass") or weekly.get("trend") != direction:
+                logger.info("[%s] dropped from tracking after weekly refresh: %s", symbol, weekly.get("reason"))
+                return None
+
+            if self.settings.market_filter.enabled and direction == "LONG" and market_trend == "SHORT":
+                logger.info("[%s] dropped from tracking because market filter blocks longs.", symbol)
+                return None
+
+            daily_frame = self.market_data.get_daily_bars(symbol)
+            daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
+            if daily.get("state") == "REJECT":
+                logger.info("[%s] dropped from tracking after daily refresh: %s", symbol, daily.get("reason"))
+                return None
+
+            earnings = self._classify_earnings_event(symbol, session_date, earnings_map.get(symbol))
+            daily["earnings_blocked"] = bool(earnings["blocked"])
+            if earnings["blocked"]:
+                logger.info("[%s] dropped from tracking because earnings window is blocked.", symbol)
+                return None
+
+            divergence = self._build_divergence_snapshot(weekly_frame, daily_frame, direction)
+            divergence_detected = bool(divergence["weekly"].get("detected") or divergence["daily"].get("detected"))
+            daily["priority_divergence"] = divergence_detected
+            if daily.get("state") == "QUALIFIED" and divergence_detected:
+                daily["state"] = "PRIORITY_QUALIFIED"
+
+            refreshed = dict(candidate)
+            refreshed["weekly"] = weekly
+            refreshed["daily"] = daily
+            refreshed["earnings"] = earnings
+            refreshed["divergence"] = divergence
+            refreshed["strong_divergence"] = divergence["strong_divergence"]
+            refreshed["candidate_score"] = indicators.calc_candidate_score(weekly, daily)
+            refreshed["signal_score"] = refreshed["candidate_score"]
+            refreshed["execution_score"] = None
+            refreshed["reward_risk_score"] = 0.0
+            refreshed["opportunity_status"] = "WATCHLIST"
+            refreshed["summary"] = f"{weekly['reason']} | {daily['reason']}"
+            refreshed["tracking_session_date"] = session_date.isoformat()
+            return refreshed
+        except Exception as exc:
+            logger.exception("[%s] failed during tracking refresh: %s", symbol, exc)
             return None
 
     def run_end_of_day_scan(self) -> list[dict]:
@@ -398,25 +473,42 @@ class TripleScreenScanner:
 
     def run_intraday_scan(self) -> list[dict]:
         started_at = time.time()
-        candidate_session = self._latest_completed_session_date().isoformat()
+        session_date = self._latest_completed_session_date()
+        candidate_session = session_date.isoformat()
         logger.info("==================================================")
-        logger.info("intraday trigger scan started using candidate session %s", candidate_session)
+        logger.info("intraday trigger scan started using latest completed session %s", candidate_session)
         if self.dry_run:
             logger.info("dry-run enabled: notifications and alert-log updates are suppressed")
 
-        candidates = self.storage.get_qualified_candidates(candidate_session)
-        if not candidates:
+        tracking_candidates, tracking_label = self._load_tracking_candidates()
+        if not tracking_candidates:
             latest_available_session = self.storage.get_latest_candidate_session()
             logger.warning(
-                "no stored qualified candidates found for expected session %s; latest available session is %s",
-                candidate_session,
+                "no stored qualified candidates found for tracking; latest available session is %s",
                 latest_available_session,
             )
             return []
 
-        symbols = [item["symbol"] for item in candidates]
+        symbols = [item["symbol"] for item in tracking_candidates]
         benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
         self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
+
+        market_trend = self._check_market_trend()
+        earnings_map = self.earnings_calendar.get_upcoming_earnings(
+            symbols,
+            session_date=session_date,
+        )
+        candidates: list[dict] = []
+        for candidate in tracking_candidates:
+            refreshed = self._refresh_tracking_candidate(candidate, market_trend, session_date, earnings_map)
+            if refreshed:
+                candidates.append(refreshed)
+        if not candidates:
+            logger.info("no active tracking candidates remain after weekly/daily refresh.")
+            if not self.dry_run:
+                elapsed = time.time() - started_at
+                self.notifier.send_trigger_summary([], tracking_label, 0, elapsed)
+            return []
 
         opportunities: list[dict] = []
         with ThreadPoolExecutor(max_workers=self.settings.runtime.max_workers) as executor:
@@ -445,7 +537,7 @@ class TripleScreenScanner:
 
         elapsed = time.time() - started_at
         if not self.dry_run:
-            self.notifier.send_trigger_summary(top_triggered, candidate_session or "UNKNOWN", len(candidates), elapsed)
+            self.notifier.send_trigger_summary(top_triggered, tracking_label or "UNKNOWN", len(candidates), elapsed)
             time.sleep(1)
             for index, opportunity in enumerate(top_triggered, start=1):
                 if opportunity.get("cooldown_active"):

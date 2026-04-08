@@ -433,6 +433,32 @@ class SQLiteStorage:
 
         return [json.loads(row["candidate_json"]) for row in rows]
 
+    def get_recent_qualified_candidates(self, session_limit: int = 5) -> list[dict]:
+        capped_limit = max(int(session_limit), 1)
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_date, candidate_json
+                FROM qualified_candidates
+                WHERE session_date IN (
+                    SELECT session_date
+                    FROM qualified_candidates
+                    GROUP BY session_date
+                    ORDER BY session_date DESC
+                    LIMIT ?
+                )
+                ORDER BY session_date DESC, signal_score DESC, symbol ASC
+                """,
+                (capped_limit,),
+            ).fetchall()
+
+        items: list[dict] = []
+        for row in rows:
+            payload = json.loads(row["candidate_json"])
+            payload["stored_session_date"] = row["session_date"]
+            items.append(payload)
+        return items
+
     def get_price_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
         with self._connect() as connection:
             rows = connection.execute(

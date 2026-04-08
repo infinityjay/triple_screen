@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 
@@ -554,23 +556,65 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     }
 
 
-def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyConfig) -> dict:
-    minimum = settings.hourly.atr_period + 2
-    if df_hour is None or len(df_hour) < minimum:
+def _split_hourly_execution_bars(
+    df_hour: pd.DataFrame,
+    as_of: datetime | None = None,
+) -> tuple[pd.DataFrame, pd.Series | None, bool]:
+    if df_hour.empty:
+        return df_hour, None, False
+
+    reference_time = pd.Timestamp(as_of or datetime.utcnow())
+    if reference_time.tzinfo is None:
+        reference_time = reference_time.tz_localize("UTC")
+    else:
+        reference_time = reference_time.tz_convert("UTC")
+
+    latest_open = pd.Timestamp(df_hour.index[-1])
+    if latest_open.tzinfo is None:
+        latest_open = latest_open.tz_localize("UTC")
+    else:
+        latest_open = latest_open.tz_convert("UTC")
+
+    latest_is_live = latest_open <= reference_time < latest_open + pd.Timedelta(hours=1)
+    if latest_is_live:
+        return df_hour.iloc[:-1].copy(), df_hour.iloc[-1].copy(), True
+    return df_hour.copy(), None, False
+
+
+def screen_hourly(
+    df_hour: pd.DataFrame | None,
+    trend: str,
+    settings: StrategyConfig,
+    as_of: datetime | None = None,
+) -> dict:
+    if df_hour is None or df_hour.empty:
         return {"pass": False, "reason": "小时线数据不足"}
 
-    close = float(df_hour["close"].iloc[-1])
-    current_high = float(df_hour["high"].iloc[-1])
-    current_low = float(df_hour["low"].iloc[-1])
-    atr = float(calc_atr(df_hour, settings.hourly.atr_period).iloc[-1])
-    signal_bar_high = float(df_hour["high"].iloc[-2])
-    signal_bar_low = float(df_hour["low"].iloc[-2])
+    closed_bars, live_bar, live_bar_available = _split_hourly_execution_bars(df_hour, as_of=as_of)
+    minimum_closed = settings.hourly.atr_period + 1
+    if len(closed_bars) < minimum_closed:
+        return {"pass": False, "reason": "小时线已收盘数据不足"}
 
-    breakout_long = current_high > signal_bar_high
-    breakout_short = current_low < signal_bar_low
+    signal_bar = closed_bars.iloc[-1]
+    atr = float(calc_atr(closed_bars, settings.hourly.atr_period).iloc[-1])
+    signal_bar_high = float(signal_bar["high"])
+    signal_bar_low = float(signal_bar["low"])
+    signal_bar_close = float(signal_bar["close"])
+
+    if live_bar_available and live_bar is not None:
+        close = float(live_bar["close"])
+        current_high = float(live_bar["high"])
+        current_low = float(live_bar["low"])
+    else:
+        close = signal_bar_close
+        current_high = signal_bar_high
+        current_low = signal_bar_low
+
+    breakout_long = live_bar_available and current_high > signal_bar_high
+    breakout_short = live_bar_available and current_low < signal_bar_low
     breakout_strength = 0.0
     passed = False
-    trigger_price = close
+    trigger_price = signal_bar_high if trend == "LONG" else signal_bar_low if trend == "SHORT" else close
     trigger_gap = 0.0
     status = "NEUTRAL"
     trigger_score = 0.0
@@ -583,9 +627,8 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
         status = "TRIGGERED"
         trigger_score = 2.2 + min(breakout_strength * 1.2, 1.8)
     elif trend == "LONG":
-        trigger_price = current_high
-        trigger_gap = current_high - close
-        status = "WAITING_BREAKOUT"
+        trigger_gap = max(signal_bar_high - current_high, 0.0)
+        status = "WAITING_BREAKOUT" if live_bar_available else "WAITING_NEXT_BAR"
         if atr > 0:
             trigger_score = max(0.0, 1.8 - min(trigger_gap / atr, 1.8))
     elif trend == "SHORT" and breakout_short and atr > 0:
@@ -596,24 +639,31 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
         status = "TRIGGERED"
         trigger_score = 2.2 + min(breakout_strength * 1.2, 1.8)
     elif trend == "SHORT":
-        trigger_price = current_low
-        trigger_gap = close - current_low
-        status = "WAITING_BREAKDOWN"
+        trigger_gap = max(current_low - signal_bar_low, 0.0)
+        status = "WAITING_BREAKDOWN" if live_bar_available else "WAITING_NEXT_BAR"
         if atr > 0:
             trigger_score = max(0.0, 1.8 - min(trigger_gap / atr, 1.8))
 
     gap_atr = (trigger_gap / atr) if atr > 0 else 0.0
     if trend == "LONG":
         reason = (
-            f"小时线已向上突破上一根K线高点，trailing buy-stop 触发（强度 {breakout_strength:.2f} ATR）"
+            f"当前小时线已向上突破上一根已收盘K线高点，trailing buy-stop 触发（强度 {breakout_strength:.2f} ATR）"
             if passed
-            else f"小时线尚未触发，下一笔可关注上一根K线高点上方的买入止损（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
+            else (
+                f"小时线尚未触发，当前 buy-stop 跟踪到上一根已收盘K线高点上方（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
+                if live_bar_available
+                else "当前暂无进行中的小时K，下一根小时K开始后继续沿最近已收盘K线高点上移买入止损"
+            )
         )
     elif trend == "SHORT":
         reason = (
-            f"小时线已向下跌破上一根K线低点，trailing sell-stop 触发（强度 {breakout_strength:.2f} ATR）"
+            f"当前小时线已向下跌破上一根已收盘K线低点，trailing sell-stop 触发（强度 {breakout_strength:.2f} ATR）"
             if passed
-            else f"小时线尚未触发，下一笔可关注上一根K线低点下方的卖出止损（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
+            else (
+                f"小时线尚未触发，当前 sell-stop 跟踪到上一根已收盘K线低点下方（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
+                if live_bar_available
+                else "当前暂无进行中的小时K，下一根小时K开始后继续沿最近已收盘K线低点下移卖出止损"
+            )
         )
     else:
         reason = "小时线未匹配周线方向"
@@ -629,11 +679,13 @@ def screen_hourly(df_hour: pd.DataFrame | None, trend: str, settings: StrategyCo
         "atr": round(atr, 4),
         "status": status,
         "entry_price": round(trigger_price, 4),
+        "trailing_stop_price": round(trigger_price, 4),
         "trigger_gap": round(trigger_gap, 4),
         "trigger_gap_atr": round(gap_atr, 3),
         "breakout_long": breakout_long,
         "breakout_short": breakout_short,
         "breakout_strength": round(breakout_strength, 3),
+        "live_bar_available": live_bar_available,
         "trigger_score": round(min(trigger_score, HOURLY_TRIGGER_SCORE_CAP), 2),
         "pass": passed,
         "reason": reason,

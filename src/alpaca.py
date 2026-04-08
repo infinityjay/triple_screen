@@ -135,17 +135,32 @@ class AlpacaClient:
             return today_close
         return self._market_close_at(self._previous_weekday(now_local.date()))
 
-    def _is_cache_stale(self, last_sync_time: datetime | None, timeframe: str) -> bool:
+    def _hourly_refresh_anchor(self, now_local: datetime) -> datetime:
+        market_open = datetime.combine(now_local.date(), clock_time(hour=9, minute=30), tzinfo=self.market_timezone)
+        market_close = datetime.combine(now_local.date(), self.market_close_time, tzinfo=self.market_timezone)
+
+        if now_local.weekday() >= 5:
+            return self._market_close_at(self._previous_weekday(now_local.date()))
+        if now_local < market_open:
+            return self._market_close_at(self._previous_weekday(now_local.date()))
+        if now_local >= market_close:
+            return market_close
+
+        minutes_since_open = int((now_local - market_open).total_seconds() // 60)
+        bucket_index = minutes_since_open // 60
+        return market_open + timedelta(hours=bucket_index)
+
+    def _is_cache_stale(self, last_sync_time: datetime | None, timeframe: str, now: datetime | None = None) -> bool:
         if last_sync_time is None:
             return True
 
-        now = datetime.utcnow()
+        current_time = now or datetime.utcnow()
         if timeframe == "hour":
-            current_bucket = now.replace(minute=0, second=0, microsecond=0)
-            last_bucket = last_sync_time.replace(minute=0, second=0, microsecond=0)
-            return current_bucket > last_bucket
+            now_local = self._to_market_datetime(current_time)
+            last_sync_local = self._to_market_datetime(last_sync_time)
+            return last_sync_local < self._hourly_refresh_anchor(now_local)
         if timeframe in {"day", "week"}:
-            now_local = self._to_market_datetime(now)
+            now_local = self._to_market_datetime(current_time)
             last_sync_local = self._to_market_datetime(last_sync_time)
             return last_sync_local < self._latest_completed_market_close(now_local)
         return True
