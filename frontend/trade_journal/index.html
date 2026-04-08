@@ -1,0 +1,3092 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal Atlas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1111'/%3E%3Cpath d='M14 40c7-1 12-8 17-20l8 11 11-15' fill='none' stroke='%23c8ff61' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='16' r='5' fill='%23f6b257'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #091111;
+    --bg2: #10181a;
+    --panel: rgba(18, 26, 28, 0.9);
+    --panel-strong: rgba(23, 34, 36, 0.95);
+    --panel-soft: rgba(255, 255, 255, 0.04);
+    --border: rgba(211, 227, 220, 0.12);
+    --border-strong: rgba(200, 255, 97, 0.22);
+    --text: #edf5ef;
+    --muted: #8f9d97;
+    --accent: #c8ff61;
+    --accent-2: #7fd0d2;
+    --sun: #f6b257;
+    --green: #53d18b;
+    --red: #ff7b6d;
+    --yellow: #ffd36d;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    --radius-xl: 28px;
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { color-scheme: dark; }
+  body {
+    min-height: 100vh;
+    color: var(--text);
+    font-family: "Manrope", "Noto Sans SC", sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(127, 208, 210, 0.16), transparent 26%),
+      radial-gradient(circle at top right, rgba(246, 178, 87, 0.12), transparent 28%),
+      linear-gradient(180deg, #091111 0%, #0b1415 35%, #0d1517 100%);
+  }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: "IBM Plex Mono", monospace; }
+  .gate-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+  }
+  .gate-card {
+    width: min(560px, 100%);
+    padding: 36px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(135deg, rgba(200, 255, 97, 0.08), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+      var(--panel);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--shadow);
+  }
+  .gate-card h1 {
+    font-size: 28px;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .gate-card p {
+    color: var(--muted);
+    line-height: 1.7;
+    font-size: 14px;
+  }
+  .gate-stack { display: grid; gap: 18px; margin-top: 24px; }
+  .app-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 18px 14px;
+    border-right: 1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+      rgba(8, 13, 14, 0.9);
+    backdrop-filter: blur(18px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .brand {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(200, 255, 97, 0.11), rgba(127, 208, 210, 0.03));
+  }
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(200, 255, 97, 0.2), rgba(127, 208, 210, 0.08));
+    border: 1px solid rgba(200, 255, 97, 0.24);
+    color: var(--accent);
+    font-size: 19px;
+    font-weight: 800;
+  }
+  .brand-tag {
+    color: var(--accent);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  .brand h2 {
+    font-size: 18px;
+    line-height: 1.1;
+  }
+  .sidebar-card {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--panel-soft);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+  }
+  .db-chip, .month-chip, .note-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--muted);
+    font-size: 12px;
+    width: fit-content;
+  }
+  .db-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--muted);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+  }
+  .db-dot.connected { background: var(--green); box-shadow: 0 0 0 4px rgba(83, 209, 139, 0.1), 0 0 12px rgba(83, 209, 139, 0.3); }
+  .db-dot.error { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 123, 109, 0.1); }
+  .nav-list { display: grid; gap: 8px; }
+  .nav-btn {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    padding: 12px 14px;
+    border-radius: 12px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: 0.2s ease;
+  }
+  .nav-btn:hover { color: var(--text); border-color: var(--border); background: rgba(255, 255, 255, 0.025); }
+  .nav-btn.active {
+    color: var(--text);
+    border-color: var(--border-strong);
+    background: linear-gradient(135deg, rgba(200, 255, 97, 0.14), rgba(127, 208, 210, 0.06));
+  }
+  .nav-btn span:last-child { color: var(--accent); font-size: 12px; }
+  .workspace {
+    padding: 18px;
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+    align-content: start;
+    align-items: start;
+  }
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .hero.hidden { display: none; }
+  .hero-card, .panel-shell, .info-card, .summary-card, .trade-card, .stats-card, .capture-card, .table-card {
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+      var(--panel);
+    box-shadow: var(--shadow);
+  }
+  .eyebrow {
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 11px;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .hero-actions {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    background:
+      radial-gradient(circle at right top, rgba(200, 255, 97, 0.14), transparent 26%),
+      radial-gradient(circle at left top, rgba(127, 208, 210, 0.1), transparent 20%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+      var(--panel);
+  }
+  .hero-actions-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .hero-actions-top strong { font-size: 14px; }
+  .hero-actions-top span { color: var(--muted); font-size: 13px; }
+  .hero-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1.2fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .hero-quick {
+    display: grid;
+    gap: 10px;
+  }
+  .hero-quick-card {
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.025);
+    display: grid;
+    gap: 14px;
+  }
+  .hero-quick-card h3 {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  .hero-quick-card p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .hero-focus-list {
+    display: grid;
+    gap: 10px;
+  }
+  .hero-focus-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.018);
+  }
+  .hero-focus-copy {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .hero-focus-copy strong {
+    font-size: 13px;
+    line-height: 1.2;
+  }
+  .hero-focus-copy span {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .summary-card {
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+  .summary-label {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .summary-value {
+    margin-top: 8px;
+    font-size: 22px;
+    line-height: 1.1;
+    font-weight: 800;
+  }
+  .summary-value.safe { color: var(--green); }
+  .summary-value.warn { color: var(--yellow); }
+  .summary-value.danger { color: var(--red); }
+  .summary-sub {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .risk-track {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+  }
+  .risk-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--green), var(--accent));
+    transition: width 0.25s ease;
+  }
+  .panel-shell {
+    display: none;
+    padding: 12px;
+    gap: 10px;
+    align-content: start;
+  }
+  .panel-shell.active { display: grid; }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .section-head h2 {
+    font-size: 20px;
+    line-height: 1.12;
+  }
+  .section-head p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: 68ch;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .stack {
+    display: grid;
+    gap: 12px;
+  }
+  .info-card, .trade-card, .stats-card, .capture-card, .table-card {
+    padding: 12px;
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .card-head h3 {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+  .card-head p {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
+    max-width: 60ch;
+  }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .mini-metric {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .mini-metric .value {
+    margin-top: 8px;
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .mini-metric .label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .three-m-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .m-card {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    display: grid;
+    gap: 12px;
+  }
+  .m-pill {
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .m-card strong { font-size: 26px; line-height: 1.1; }
+  .m-card p { color: var(--muted); line-height: 1.7; font-size: 13px; }
+  .trade-list {
+    display: grid;
+    gap: 8px;
+  }
+  .compact-table-wrap {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .compact-table {
+    display: grid;
+    gap: 0;
+    min-width: 1260px;
+  }
+  .compact-head, .compact-row {
+    display: grid;
+    grid-template-columns: 174px 72px 98px 92px 98px 72px 92px 96px 120px minmax(220px, 1fr) 92px;
+    gap: 8px;
+    align-items: center;
+  }
+  .compact-head {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .compact-head span {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .compact-row {
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .compact-row:last-child { border-bottom: none; }
+  .compact-row:hover { background: rgba(255, 255, 255, 0.02); }
+  .compact-cell {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .compact-main {
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .compact-main.safe { color: var(--green); }
+  .compact-main.danger { color: var(--red); }
+  .compact-sub {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .rating-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .rating-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.03);
+    white-space: nowrap;
+  }
+  .rating-chip.safe {
+    color: var(--green);
+    background: rgba(83, 209, 139, 0.1);
+    border-color: rgba(83, 209, 139, 0.22);
+  }
+  .rating-chip.warn {
+    color: var(--yellow);
+    background: rgba(255, 211, 109, 0.1);
+    border-color: rgba(255, 211, 109, 0.22);
+  }
+  .rating-chip.danger {
+    color: var(--red);
+    background: rgba(255, 123, 109, 0.1);
+    border-color: rgba(255, 123, 109, 0.22);
+  }
+  .rating-chip.muted {
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .compact-stock {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .compact-sticky-left,
+  .compact-sticky-right {
+    position: sticky;
+    z-index: 2;
+    background: rgba(13, 20, 21, 0.96);
+  }
+  .compact-sticky-left { left: 0; }
+  .compact-sticky-right {
+    right: 0;
+    justify-content: flex-end;
+  }
+  .compact-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .compact-actions .btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .trade-card {
+    display: grid;
+    gap: 16px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012)),
+      var(--panel);
+  }
+  .trade-card-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .trade-title {
+    display: grid;
+    gap: 6px;
+  }
+  .trade-stock {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .trade-stock strong { font-size: 22px; }
+  .trade-stock small {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .badge.open { color: var(--accent-2); background: rgba(127, 208, 210, 0.08); }
+  .badge.win { color: var(--green); background: rgba(83, 209, 139, 0.08); }
+  .badge.loss { color: var(--red); background: rgba(255, 123, 109, 0.08); }
+  .badge.partial { color: var(--yellow); background: rgba(255, 211, 109, 0.08); }
+  .trade-meta {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .meta-cell {
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.018);
+    padding: 12px;
+    min-width: 0;
+  }
+  .meta-cell span {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .meta-cell strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 16px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .trade-notes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .note-box {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.018);
+  }
+  .note-box span {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+    margin-bottom: 8px;
+  }
+  .note-box p {
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 13px;
+    white-space: pre-wrap;
+  }
+  .trade-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .trade-pnl {
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .trade-pnl.pos { color: var(--green); }
+  .trade-pnl.neg { color: var(--red); }
+  .trade-pnl.flat { color: var(--muted); }
+  .btn {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 9px 14px;
+    transition: 0.2s ease;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #e1ff98);
+    color: #081011;
+    box-shadow: 0 10px 24px rgba(200, 255, 97, 0.18);
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--border-strong); }
+  .btn-danger {
+    background: rgba(255, 123, 109, 0.06);
+    border-color: rgba(255, 123, 109, 0.24);
+    color: var(--red);
+  }
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .filter-bar {
+    display: grid;
+    grid-template-columns: minmax(160px, 180px) minmax(180px, 220px) minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .field, .input, .select, textarea {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text);
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    font-size: 14px;
+  }
+  .field:focus, .input:focus, .select:focus, textarea:focus {
+    border-color: var(--border-strong);
+    background: rgba(255, 255, 255, 0.045);
+  }
+  textarea { resize: vertical; min-height: 88px; line-height: 1.5; }
+  .field-group {
+    display: grid;
+    gap: 6px;
+  }
+  .field-group label {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .capture-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .capture-side {
+    position: static;
+  }
+  .calc-card {
+    padding: 12px 14px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(135deg, rgba(200, 255, 97, 0.14), rgba(127, 208, 210, 0.04)),
+      var(--panel-strong);
+  }
+  .calc-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .calc-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .calc-row {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.12);
+    padding: 10px 12px;
+  }
+  .calc-row span {
+    display: block;
+    color: rgba(237, 245, 239, 0.65);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .calc-row strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  .calc-row strong.safe { color: var(--green); }
+  .calc-row strong.warn { color: var(--yellow); }
+  .calc-row strong.danger { color: var(--red); }
+  .capture-main {
+    display: grid;
+    gap: 12px;
+  }
+  .capture-card {
+    display: grid;
+    gap: 12px;
+  }
+  .capture-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .capture-card-header h3 {
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .capture-head-compact .eyebrow,
+  .capture-head-compact p {
+    display: none;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .span-1 { grid-column: span 1; }
+  .span-2 { grid-column: span 2; }
+  .span-3 { grid-column: span 3; }
+  .span-4 { grid-column: span 4; }
+  .span-5 { grid-column: span 5; }
+  .span-6 { grid-column: span 6; }
+  .span-8 { grid-column: span 8; }
+  .span-12 { grid-column: 1 / -1; }
+  .field-inline {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .field-inline .input { flex: 1; }
+  .field-stack {
+    display: grid;
+    gap: 6px;
+  }
+  .template-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .template-chip {
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .table-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .stats-card strong {
+    display: block;
+    font-size: 30px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .stats-card span {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .stats-card p {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .alert {
+    border-radius: 18px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .alert.ok { color: var(--green); border-color: rgba(83, 209, 139, 0.24); background: rgba(83, 209, 139, 0.08); }
+  .alert.warn { color: var(--yellow); border-color: rgba(255, 211, 109, 0.22); background: rgba(255, 211, 109, 0.08); }
+  .alert.danger { color: var(--red); border-color: rgba(255, 123, 109, 0.24); background: rgba(255, 123, 109, 0.08); }
+  .muted { color: var(--muted); }
+  .empty-state {
+    border-radius: 18px;
+    border: 1px dashed var(--border);
+    padding: 34px 22px;
+    text-align: center;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .settings-block {
+    padding: 22px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    display: grid;
+    gap: 16px;
+  }
+  .settings-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .settings-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .settings-copy strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 15px;
+  }
+  .settings-copy p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  @media (max-width: 1220px) {
+    .app-shell { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero, .overview-grid, .settings-grid, .hero-main-grid, .calc-grid { grid-template-columns: 1fr; }
+    .capture-side { position: static; }
+  }
+  @media (max-width: 900px) {
+    .trade-meta, .stats-grid, .metric-grid, .three-m-grid, .table-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filter-bar { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .calc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .compact-head { display: none; }
+    .compact-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+    .compact-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+    }
+    .span-1, .span-2, .span-3, .span-4, .span-5, .span-6, .span-8 { grid-column: span 1; }
+    .span-12 { grid-column: 1 / -1; }
+    .trade-notes { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .workspace { padding: 18px; }
+    .sidebar { padding: 18px; }
+    .hero-copy, .hero-actions, .panel-shell, .info-card, .trade-card, .stats-card, .capture-card, .table-card { padding: 18px; }
+    .trade-meta, .stats-grid, .metric-grid, .three-m-grid, .table-grid, .hero-grid { grid-template-columns: 1fr; }
+    .calc-grid { grid-template-columns: 1fr; }
+    .compact-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="bootScreen" class="gate-screen">
+  <div class="gate-card">
+    <div class="eyebrow">Journal Boot</div>
+    <h1>Trading Journal Atlas 正在启动</h1>
+    <p id="bootMessage">正在初始化页面并检查本地 SQLite Journal 服务…</p>
+  </div>
+</div>
+
+<div id="configGate" class="gate-screen" style="display:none">
+  <div class="gate-card">
+    <div class="eyebrow">Local API</div>
+    <h1>本地 Journal 服务暂时不可用</h1>
+    <p>这个页面现在会直接连接 `triple_screen` 自带的 FastAPI + SQLite 服务。请先启动本地 server，然后点击下面按钮重试。</p>
+    <div class="gate-stack">
+      <div class="field-group">
+        <label>API Base</label>
+        <input class="input mono" type="text" id="cfg_url" placeholder="/api" readonly>
+      </div>
+      <div class="field-group">
+        <label>Storage</label>
+        <input class="input mono" type="text" id="cfg_key" placeholder="SQLite via FastAPI" readonly>
+      </div>
+      <div id="cfgError"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="cfgBtn" onclick="saveConfig()">重试连接</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">∿</div>
+        <div class="brand-tag mono">Trading Journal</div>
+        <h2>Atlas</h2>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="db-chip">
+          <div class="db-dot" id="dbDot"></div>
+          <span id="dbLabel">连接中…</span>
+        </div>
+        <div class="month-chip mono" id="sidebarMonthChip">当前月份：—</div>
+        <div class="note-chip mono" id="dateDisplay">—</div>
+      </div>
+
+      <div class="nav-list">
+        <button class="nav-btn" data-panel="overview" onclick="setPanel('overview')"><span>总览回顾</span><span>01</span></button>
+        <button class="nav-btn active" data-panel="journal" onclick="setPanel('journal')"><span>交易日志</span><span>02</span></button>
+        <button class="nav-btn" data-panel="capture" onclick="setPanel('capture')"><span>录入 / 编辑</span><span>03</span></button>
+        <button class="nav-btn" data-panel="stats" onclick="setPanel('stats')"><span>统计分析</span><span>04</span></button>
+        <button class="nav-btn" data-panel="settings" onclick="setPanel('settings')"><span>设置</span><span>05</span></button>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="startNewTrade()">+ 新建交易</button>
+          <button class="btn btn-secondary" onclick="exportData()">导出备份</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section class="hero hidden" id="heroSection">
+        <div class="hero-card hero-actions">
+          <div class="hero-actions-top">
+            <div>
+              <strong id="heroMonthTitle">当前查看月份：—</strong>
+              <span id="heroMonthSubtitle">用于筛选交易日志、统计分析和月度风险预算。</span>
+            </div>
+            <div class="btn-row">
+              <input class="input mono" style="max-width:180px" type="month" id="heroMonthPicker" onchange="setReportMonth(this.value)">
+              <button class="btn btn-primary" onclick="startNewTrade()">+ 新建交易</button>
+              <button class="btn btn-secondary" onclick="setPanel('journal')">查看日志</button>
+            </div>
+          </div>
+
+          <div class="hero-main-grid">
+            <div class="hero-quick">
+              <div class="hero-quick-card">
+                <div class="card-head" style="margin-bottom:0">
+                  <div>
+                    <div class="eyebrow">Focus</div>
+                    <h3>优先查看 / 编辑</h3>
+                    <p id="heroFocusIntro">优先展示当前最该处理的仓位和记录。</p>
+                  </div>
+                </div>
+                <div class="hero-focus-list" id="heroFocusList"></div>
+              </div>
+
+              <div class="hero-quick-card">
+                <div class="card-head" style="margin-bottom:0">
+                  <div>
+                    <div class="eyebrow">Workspace</div>
+                    <h3>快速入口</h3>
+                    <p id="heroEditState">当前编辑状态和高频入口。</p>
+                  </div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn btn-secondary" id="heroContinueEditBtn" onclick="continueEditing()" style="display:none">继续当前编辑</button>
+                  <button class="btn btn-secondary" onclick="setPanel('capture')">打开录入页</button>
+                  <button class="btn btn-secondary" onclick="setPanel('stats')">查看统计</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="hero-quick">
+              <div class="hero-grid">
+                <div class="summary-card">
+                  <div class="summary-label">总资金</div>
+                  <div class="summary-value" id="heroTotal">$0</div>
+                  <div class="summary-sub" id="heroTotalSub">风险预算的基准</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-label" id="heroSingleStopLabel">单笔止损额度</div>
+                  <div class="summary-value warn" id="heroSingleStop">$0</div>
+                  <div class="summary-sub">由总资金和单笔止损比例自动计算</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-label" id="heroMonthBudgetLabel">月度止损上限</div>
+                  <div class="summary-value danger" id="heroMonthBudget">$0</div>
+                  <div class="summary-sub">跨月持仓会继续占用这个预算</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-label">剩余额度</div>
+                  <div class="summary-value safe" id="heroRemaining">$0</div>
+                  <div class="summary-sub" id="heroRemainingSub">风险预算未使用</div>
+                </div>
+              </div>
+
+              <div class="summary-card">
+                <div class="summary-label">月度止损使用率</div>
+                <div class="summary-value" id="heroUsedPct">0%</div>
+                <div class="summary-sub" id="heroUsedText">已实现亏损 + 月末仍持仓的止损占用</div>
+                <div class="risk-track" style="margin-top:14px"><div class="risk-fill" id="heroRiskFill"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="globalAlertZone"></div>
+
+      <section id="panel-overview" class="panel-shell">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Overview</div>
+            <h2>月度终端总览</h2>
+            <p>只保留风险节奏和核心记录，适合盘前快速扫一遍。</p>
+          </div>
+        </div>
+
+        <div class="overview-grid">
+          <div class="stack">
+            <div class="info-card">
+              <div class="card-head">
+                <div>
+                  <h3>风险节奏</h3>
+                  <p>当前月的最小必要风险视图。</p>
+                </div>
+              </div>
+              <div class="metric-grid" id="overviewMetricGrid"></div>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="info-card">
+              <div class="card-head">
+                <div>
+                  <h3>本月核心记录</h3>
+                  <p>最近要处理或最值得回看的交易。</p>
+                </div>
+                <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
+              </div>
+              <div id="overviewCoreList"></div>
+            </div>
+
+            <div class="info-card">
+              <div class="card-head">
+                <div>
+                  <h3>滚动持仓</h3>
+                  <p>继续占用月度风险预算的仓位。</p>
+                </div>
+              </div>
+              <div id="overviewOpenList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-journal" class="panel-shell active">
+        <div class="table-card">
+          <div class="filter-bar">
+            <input class="input mono" type="month" id="journalMonthPicker" onchange="setReportMonth(this.value)">
+            <select class="select" id="journalStatusFilter" onchange="refreshAll()">
+              <option value="all">全部状态</option>
+              <option value="open">持仓中</option>
+              <option value="closed">已结交易</option>
+              <option value="win">盈利</option>
+              <option value="loss">亏损</option>
+              <option value="planned">计划完整</option>
+            </select>
+            <input class="input" type="search" id="journalSearchInput" placeholder="搜索股票、方向、交易计划、平仓原因、复盘关键词…" oninput="refreshAll()">
+            <div class="toolbar" style="justify-content:flex-end">
+              <span class="month-chip mono" id="journalMonthCurrent">当前查看月份：—</span>
+              <div class="month-chip mono" id="journalCountLabel">0 笔</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="trade-list" id="journalList"></div>
+      </section>
+
+      <section id="panel-capture" class="panel-shell">
+        <div class="section-head capture-head-compact">
+          <div>
+            <h2 id="captureTitle">录入 / 编辑</h2>
+            <p id="captureSubtitle" style="display:none"></p>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="captureCancelBtn" onclick="cancelEditing()" style="display:none">取消编辑</button>
+            <button class="btn btn-secondary" onclick="clearCaptureForm()">清空表单</button>
+          </div>
+        </div>
+
+        <div id="captureAlert"></div>
+
+        <div class="capture-layout">
+          <div class="capture-side">
+            <div class="calc-card">
+              <div class="calc-head">
+                <div>
+                  <div class="calc-mode" id="captureModePill">Create</div>
+                </div>
+              </div>
+
+              <div class="calc-grid">
+                <div class="calc-row"><span id="calcMaxLossLabel">最大可损</span><strong id="calcMaxLoss">—</strong></div>
+                <div class="calc-row"><span>止损状态</span><strong id="calcStopState">—</strong></div>
+                <div class="calc-row"><span>每股风险</span><strong id="calcRiskPerShare">—</strong></div>
+                <div class="calc-row">
+                  <span>建议仓位股数</span>
+                  <strong id="calcRecommendedShares">—</strong>
+                  <div class="btn-row" style="margin-top:12px">
+                    <button class="btn btn-secondary" id="fillSharesBtn" type="button" onclick="applyRecommendedShares()" disabled>使用建议值</button>
+                  </div>
+                </div>
+                <div class="calc-row"><span>占用止损额度</span><strong id="calcUsedStop">—</strong></div>
+                <div class="calc-row"><span>目标价</span><strong id="calcTargetPrice">—</strong></div>
+                <div class="calc-row"><span>评级</span><strong id="calcRatingSummary">买 — / 卖 — / 通 —</strong></div>
+                <div class="calc-row"><span>净利润预览</span><strong id="calcLivePnl">持仓中</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="capture-main">
+            <div class="capture-card">
+              <div class="capture-card-header">
+                <h3>1. 入场</h3>
+              </div>
+
+              <div class="form-grid">
+                <div class="field-group span-2">
+                  <label>股票代码 *</label>
+                  <input class="input" type="text" id="f_stock" placeholder="NVDA" oninput="computeCapture()" style="text-transform:uppercase">
+                </div>
+                <div class="field-group span-2">
+                  <label>方向 *</label>
+                  <select class="select" id="f_direction" onchange="computeCapture()">
+                    <option value="long">做多</option>
+                    <option value="short">做空</option>
+                  </select>
+                </div>
+                <div class="field-group span-2">
+                  <label>入场日期</label>
+                  <input class="input mono" type="date" id="f_buyDate">
+                </div>
+                <div class="field-group span-2">
+                  <label>入场价 *</label>
+                  <input class="input" type="number" id="f_buyPrice" step="0.001" placeholder="0.000" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>止损价 *</label>
+                  <input class="input" type="number" id="f_stopLoss" step="0.001" placeholder="0.000" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>股数 *</label>
+                  <div class="field-stack">
+                    <input class="input" type="number" id="f_shares" placeholder="100" oninput="computeCapture()">
+                    <button class="btn btn-secondary" type="button" id="fillSharesInlineBtn" onclick="applyRecommendedShares()" disabled>使用建议值</button>
+                  </div>
+                </div>
+
+                <div class="field-group span-4">
+                  <label>交易方法 / 止损依据</label>
+                  <input class="input" type="text" id="f_stopReason" placeholder="Pullback to Value / 前低下方" oninput="refreshAll()">
+                </div>
+                <div class="field-group span-2">
+                  <label>目标盈利比例 (%)</label>
+                  <input class="input" type="number" id="f_targetPct" step="0.1" placeholder="10" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>盈利目标价</label>
+                  <input class="input" type="number" id="f_targetPrice" step="0.001" placeholder="自动计算" readonly>
+                </div>
+                <div class="field-group span-2">
+                  <label>开仓佣金 ($)</label>
+                  <input class="input" type="number" id="f_buyComm" step="0.01" min="0" placeholder="1.00" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-1">
+                  <label>通道高点</label>
+                  <input class="input" type="number" id="f_chanHigh" step="0.001" placeholder="后补">
+                </div>
+                <div class="field-group span-1">
+                  <label>通道低点</label>
+                  <input class="input" type="number" id="f_chanLow" step="0.001" placeholder="后补">
+                </div>
+                <div class="field-group span-2">
+                  <label>入场日最高价</label>
+                  <input class="input" type="number" id="f_dayHigh" step="0.001" placeholder="0.000" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>入场日最低价</label>
+                  <input class="input" type="number" id="f_dayLow" step="0.001" placeholder="0.000" oninput="computeCapture()">
+                </div>
+              </div>
+            </div>
+
+            <div class="capture-card">
+              <div class="capture-card-header">
+                <h3>2. 平仓</h3>
+              </div>
+
+              <div class="form-grid">
+                <div class="field-group span-2">
+                  <label>平仓日期</label>
+                  <input class="input mono" type="date" id="f_sellDate" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>平仓价</label>
+                  <input class="input" type="number" id="f_sellPrice" step="0.001" placeholder="0.000" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>平仓佣金 ($)</label>
+                  <input class="input" type="number" id="f_sellComm" step="0.01" min="0" placeholder="1.00" oninput="computeCapture()">
+                </div>
+                <div class="field-group span-2">
+                  <label>平仓日最高价</label>
+                  <input class="input" type="number" id="f_sellHigh" step="0.001" placeholder="0.000">
+                </div>
+                <div class="field-group span-2">
+                  <label>平仓日最低价</label>
+                  <input class="input" type="number" id="f_sellLow" step="0.001" placeholder="0.000">
+                </div>
+                <div class="field-group span-12">
+                  <label>平仓原因</label>
+                  <input class="input" type="text" id="f_sellReason" placeholder="触发止损 / 到达目标 / 回补 / 趋势破坏">
+                </div>
+              </div>
+            </div>
+
+            <div class="capture-card">
+              <div class="capture-card-header">
+                <h3>3. 复盘</h3>
+                <div class="template-row">
+                  <button class="template-chip" type="button" onclick="insertReviewTemplate('plan')">插入计划模板</button>
+                  <button class="template-chip" type="button" onclick="insertReviewTemplate('review')">插入复盘模板</button>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label>交易笔记 / 复盘</label>
+                <textarea id="f_review" placeholder="写下这笔交易的计划、执行、情绪变化、错误和下次改进点…"></textarea>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn btn-secondary" onclick="clearCaptureForm()">重置表单</button>
+                <button class="btn btn-primary" id="captureSaveBtn" onclick="saveTrade()">保存交易</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-stats" class="panel-shell">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Stats</div>
+            <h2>月度统计分析</h2>
+            <p>统计页围绕当前查看月份重新汇总。已实现亏损只计算当月真正平仓且亏损的单子，未实现持仓风险则按月末还没结束的仓位继续占用预算。</p>
+          </div>
+          <div class="toolbar">
+            <input class="input mono" style="max-width:180px" type="month" id="statsMonthPicker" onchange="setReportMonth(this.value)">
+            <span class="month-chip mono" id="statsMonthCurrent">当前查看月份：—</span>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="overview-grid">
+          <div class="info-card">
+            <div class="card-head">
+              <div>
+                <h3>月度止损规则状态</h3>
+                <p>这里把月度预算拆成已实现亏损和月末持仓风险两部分，更接近真实的风险暴露。</p>
+              </div>
+            </div>
+            <div class="table-grid" id="monthlyRiskGrid"></div>
+          </div>
+
+          <div class="info-card">
+            <div class="card-head">
+              <div>
+                <h3>回顾提示</h3>
+                <p>如果一个月里“计划有写、复盘没写”或者“风险超预算”，这里会直接提醒你下个月最该修哪一块。</p>
+              </div>
+            </div>
+            <div id="statsNarrative"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-settings" class="panel-shell">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Settings</div>
+            <h2>账户设置与数据同步</h2>
+            <p>设置会同步到本地 SQLite 的 <span class="mono">trade_settings</span> 表；如果本地服务暂时不可用，页面会先回退到浏览器缓存，不影响录入。</p>
+          </div>
+        </div>
+
+        <div id="settingsSyncAlert"></div>
+
+        <div class="settings-grid">
+          <div class="settings-block">
+            <div class="card-head">
+              <div>
+                <h3>风险参数</h3>
+                <p>这些设置决定单笔最大可损、月度总止损和默认统计月份。</p>
+              </div>
+            </div>
+            <div class="field-group">
+              <label>总资金 ($)</label>
+              <input class="input" type="number" id="s_total" placeholder="114000" oninput="saveSettings()">
+            </div>
+            <div class="field-group">
+              <label>单笔止损上限 (%)</label>
+              <input class="input" type="number" id="s_singleStop" step="0.1" oninput="saveSettings()">
+            </div>
+            <div class="field-group">
+              <label>月度止损上限 (%)</label>
+              <input class="input" type="number" id="s_monthStop" step="0.1" oninput="saveSettings()">
+            </div>
+            <div class="field-group">
+              <label>默认统计月份</label>
+              <input class="input mono" type="month" id="s_month" oninput="saveSettings()">
+            </div>
+          </div>
+
+          <div class="settings-block">
+            <div class="card-head">
+              <div>
+                <h3>数据操作</h3>
+                <p>导出、重新配置和清空数据都放在这里。</p>
+              </div>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-copy">
+                <strong>重新配置数据库</strong>
+                <p>重新检查本地 FastAPI + SQLite Journal 服务连接。</p>
+              </div>
+              <button class="btn btn-secondary" onclick="resetConfig()">重置连接</button>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-copy">
+                <strong>导出 JSON 备份</strong>
+                <p>把当前表中的所有交易导出为本地文件。</p>
+              </div>
+              <button class="btn btn-secondary" onclick="exportData()">导出 JSON</button>
+            </div>
+
+            <div class="settings-item">
+              <div class="settings-copy">
+                <strong style="color:var(--red)">清除全部交易数据</strong>
+                <p>会删除 <span class="mono">trades</span> 表中的所有记录，无法恢复。</p>
+              </div>
+              <button class="btn btn-danger" onclick="clearAll()">清除数据</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const APP_CONFIG = {
+  apiBase: '/api',
+  tableName: 'trades',
+  settingsTableName: 'trade_settings'
+};
+
+const DB_TABLE = (APP_CONFIG.tableName || 'trades').trim();
+const SETTINGS_TABLE = (APP_CONFIG.settingsTableName || 'trade_settings').trim();
+const SETTINGS_ROW_ID = 1;
+const FIXED_NUMBER_LOCALE = 'en-US';
+let sbClient = null;
+let trades = [];
+let settings = normalizeSettings(readStoredJson('tradeSettings', {}));
+let settingsTableReady = false;
+let settingsSaveTimer = null;
+let activePanel = 'journal';
+let editingId = null;
+
+function safeStorageGet(key) {
+  try { return localStorage.getItem(key); }
+  catch (_) { return null; }
+}
+
+function safeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); }
+  catch (_) {}
+}
+
+function safeStorageRemove(key) {
+  try { localStorage.removeItem(key); }
+  catch (_) {}
+}
+
+function readStoredJson(key, fallback) {
+  const raw = safeStorageGet(key);
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); }
+  catch (_) { return fallback; }
+}
+
+function normalizeNumericText(value) {
+  const text = String(value ?? '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/，/g, ',')
+    .replace(/。/g, '.');
+  if (!text) return '';
+  const lastComma = text.lastIndexOf(',');
+  const lastDot = text.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    return lastComma > lastDot
+      ? text.replace(/\./g, '').replace(/,/g, '.')
+      : text.replace(/,/g, '');
+  }
+  if (lastComma !== -1) return text.replace(/,/g, '.');
+  return text;
+}
+
+function parseNumberValue(value) {
+  if (value === null || value === undefined) return null;
+  const text = normalizeNumericText(value);
+  if (text === '') return null;
+  const num = Number(text);
+  return Number.isFinite(num) ? num : null;
+}
+
+function formatNumber(value, decimals = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '—';
+  return new Intl.NumberFormat(FIXED_NUMBER_LOCALE, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  }).format(num);
+}
+
+function formatCurrency(value, decimals = 2) {
+  const num = Number(value);
+  return Number.isFinite(num) ? `$${formatNumber(num, decimals)}` : '—';
+}
+
+function formatPercent(value, decimals = 1) {
+  const num = Number(value);
+  return Number.isFinite(num) ? `${formatNumber(num, decimals)}%` : '—';
+}
+
+function formatInputNumber(value, decimals = null) {
+  const num = parseNumberValue(value);
+  if (num === null) return '';
+  return decimals === null ? normalizeNumericText(num) : num.toFixed(decimals);
+}
+
+function formatShares(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? `${formatNumber(num, 0)} 股` : '—';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sameId(a, b) {
+  return String(a) === String(b);
+}
+
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function getLocalDateStamp(date = new Date()) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function getLocalMonthStamp(date = new Date()) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+}
+
+function getInlineConfigValue(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getSupabaseConfig() {
+  const apiBase = getInlineConfigValue(APP_CONFIG.apiBase) || '/api';
+  return {
+    url: apiBase.replace(/\/$/, ''),
+    key: 'sqlite'
+  };
+}
+
+async function apiRequest(path, options = {}) {
+  const { url } = getSupabaseConfig();
+  const headers = { Accept: 'application/json', ...(options.headers || {}) };
+  const requestOptions = {
+    method: options.method || 'GET',
+    headers
+  };
+  if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    requestOptions.body = JSON.stringify(options.body);
+  }
+
+  const response = await fetch(`${url}${path}`, requestOptions);
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = text;
+    }
+  }
+  if (!response.ok) {
+    throw new Error(data?.detail || data?.message || text || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+function setView(view, bootMessage) {
+  const boot = document.getElementById('bootScreen');
+  const gate = document.getElementById('configGate');
+  const app = document.getElementById('mainApp');
+  if (bootMessage) document.getElementById('bootMessage').textContent = bootMessage;
+  boot.style.display = view === 'boot' ? 'flex' : 'none';
+  gate.style.display = view === 'config' ? 'flex' : 'none';
+  app.style.display = view === 'app' ? 'block' : 'none';
+}
+
+function prefillConfigInputs() {
+  const { url, key } = getSupabaseConfig();
+  const urlInput = document.getElementById('cfg_url');
+  const keyInput = document.getElementById('cfg_key');
+  if (urlInput) urlInput.value = url;
+  if (keyInput) keyInput.value = key;
+}
+
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    })
+  ]);
+}
+
+function getNumberInputValue(id) {
+  const el = document.getElementById(id);
+  return el ? parseNumberValue(el.value) : null;
+}
+
+function hasTextValue(value) {
+  return String(value ?? '').trim() !== '';
+}
+
+function parseTargetPctInput(value) {
+  const pct = parseNumberValue(value);
+  if (pct === null || pct < 0) return null;
+  return pct;
+}
+
+function normalizeDirection(value) {
+  return String(value || 'long').toLowerCase() === 'short' ? 'short' : 'long';
+}
+
+function getDirectionLabel(value) {
+  return normalizeDirection(value) === 'short' ? '做空' : '做多';
+}
+
+function getDirectionPrefix(value) {
+  return normalizeDirection(value) === 'short' ? '空' : '多';
+}
+
+function normalizeStoredTargetPctValue(value) {
+  const pct = parseNumberValue(value);
+  if (pct === null || pct < 0) return null;
+  if (pct > 0 && pct < 1) return pct * 100;
+  return pct;
+}
+
+function getTargetPrice(entryPrice, targetPct, direction = 'long') {
+  if (entryPrice === null) return null;
+  const pct = parseTargetPctInput(targetPct);
+  if (pct === null) return null;
+  return normalizeDirection(direction) === 'short'
+    ? Math.max(0, entryPrice * (1 - pct / 100))
+    : entryPrice * (1 + pct / 100);
+}
+
+function getCommissionValue(value, fallback = 0) {
+  const parsed = parseNumberValue(value);
+  if (parsed === null) return fallback;
+  return Math.abs(parsed);
+}
+
+function getRiskPerShare(entryPrice, stopLoss, direction = 'long') {
+  if (entryPrice === null || stopLoss === null) return null;
+  const diff = normalizeDirection(direction) === 'short'
+    ? stopLoss - entryPrice
+    : entryPrice - stopLoss;
+  return diff > 0 ? diff : 0;
+}
+
+function getStopStatus(entryPrice, stopLoss, direction = 'long') {
+  if (entryPrice === null || stopLoss === null || entryPrice <= 0) return null;
+  const diff = normalizeDirection(direction) === 'short'
+    ? entryPrice - stopLoss
+    : stopLoss - entryPrice;
+  if (Math.abs(diff) < 1e-9) return { type: 'breakeven', pct: 0 };
+  if (diff > 0) return { type: 'locked', pct: diff / entryPrice * 100 };
+  return { type: 'risk', pct: Math.abs(diff) / entryPrice * 100 };
+}
+
+function getRecommendedShares(maxLoss, entryPrice, stopLoss, direction = 'long') {
+  const riskPerShare = getRiskPerShare(entryPrice, stopLoss, direction);
+  if (riskPerShare === null || riskPerShare <= 0 || !maxLoss || maxLoss <= 0) return null;
+  const shares = Math.floor(maxLoss / riskPerShare);
+  return shares > 0 ? shares : 0;
+}
+
+function hasCompleteSellInfo(sellPrice, sellDate) {
+  return sellPrice !== null && hasTextValue(sellDate);
+}
+
+function hasPartialSellInfo(sellPrice, sellDate) {
+  return (sellPrice !== null) !== hasTextValue(sellDate);
+}
+
+function isTradeClosed(trade) {
+  return hasCompleteSellInfo(parseNumberValue(trade.sell_price), trade.sell_date);
+}
+
+function calculateGrossPnl(entryPrice, exitPrice, shares, direction = 'long') {
+  if (entryPrice === null || exitPrice === null || shares === null) return null;
+  return normalizeDirection(direction) === 'short'
+    ? (entryPrice - exitPrice) * shares
+    : (exitPrice - entryPrice) * shares;
+}
+
+function calculateNetPnl(grossPnl, buyComm, sellComm) {
+  if (grossPnl === null) return null;
+  return grossPnl - Math.abs(buyComm || 0) - Math.abs(sellComm || 0);
+}
+
+function getTradeNetPnl(trade) {
+  if (!isTradeClosed(trade)) return null;
+  const direction = normalizeDirection(trade.direction);
+  const buyPrice = parseNumberValue(trade.buy_price);
+  const sellPrice = parseNumberValue(trade.sell_price);
+  const shares = parseNumberValue(trade.shares);
+  const gross = calculateGrossPnl(buyPrice, sellPrice, shares, direction);
+  return calculateNetPnl(gross, getCommissionValue(trade.buy_comm, 0), getCommissionValue(trade.sell_comm, 0));
+}
+
+function getTradeTargetPct(trade) {
+  return normalizeStoredTargetPctValue(trade.target_pct);
+}
+
+function getTradeTargetPrice(trade) {
+  const stored = parseNumberValue(trade.target_price);
+  if (stored !== null) return stored;
+  return getTargetPrice(parseNumberValue(trade.buy_price), getTradeTargetPct(trade), trade.direction);
+}
+
+function getTradeUsedStop(trade) {
+  const stored = parseNumberValue(trade.used_stop);
+  if (stored !== null) return Math.abs(stored);
+  const riskPerShare = getRiskPerShare(parseNumberValue(trade.buy_price), parseNumberValue(trade.stop_loss), trade.direction);
+  const shares = parseNumberValue(trade.shares);
+  if (riskPerShare === null || shares === null) return 0;
+  return Math.abs(riskPerShare * shares);
+}
+
+function getTradeBuyMonth(trade) {
+  return (trade.buy_date || trade.created_at || '').slice(0, 7);
+}
+
+function getTradeSellMonth(trade) {
+  return isTradeClosed(trade) ? (trade.sell_date || '').slice(0, 7) : '';
+}
+
+function isTradeRelevantToMonth(trade, month) {
+  const buyMonth = getTradeBuyMonth(trade);
+  const sellMonth = getTradeSellMonth(trade);
+  if (!buyMonth) return false;
+  return buyMonth <= month && (!sellMonth || sellMonth >= month);
+}
+
+function isTradeOpenAtMonthEnd(trade, month) {
+  const buyMonth = getTradeBuyMonth(trade);
+  const sellMonth = getTradeSellMonth(trade);
+  if (!buyMonth) return false;
+  return buyMonth <= month && (!sellMonth || sellMonth > month);
+}
+
+function getTradesForMonth(month) {
+  return trades.filter((trade) => isTradeRelevantToMonth(trade, month));
+}
+
+function getClosedTradesForMonth(month) {
+  return trades.filter((trade) => getTradeSellMonth(trade) === month);
+}
+
+function getOpenTradesForMonth(month) {
+  return trades.filter((trade) => isTradeOpenAtMonthEnd(trade, month));
+}
+
+function getMonthRealizedLosses(month) {
+  return getClosedTradesForMonth(month).reduce((sum, trade) => {
+    const pnl = getTradeNetPnl(trade);
+    return pnl !== null && pnl < 0 ? sum + Math.abs(pnl) : sum;
+  }, 0);
+}
+
+function getMonthOpenRisk(month) {
+  return getOpenTradesForMonth(month).reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
+}
+
+function getMonthStopBudgetUsed(month) {
+  return getMonthRealizedLosses(month) + getMonthOpenRisk(month);
+}
+
+function normalizeSettings(source = {}) {
+  return {
+    total: parseNumberValue(source.total) ?? 0,
+    singleStop: parseNumberValue(source.singleStop) ?? 2,
+    monthStop: parseNumberValue(source.monthStop) ?? 6,
+    month: String(source.month || getLocalMonthStamp())
+  };
+}
+
+function cacheSettings() {
+  safeStorageSet('tradeSettings', JSON.stringify(settings));
+}
+
+function settingsRowToState(row) {
+  return normalizeSettings({
+    total: row?.total,
+    singleStop: row?.single_stop,
+    monthStop: row?.month_stop,
+    month: row?.report_month
+  });
+}
+
+function settingsStateToRow() {
+  return {
+    id: SETTINGS_ROW_ID,
+    total: settings.total,
+    single_stop: settings.singleStop,
+    month_stop: settings.monthStop,
+    report_month: settings.month,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function getSettings() {
+  return normalizeSettings(settings);
+}
+
+function getCurrentReportMonth() {
+  return getSettings().month;
+}
+
+function getSellFieldsError(sellPrice, sellDate) {
+  if (!hasPartialSellInfo(sellPrice, sellDate)) return '';
+  return sellPrice === null ? '填写平仓日期时，也请填写平仓价' : '填写平仓价时，也请填写平仓日期';
+}
+
+function getTradeStatusMeta(trade) {
+  const pnl = getTradeNetPnl(trade);
+  const sellPrice = parseNumberValue(trade.sell_price);
+  const sellDate = trade.sell_date || '';
+  if (hasPartialSellInfo(sellPrice, sellDate)) {
+    return { label: '待补平仓', className: 'partial' };
+  }
+  if (!isTradeClosed(trade)) {
+    return { label: '持仓中', className: 'open' };
+  }
+  if (pnl !== null && pnl >= 0) {
+    return { label: '盈利', className: 'win' };
+  }
+  return { label: '亏损', className: 'loss' };
+}
+
+function getBuyRating(entryPrice, dayHigh, dayLow, direction = 'long') {
+  if (entryPrice === null || dayHigh === null || dayLow === null || dayHigh === dayLow) return null;
+  return normalizeDirection(direction) === 'short'
+    ? (entryPrice - dayLow) / (dayHigh - dayLow) * 100
+    : (dayHigh - entryPrice) / (dayHigh - dayLow) * 100;
+}
+
+function getSellRating(exitPrice, sellHigh, sellLow, direction = 'long') {
+  if (exitPrice === null || sellHigh === null || sellLow === null || sellHigh === sellLow) return null;
+  return normalizeDirection(direction) === 'short'
+    ? (sellHigh - exitPrice) / (sellHigh - sellLow) * 100
+    : (exitPrice - sellLow) / (sellHigh - sellLow) * 100;
+}
+
+function getChannelRating(entryPrice, chanHigh, chanLow, direction = 'long') {
+  if (entryPrice === null || chanHigh === null || chanLow === null || chanHigh === chanLow) return null;
+  return normalizeDirection(direction) === 'short'
+    ? (entryPrice - chanLow) / (chanHigh - chanLow) * 100
+    : (chanHigh - entryPrice) / (chanHigh - chanLow) * 100;
+}
+
+function formatRatingValue(value) {
+  return value === null ? '—' : formatPercent(Math.max(0, Math.min(100, value)), 0);
+}
+
+function getRatingTone(value) {
+  if (value === null) return 'muted';
+  const normalized = Math.max(0, Math.min(100, value));
+  if (normalized >= 60) return 'safe';
+  if (normalized >= 40) return 'warn';
+  return 'danger';
+}
+
+function getRatingChipHtml(label, value) {
+  return `<span class="rating-chip ${getRatingTone(value)}">${escapeHtml(label)} ${escapeHtml(formatRatingValue(value))}</span>`;
+}
+
+function getJournalSearchText(trade) {
+  return [
+    trade.stock,
+    getDirectionLabel(trade.direction),
+    trade.stop_reason,
+    trade.sell_reason,
+    trade.review
+  ].join(' ').toLowerCase();
+}
+
+function getFilteredJournalTrades() {
+  const month = getCurrentReportMonth();
+  const status = document.getElementById('journalStatusFilter')?.value || 'all';
+  const query = (document.getElementById('journalSearchInput')?.value || '').trim().toLowerCase();
+  return getTradesForMonth(month).filter((trade) => {
+    if (query && !getJournalSearchText(trade).includes(query)) return false;
+    if (status === 'open') return !isTradeClosed(trade) && !hasPartialSellInfo(parseNumberValue(trade.sell_price), trade.sell_date);
+    if (status === 'closed') return isTradeClosed(trade);
+    if (status === 'win') return isTradeClosed(trade) && (getTradeNetPnl(trade) ?? -Infinity) >= 0;
+    if (status === 'loss') return isTradeClosed(trade) && (getTradeNetPnl(trade) ?? Infinity) < 0;
+    if (status === 'planned') return hasTextValue(trade.stop_reason) && getTradeTargetPct(trade) !== null;
+    return true;
+  });
+}
+
+function setDbStatus(ok) {
+  const dot = document.getElementById('dbDot');
+  const label = document.getElementById('dbLabel');
+  if (!dot || !label) return;
+  dot.className = `db-dot${ok ? ' connected' : ' error'}`;
+  label.textContent = ok ? 'SQLite 服务已连接' : '数据库连接失败';
+}
+
+function setSettingsSyncStatus(type, message) {
+  const zone = document.getElementById('settingsSyncAlert');
+  if (!zone) return;
+  if (!message) {
+    zone.innerHTML = '';
+    return;
+  }
+  zone.innerHTML = `<div class="alert ${escapeHtml(type)}">${escapeHtml(message)}</div>`;
+}
+
+function showAlert(id, msg, type = 'warn') {
+  const zone = document.getElementById(id);
+  if (!zone) return;
+  const safeType = ['ok', 'warn', 'danger'].includes(type) ? type : 'warn';
+  zone.innerHTML = `<div class="alert ${safeType}">${escapeHtml(msg)}</div>`;
+  if (id === 'globalAlertZone') return;
+  setTimeout(() => {
+    if (zone.innerHTML.includes(escapeHtml(msg))) zone.innerHTML = '';
+  }, 4200);
+}
+
+function clearGlobalAlert() {
+  const zone = document.getElementById('globalAlertZone');
+  if (zone) zone.innerHTML = '';
+}
+
+function setPanel(panel) {
+  activePanel = panel;
+  document.querySelectorAll('.panel-shell').forEach((node) => node.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach((node) => node.classList.remove('active'));
+  const panelEl = document.getElementById(`panel-${panel}`);
+  const btn = document.querySelector(`.nav-btn[data-panel="${panel}"]`);
+  const hero = document.getElementById('heroSection');
+  if (panelEl) panelEl.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (hero) hero.classList.toggle('hidden', panel !== 'overview');
+  if (panel === 'capture') computeCapture();
+  if (panel === 'settings') loadSettingsUI();
+}
+
+function updateSidebarMonthChip() {
+  const chip = document.getElementById('sidebarMonthChip');
+  if (chip) chip.textContent = `当前月份：${getCurrentReportMonth()}`;
+}
+
+function syncMonthPickers() {
+  const month = getCurrentReportMonth();
+  ['heroMonthPicker', 'journalMonthPicker', 'statsMonthPicker', 's_month'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = month;
+  });
+  const labelText = `当前查看月份：${month}`;
+  ['heroMonthTitle', 'journalMonthCurrent', 'statsMonthCurrent'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = labelText;
+  });
+  updateSidebarMonthChip();
+}
+
+function setReportMonth(month) {
+  if (!month) return;
+  settings.month = month;
+  cacheSettings();
+  loadSettingsUI();
+  refreshAll();
+  setSettingsSyncStatus('warn', settingsTableReady ? '正在同步设置到本地 SQLite…' : '正在尝试保存设置到本地 SQLite…');
+  scheduleSettingsSave();
+}
+
+function updateRiskRuleLabels() {
+  const s = getSettings();
+  const singleStopLabel = document.getElementById('heroSingleStopLabel');
+  const monthBudgetLabel = document.getElementById('heroMonthBudgetLabel');
+  const calcMaxLossLabel = document.getElementById('calcMaxLossLabel');
+  if (singleStopLabel) singleStopLabel.textContent = `单笔止损额度 (${s.singleStop}%)`;
+  if (monthBudgetLabel) monthBudgetLabel.textContent = `月度止损上限 (${s.monthStop}%)`;
+  if (calcMaxLossLabel) calcMaxLossLabel.textContent = `最大可损 (${s.singleStop}%)`;
+}
+
+function scheduleSettingsSave() {
+  if (settingsSaveTimer) clearTimeout(settingsSaveTimer);
+  settingsSaveTimer = setTimeout(() => { persistSettingsToDb(); }, 500);
+}
+
+async function persistSettingsToDb() {
+  if (!sbClient) return;
+  try {
+    await withTimeout(
+      apiRequest('/settings', {
+        method: 'PUT',
+        body: settingsStateToRow()
+      }),
+      10000,
+      '保存设置超时'
+    );
+    settingsTableReady = true;
+    cacheSettings();
+    setSettingsSyncStatus('ok', '设置已保存到本地 SQLite');
+  } catch (error) {
+    settingsTableReady = false;
+    cacheSettings();
+    setSettingsSyncStatus('warn', `设置未写入本地 SQLite：${error.message || error}。当前先保存在浏览器。`);
+  }
+}
+
+async function loadSettingsFromDb() {
+  try {
+    const data = await withTimeout(
+      apiRequest('/settings'),
+      10000,
+      '读取设置超时'
+    );
+    settingsTableReady = true;
+    if (data) {
+      settings = settingsRowToState(data);
+      cacheSettings();
+      loadSettingsUI();
+      refreshAll();
+      setSettingsSyncStatus('ok', '设置已从本地 SQLite 同步');
+    } else {
+      setSettingsSyncStatus('warn', `本地 SQLite 中还没有 ${SETTINGS_TABLE} 记录；首次修改时会自动保存。`);
+    }
+  } catch (error) {
+    settingsTableReady = false;
+    setSettingsSyncStatus('warn', `未能从本地 SQLite 读取设置：${error.message || error}。当前先使用浏览器缓存。`);
+    return;
+  }
+}
+
+function saveSettings() {
+  settings.total = getNumberInputValue('s_total') ?? 0;
+  settings.singleStop = getNumberInputValue('s_singleStop') ?? 2;
+  settings.monthStop = getNumberInputValue('s_monthStop') ?? 6;
+  settings.month = document.getElementById('s_month').value || settings.month;
+  cacheSettings();
+  refreshAll();
+  setSettingsSyncStatus('warn', settingsTableReady ? '正在同步设置到本地 SQLite…' : '正在尝试保存设置到本地 SQLite…');
+  scheduleSettingsSave();
+}
+
+function loadSettingsUI() {
+  const s = getSettings();
+  const total = document.getElementById('s_total');
+  const singleStop = document.getElementById('s_singleStop');
+  const monthStop = document.getElementById('s_monthStop');
+  if (total) total.value = s.total || '';
+  if (singleStop) singleStop.value = s.singleStop;
+  if (monthStop) monthStop.value = s.monthStop;
+  syncMonthPickers();
+  updateRiskRuleLabels();
+}
+
+function enhanceNumberInputs(root = document) {
+  root.querySelectorAll('input[type="number"]').forEach((input) => {
+    if (input.dataset.boundLocale === '1') return;
+    input.lang = FIXED_NUMBER_LOCALE;
+    const normalize = () => {
+      const normalized = normalizeNumericText(input.value);
+      if (normalized && normalized !== input.value) input.value = normalized;
+    };
+    input.addEventListener('change', normalize);
+    input.addEventListener('blur', normalize);
+    input.dataset.boundLocale = '1';
+  });
+}
+
+function resetCaptureModeText() {
+  const editingTrade = trades.find((trade) => sameId(trade.id, editingId));
+  const modePill = document.getElementById('captureModePill');
+  const title = document.getElementById('captureTitle');
+  const subtitle = document.getElementById('captureSubtitle');
+  const cancelBtn = document.getElementById('captureCancelBtn');
+  if (!modePill || !title || !cancelBtn) return;
+  if (editingTrade) {
+    modePill.textContent = `Edit • ${editingTrade.stock || 'Trade'} • ${getDirectionLabel(editingTrade.direction)}`;
+    title.textContent = `编辑 ${editingTrade.stock || '交易'} · ${getDirectionLabel(editingTrade.direction)}`;
+    if (subtitle) subtitle.textContent = '';
+    cancelBtn.style.display = 'inline-flex';
+    document.getElementById('captureSaveBtn').textContent = '保存修改';
+  } else {
+    modePill.textContent = 'Create';
+    title.textContent = '录入 / 编辑';
+    if (subtitle) subtitle.textContent = '';
+    cancelBtn.style.display = 'none';
+    document.getElementById('captureSaveBtn').textContent = '保存交易';
+  }
+}
+
+function computeCapture() {
+  const s = getSettings();
+  const total = s.total;
+  const maxLoss = total * (s.singleStop / 100);
+  const direction = normalizeDirection(document.getElementById('f_direction')?.value);
+  const buyPrice = getNumberInputValue('f_buyPrice');
+  const stopLoss = getNumberInputValue('f_stopLoss');
+  const sharesRaw = getNumberInputValue('f_shares');
+  const shares = sharesRaw !== null ? Math.floor(sharesRaw) : null;
+  const dayHigh = getNumberInputValue('f_dayHigh');
+  const dayLow = getNumberInputValue('f_dayLow');
+  const chanHigh = getNumberInputValue('f_chanHigh');
+  const chanLow = getNumberInputValue('f_chanLow');
+  const targetPct = parseTargetPctInput(getNumberInputValue('f_targetPct'));
+  const sellPrice = getNumberInputValue('f_sellPrice');
+  const sellDate = document.getElementById('f_sellDate').value || '';
+  const sellHigh = getNumberInputValue('f_sellHigh');
+  const sellLow = getNumberInputValue('f_sellLow');
+  const buyComm = getCommissionValue(getNumberInputValue('f_buyComm'), 1);
+  const sellComm = getCommissionValue(getNumberInputValue('f_sellComm'), hasCompleteSellInfo(sellPrice, sellDate) ? 1 : 0);
+  const targetPrice = getTargetPrice(buyPrice, targetPct, direction);
+  const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
+  const riskPerShare = getRiskPerShare(buyPrice, stopLoss, direction);
+  const recommendedShares = getRecommendedShares(maxLoss, buyPrice, stopLoss, direction);
+  const usedStop = riskPerShare !== null && shares !== null ? riskPerShare * shares : null;
+  const buyRating = getBuyRating(buyPrice, dayHigh, dayLow, direction);
+  const sellRating = getSellRating(sellPrice, sellHigh, sellLow, direction);
+  const channelRating = getChannelRating(buyPrice, chanHigh, chanLow, direction);
+  const livePnl = hasCompleteSellInfo(sellPrice, sellDate)
+    ? calculateNetPnl(calculateGrossPnl(buyPrice, sellPrice, shares, direction), buyComm, sellComm)
+    : null;
+
+  const stopStateEl = document.getElementById('calcStopState');
+  const maxLossEl = document.getElementById('calcMaxLoss');
+  const riskPerShareEl = document.getElementById('calcRiskPerShare');
+  const recommendedEl = document.getElementById('calcRecommendedShares');
+  const usedStopEl = document.getElementById('calcUsedStop');
+  const targetEl = document.getElementById('calcTargetPrice');
+  const ratingEl = document.getElementById('calcRatingSummary');
+  const pnlEl = document.getElementById('calcLivePnl');
+  const targetInput = document.getElementById('f_targetPrice');
+
+  if (maxLossEl) maxLossEl.textContent = total ? formatCurrency(maxLoss, 2) : '—';
+
+  if (stopStateEl) {
+    if (!stopStatus) {
+      stopStateEl.textContent = '—';
+      stopStateEl.className = '';
+    } else if (stopStatus.type === 'breakeven') {
+      stopStateEl.textContent = '已保本';
+      stopStateEl.className = 'safe';
+    } else if (stopStatus.type === 'locked') {
+      stopStateEl.textContent = `已锁盈 ${formatPercent(stopStatus.pct, 2)}`;
+      stopStateEl.className = 'safe';
+    } else {
+      stopStateEl.textContent = formatPercent(stopStatus.pct, 2);
+      stopStateEl.className = stopStatus.pct > 8 ? 'warn' : '';
+    }
+  }
+
+  if (riskPerShareEl) {
+    riskPerShareEl.textContent = riskPerShare !== null ? formatCurrency(riskPerShare, 3) : '—';
+    riskPerShareEl.className = riskPerShare === 0 ? 'safe' : '';
+  }
+
+  if (recommendedEl) {
+    if (recommendedShares !== null) {
+      recommendedEl.textContent = formatShares(recommendedShares);
+      recommendedEl.className = '';
+    } else if (stopStatus?.type === 'breakeven' || stopStatus?.type === 'locked') {
+      recommendedEl.textContent = '无需建议';
+      recommendedEl.className = 'safe';
+    } else {
+      recommendedEl.textContent = '—';
+      recommendedEl.className = '';
+    }
+  }
+
+  if (usedStopEl) {
+    if (stopStatus?.type === 'breakeven') {
+      usedStopEl.textContent = '0（已保本）';
+      usedStopEl.className = 'safe';
+    } else if (stopStatus?.type === 'locked') {
+      usedStopEl.textContent = '0（已锁盈）';
+      usedStopEl.className = 'safe';
+    } else if (usedStop !== null) {
+      usedStopEl.textContent = formatCurrency(usedStop, 2);
+      usedStopEl.className = total && usedStop > maxLoss ? 'danger' : '';
+    } else {
+      usedStopEl.textContent = '—';
+      usedStopEl.className = '';
+    }
+  }
+
+  if (targetInput) targetInput.value = formatInputNumber(targetPrice, 3);
+  if (targetEl) targetEl.textContent = targetPrice !== null ? formatCurrency(targetPrice, 3) : '—';
+
+  if (ratingEl) {
+    ratingEl.innerHTML = `
+      <span class="rating-line">
+        ${getRatingChipHtml('买', buyRating)}
+        ${getRatingChipHtml('卖', sellRating)}
+        ${getRatingChipHtml('通', channelRating)}
+      </span>
+    `;
+    ratingEl.className = '';
+  }
+
+  if (pnlEl) {
+    if (livePnl === null) {
+      pnlEl.textContent = '持仓中';
+      pnlEl.className = '';
+    } else {
+      pnlEl.textContent = formatCurrency(livePnl, 2);
+      pnlEl.className = livePnl >= 0 ? 'safe' : 'danger';
+    }
+  }
+
+  updateRecommendedShareButtons(recommendedShares, buyPrice, stopLoss, direction);
+}
+
+function updateRecommendedShareButtons(recommendedShares, buyPrice = null, stopLoss = null, direction = 'long') {
+  const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
+  ['fillSharesBtn', 'fillSharesInlineBtn'].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const enabled = recommendedShares !== null && recommendedShares > 0;
+    btn.disabled = !enabled;
+    if (enabled) {
+      btn.textContent = `填入 ${formatNumber(recommendedShares, 0)} 股`;
+    } else if (stopStatus?.type === 'breakeven' || stopStatus?.type === 'locked') {
+      btn.textContent = '无需建议仓位';
+    } else {
+      btn.textContent = '使用建议值';
+    }
+  });
+}
+
+function applyRecommendedShares() {
+  const s = getSettings();
+  const direction = normalizeDirection(document.getElementById('f_direction')?.value);
+  const buyPrice = getNumberInputValue('f_buyPrice');
+  const stopLoss = getNumberInputValue('f_stopLoss');
+  const maxLoss = s.total * (s.singleStop / 100);
+  const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
+  const recommendedShares = getRecommendedShares(maxLoss, buyPrice, stopLoss, direction);
+  if (recommendedShares === null || recommendedShares <= 0) {
+    if (stopStatus?.type === 'breakeven' || stopStatus?.type === 'locked') {
+      showAlert('captureAlert', '当前止损已在保本或锁盈位置，不需要推荐股数。', 'warn');
+      return;
+    }
+    showAlert('captureAlert', '请先填写有效的入场价、止损价和总资金，才能自动填入建议股数。', 'warn');
+    return;
+  }
+  const sharesInput = document.getElementById('f_shares');
+  if (sharesInput) sharesInput.value = String(recommendedShares);
+  computeCapture();
+}
+
+function insertReviewTemplate(kind) {
+  const textarea = document.getElementById('f_review');
+  if (!textarea) return;
+  const templates = {
+    plan: [
+      '计划名称：',
+      '触发条件：',
+      '为什么这里买：',
+      '止损为什么放这里：',
+      '如果走错如何处理：'
+    ].join('\n'),
+    review: [
+      '执行回顾：',
+      '情绪状态：',
+      '做对了什么：',
+      '犯了什么错：',
+      '下次怎么改：'
+    ].join('\n')
+  };
+  const block = templates[kind];
+  if (!block) return;
+  textarea.value = textarea.value.trim()
+    ? `${textarea.value.trim()}\n\n${block}`
+    : block;
+  textarea.focus();
+}
+
+function clearCaptureForm() {
+  [
+    'f_stock', 'f_direction', 'f_buyDate', 'f_buyPrice', 'f_stopLoss', 'f_stopReason',
+    'f_dayHigh', 'f_dayLow', 'f_targetPct', 'f_targetPrice', 'f_shares',
+    'f_chanHigh', 'f_chanLow', 'f_buyComm', 'f_sellComm',
+    'f_sellDate', 'f_sellPrice', 'f_sellHigh', 'f_sellLow', 'f_sellReason',
+    'f_review'
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('f_direction').value = 'long';
+  document.getElementById('f_buyDate').value = getLocalDateStamp();
+  document.getElementById('f_buyComm').value = '1';
+  document.getElementById('f_sellComm').value = '';
+  computeCapture();
+}
+
+function cancelEditing() {
+  editingId = null;
+  resetCaptureModeText();
+  clearCaptureForm();
+  showAlert('captureAlert', '已退出编辑模式。', 'ok');
+}
+
+function startNewTrade() {
+  editingId = null;
+  resetCaptureModeText();
+  clearCaptureForm();
+  setPanel('capture');
+}
+
+function populateCaptureForm(trade) {
+  editingId = trade.id;
+  document.getElementById('f_stock').value = trade.stock || '';
+  document.getElementById('f_direction').value = normalizeDirection(trade.direction);
+  document.getElementById('f_buyDate').value = trade.buy_date || '';
+  document.getElementById('f_buyPrice').value = formatInputNumber(trade.buy_price);
+  document.getElementById('f_stopLoss').value = formatInputNumber(trade.stop_loss);
+  document.getElementById('f_stopReason').value = trade.stop_reason || '';
+  document.getElementById('f_dayHigh').value = formatInputNumber(trade.day_high);
+  document.getElementById('f_dayLow').value = formatInputNumber(trade.day_low);
+  document.getElementById('f_targetPct').value = formatInputNumber(getTradeTargetPct(trade));
+  document.getElementById('f_targetPrice').value = formatInputNumber(getTradeTargetPrice(trade), 3);
+  document.getElementById('f_shares').value = formatInputNumber(trade.shares);
+  document.getElementById('f_chanHigh').value = formatInputNumber(trade.chan_high);
+  document.getElementById('f_chanLow').value = formatInputNumber(trade.chan_low);
+  document.getElementById('f_buyComm').value = formatInputNumber(getCommissionValue(trade.buy_comm, 1));
+  document.getElementById('f_sellComm').value = formatInputNumber(getCommissionValue(trade.sell_comm, isTradeClosed(trade) ? 1 : 0));
+  document.getElementById('f_sellDate').value = trade.sell_date || '';
+  document.getElementById('f_sellPrice').value = formatInputNumber(trade.sell_price);
+  document.getElementById('f_sellHigh').value = formatInputNumber(trade.sell_high);
+  document.getElementById('f_sellLow').value = formatInputNumber(trade.sell_low);
+  document.getElementById('f_sellReason').value = trade.sell_reason || '';
+  document.getElementById('f_review').value = trade.review || '';
+  resetCaptureModeText();
+  computeCapture();
+  setPanel('capture');
+}
+
+function editTrade(id) {
+  const trade = trades.find((item) => sameId(item.id, id));
+  if (!trade) return;
+  populateCaptureForm(trade);
+}
+
+function continueEditing() {
+  if (editingId === null) {
+    setPanel('capture');
+    return;
+  }
+  const trade = trades.find((item) => sameId(item.id, editingId));
+  if (!trade) {
+    setPanel('capture');
+    return;
+  }
+  populateCaptureForm(trade);
+}
+
+function getCapturePayload() {
+  const stock = document.getElementById('f_stock').value.trim().toUpperCase();
+  const direction = normalizeDirection(document.getElementById('f_direction')?.value);
+  const buyPrice = getNumberInputValue('f_buyPrice');
+  const stopLoss = getNumberInputValue('f_stopLoss');
+  const sharesRaw = getNumberInputValue('f_shares');
+  const shares = sharesRaw !== null ? Math.floor(sharesRaw) : null;
+  const targetPct = parseTargetPctInput(getNumberInputValue('f_targetPct'));
+  const targetPrice = getTargetPrice(buyPrice, targetPct, direction);
+  const sellPrice = getNumberInputValue('f_sellPrice');
+  const sellDate = document.getElementById('f_sellDate').value || null;
+  const isClosed = hasCompleteSellInfo(sellPrice, sellDate);
+  const buyComm = getCommissionValue(getNumberInputValue('f_buyComm'), 1);
+  const sellComm = getCommissionValue(getNumberInputValue('f_sellComm'), isClosed ? 1 : 0);
+  const riskPerShare = getRiskPerShare(buyPrice, stopLoss, direction);
+  const usedStop = riskPerShare !== null && shares !== null ? riskPerShare * shares : null;
+  const grossPnl = isClosed ? calculateGrossPnl(buyPrice, sellPrice, shares, direction) : null;
+  const pnlNet = isClosed ? calculateNetPnl(grossPnl, buyComm, sellComm) : null;
+  return {
+    stock,
+    direction,
+    buyPrice,
+    stopLoss,
+    shares,
+    targetPct,
+    targetPrice,
+    usedStop,
+    sellPrice,
+    sellDate,
+    buyComm,
+    sellComm,
+    pnl: grossPnl,
+    pnlNet,
+    stopReason: document.getElementById('f_stopReason').value.trim(),
+    buyDate: document.getElementById('f_buyDate').value || null,
+    dayHigh: getNumberInputValue('f_dayHigh'),
+    dayLow: getNumberInputValue('f_dayLow'),
+    chanHigh: getNumberInputValue('f_chanHigh'),
+    chanLow: getNumberInputValue('f_chanLow'),
+    sellHigh: getNumberInputValue('f_sellHigh'),
+    sellLow: getNumberInputValue('f_sellLow'),
+    sellReason: document.getElementById('f_sellReason').value.trim(),
+    review: document.getElementById('f_review').value.trim()
+  };
+}
+
+function validateCapturePayload(payload) {
+  if (!payload.stock || payload.buyPrice === null || payload.stopLoss === null || payload.shares === null) {
+    return '请填写必填项：股票代码、方向、入场价、止损价、股数。';
+  }
+  if (payload.buyPrice <= 0) return '入场价必须大于 0。';
+  if (payload.shares <= 0) return '股数必须大于 0。';
+  if (normalizeDirection(payload.direction) === 'short' && payload.targetPct !== null && payload.targetPct > 100) {
+    return '做空的目标盈利比例不能大于 100%。';
+  }
+  const sellFieldsError = getSellFieldsError(payload.sellPrice, payload.sellDate);
+  if (sellFieldsError) return sellFieldsError;
+  return '';
+}
+
+function toRow(trade) {
+  return {
+    stock: trade.stock,
+    direction: normalizeDirection(trade.direction),
+    buy_price: trade.buyPrice,
+    shares: trade.shares,
+    stop_loss: trade.stopLoss,
+    stop_reason: trade.stopReason || null,
+    buy_date: trade.buyDate || null,
+    day_high: trade.dayHigh ?? null,
+    day_low: trade.dayLow ?? null,
+    target_price: trade.targetPrice ?? null,
+    target_pct: trade.targetPct ?? null,
+    chan_high: trade.chanHigh ?? null,
+    chan_low: trade.chanLow ?? null,
+    sell_price: trade.sellPrice ?? null,
+    sell_date: trade.sellDate || null,
+    sell_high: trade.sellHigh ?? null,
+    sell_low: trade.sellLow ?? null,
+    sell_reason: trade.sellReason || null,
+    buy_comm: trade.buyComm ?? 1,
+    sell_comm: trade.sellComm ?? 0,
+    review: trade.review || null,
+    used_stop: trade.usedStop ?? null,
+    pnl: trade.pnl ?? null,
+    pnl_net: trade.pnlNet ?? null
+  };
+}
+
+function isMissingColumnError(error, columnName) {
+  const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`;
+  return /column/i.test(text) && new RegExp(columnName, 'i').test(text);
+}
+
+function getDirectionColumnMigrationMessage() {
+  return `当前本地 SQLite 的 ${DB_TABLE} 表结构异常，缺少 direction 字段。请重启 server 触发表结构初始化。`;
+}
+
+async function loadTrades() {
+  const data = await withTimeout(
+    apiRequest('/trades'),
+    10000,
+    '读取交易记录超时'
+  );
+  trades = data || [];
+  refreshAll();
+}
+
+async function insertTrade(trade) {
+  const row = toRow(trade);
+  const created = await apiRequest('/trades', {
+    method: 'POST',
+    body: row
+  });
+  trades.unshift(created);
+}
+
+async function updateTradeInDb(id, updates) {
+  await apiRequest(`/trades/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: updates
+  });
+}
+
+async function deleteTradeInDb(id) {
+  await apiRequest(`/trades/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  });
+}
+
+async function saveTrade() {
+  const payload = getCapturePayload();
+  const validationError = validateCapturePayload(payload);
+  if (validationError) {
+    showAlert('captureAlert', validationError, 'danger');
+    return;
+  }
+
+  const s = getSettings();
+  const maxLoss = s.total * (s.singleStop / 100);
+  if (s.total && payload.usedStop !== null && payload.usedStop > maxLoss) {
+    const ok = confirm(`这笔交易占用止损 ${formatCurrency(payload.usedStop, 2)}，已超过单笔 ${s.singleStop}% 上限 ${formatCurrency(maxLoss, 2)}。确定继续保存吗？`);
+    if (!ok) return;
+  }
+
+  const btn = document.getElementById('captureSaveBtn');
+  btn.disabled = true;
+  btn.textContent = editingId ? '保存修改中…' : '保存交易中…';
+  try {
+    if (editingId !== null) {
+      const updates = toRow(payload);
+      await updateTradeInDb(editingId, updates);
+      const existing = trades.find((trade) => sameId(trade.id, editingId));
+      if (existing) Object.assign(existing, updates);
+      showAlert('captureAlert', `✓ ${payload.stock} 已更新。`, 'ok');
+    } else {
+      await insertTrade(payload);
+      showAlert('captureAlert', `✓ ${payload.stock} 已保存到数据库。`, 'ok');
+    }
+    editingId = null;
+    resetCaptureModeText();
+    clearCaptureForm();
+    refreshAll();
+    setPanel('journal');
+  } catch (error) {
+    showAlert('captureAlert', `保存失败：${error.message || error}`, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingId ? '保存修改' : '保存交易';
+    resetCaptureModeText();
+  }
+}
+
+async function deleteTrade(id) {
+  const trade = trades.find((item) => sameId(item.id, id));
+  if (!trade) return;
+  const ok = confirm(`确定删除 ${trade.stock || '这条记录'} 吗？`);
+  if (!ok) return;
+  try {
+    await deleteTradeInDb(id);
+    trades = trades.filter((item) => !sameId(item.id, id));
+    if (sameId(editingId, id)) cancelEditing();
+    refreshAll();
+    showAlert('globalAlertZone', '记录已删除。', 'ok');
+  } catch (error) {
+    showAlert('globalAlertZone', `删除失败：${error.message || error}`, 'danger');
+  }
+}
+
+function getTradeCardHtml(trade, compact = false) {
+  const direction = normalizeDirection(trade.direction);
+  const status = getTradeStatusMeta(trade);
+  const buyPrice = parseNumberValue(trade.buy_price);
+  const stopLoss = parseNumberValue(trade.stop_loss);
+  const shares = parseNumberValue(trade.shares);
+  const targetPrice = getTradeTargetPrice(trade);
+  const usedStop = getTradeUsedStop(trade);
+  const pnlNet = getTradeNetPnl(trade);
+  const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
+  const buyRating = getBuyRating(buyPrice, parseNumberValue(trade.day_high), parseNumberValue(trade.day_low), direction);
+  const sellRating = getSellRating(parseNumberValue(trade.sell_price), parseNumberValue(trade.sell_high), parseNumberValue(trade.sell_low), direction);
+  const channelRating = getChannelRating(buyPrice, parseNumberValue(trade.chan_high), parseNumberValue(trade.chan_low), direction);
+  const stopText = stopStatus?.type === 'breakeven'
+    ? '已保本'
+    : stopStatus?.type === 'locked'
+      ? `已锁盈 ${formatPercent(stopStatus.pct, 2)}`
+      : stopStatus
+        ? formatPercent(stopStatus.pct, 2)
+        : '—';
+  const usedStopText = stopStatus?.type === 'breakeven'
+    ? '0（已保本）'
+    : stopStatus?.type === 'locked'
+      ? '0（已锁盈）'
+      : formatCurrency(usedStop, 2);
+  const compactActions = compact
+    ? `<div class="btn-row"><button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">查看 / 编辑</button></div>`
+    : `<div class="btn-row"><button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">编辑</button><button class="btn btn-danger" onclick="deleteTrade('${escapeHtml(trade.id)}')">删除</button></div>`;
+  const reviewPreview = hasTextValue(trade.review) ? escapeHtml(trade.review).slice(0, compact ? 120 : 200) : '还没有写复盘。';
+  const noteTitle = compact ? '复盘摘录' : '交易笔记';
+  return `
+    <article class="trade-card">
+      <div class="trade-card-top">
+        <div class="trade-title">
+          <div class="trade-stock">
+            <strong>${escapeHtml(trade.stock || '—')}</strong>
+            <span class="badge open">${escapeHtml(getDirectionLabel(direction))}</span>
+            <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
+            <small class="mono">入场 ${escapeHtml(trade.buy_date || '未填')} ${trade.sell_date ? `· 平仓 ${escapeHtml(trade.sell_date)}` : ''}</small>
+          </div>
+          <div class="muted" style="font-size:13px;line-height:1.7">${escapeHtml(trade.stop_reason || '未填写交易方法 / 止损依据')}</div>
+        </div>
+        <div class="trade-pnl ${pnlNet === null ? 'flat' : pnlNet >= 0 ? 'pos' : 'neg'}">${pnlNet === null ? '持仓中' : formatCurrency(pnlNet, 2)}</div>
+      </div>
+
+      <div class="trade-meta">
+        <div class="meta-cell"><span>方向 / 入场</span><strong>${escapeHtml(getDirectionLabel(direction))} / ${formatCurrency(buyPrice, 3)}</strong></div>
+        <div class="meta-cell"><span>止损价</span><strong>${formatCurrency(stopLoss, 3)}</strong></div>
+        <div class="meta-cell"><span>止损状态</span><strong>${stopText}</strong></div>
+        <div class="meta-cell"><span>目标价</span><strong>${targetPrice !== null ? formatCurrency(targetPrice, 3) : '—'}</strong></div>
+        <div class="meta-cell"><span>股数</span><strong>${shares !== null ? formatShares(shares) : '—'}</strong></div>
+        <div class="meta-cell"><span>占用止损</span><strong>${usedStopText}</strong></div>
+        <div class="meta-cell"><span>评级</span><strong class="rating-line">${getRatingChipHtml('买', buyRating)}${getRatingChipHtml('卖', sellRating)}${channelRating !== null ? getRatingChipHtml('通', channelRating) : ''}</strong></div>
+      </div>
+
+      <div class="trade-notes">
+        <div class="note-box">
+          <span>${noteTitle}</span>
+          <p>${reviewPreview}</p>
+        </div>
+        <div class="note-box">
+          <span>退出原因 / 管理备注</span>
+          <p>${escapeHtml(trade.sell_reason || '尚未填写')}</p>
+        </div>
+      </div>
+
+      <div class="trade-actions">
+        <div class="muted mono">${escapeHtml(getTradeBuyMonth(trade) || '—')} → ${escapeHtml(getTradeSellMonth(trade) || '持仓中')}</div>
+        ${compactActions}
+      </div>
+    </article>
+  `;
+}
+
+function getCompactTradeTableHtml(tradeList, options = {}) {
+  const {
+    includeDelete = false,
+    emptyMessage = '暂无记录',
+    maxRows = null
+  } = options;
+  const rows = maxRows ? tradeList.slice(0, maxRows) : tradeList;
+  if (!rows.length) return `<div class="empty-state">${emptyMessage}</div>`;
+  return `
+    <div class="compact-table-wrap">
+      <div class="compact-table">
+        <div class="compact-head">
+          <span class="compact-sticky-left">标的</span>
+          <span>方向</span>
+          <span>入场</span>
+          <span>止损</span>
+          <span>平仓</span>
+          <span>股数</span>
+          <span>止损占用</span>
+          <span>净盈亏</span>
+          <span>评级</span>
+          <span>计划 / 平仓原因</span>
+          <span class="compact-sticky-right">操作</span>
+        </div>
+        ${rows.map((trade) => {
+        const direction = normalizeDirection(trade.direction);
+        const status = getTradeStatusMeta(trade);
+        const targetPrice = getTradeTargetPrice(trade);
+        const pnlNet = getTradeNetPnl(trade);
+        const exitPrice = parseNumberValue(trade.sell_price);
+        const exitDate = trade.sell_date || '';
+        const buyRating = getBuyRating(parseNumberValue(trade.buy_price), parseNumberValue(trade.day_high), parseNumberValue(trade.day_low), direction);
+        const sellRating = getSellRating(exitPrice, parseNumberValue(trade.sell_high), parseNumberValue(trade.sell_low), direction);
+        const channelRating = getChannelRating(parseNumberValue(trade.buy_price), parseNumberValue(trade.chan_high), parseNumberValue(trade.chan_low), direction);
+        const stopStatus = getStopStatus(parseNumberValue(trade.buy_price), parseNumberValue(trade.stop_loss), direction);
+        const stopText = stopStatus?.type === 'locked'
+          ? '已锁盈'
+          : stopStatus?.type === 'breakeven'
+            ? '已保本'
+            : formatCurrency(getTradeUsedStop(trade), 2);
+        return `
+          <div class="compact-row">
+            <div class="compact-cell compact-sticky-left">
+              <div class="compact-stock">
+                <span class="compact-main">${escapeHtml(trade.stock || '—')}</span>
+                <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
+              </div>
+              <div class="compact-sub">${escapeHtml(trade.buy_date || '未填日期')}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${escapeHtml(getDirectionLabel(direction))}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${formatCurrency(trade.buy_price, 3)}</div>
+              <div class="compact-sub">目标 ${targetPrice !== null ? formatCurrency(targetPrice, 3) : '—'}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${formatCurrency(trade.stop_loss, 3)}</div>
+              <div class="compact-sub">${escapeHtml(stopText)}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${exitPrice !== null ? formatCurrency(exitPrice, 3) : '—'}</div>
+              <div class="compact-sub">${escapeHtml(exitDate || '未平仓')}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${formatShares(trade.shares)}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${formatCurrency(getTradeUsedStop(trade), 2)}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main ${pnlNet === null ? '' : pnlNet >= 0 ? 'safe' : 'danger'}">${pnlNet === null ? '持仓中' : formatCurrency(pnlNet, 2)}</div>
+            </div>
+            <div class="compact-cell">
+              <div class="rating-line">
+                ${getRatingChipHtml('买', buyRating)}
+                ${getRatingChipHtml('卖', sellRating)}
+              </div>
+              <div class="rating-line">
+                ${getRatingChipHtml('通', channelRating)}
+              </div>
+            </div>
+            <div class="compact-cell">
+              <div class="compact-main">${escapeHtml((trade.stop_reason || trade.sell_reason || '未填写').slice(0, 28))}</div>
+              <div class="compact-sub">${escapeHtml(trade.sell_reason ? `平仓：${trade.sell_reason}` : (trade.stop_reason || '未写计划'))}</div>
+            </div>
+            <div class="compact-actions compact-sticky-right">
+              <button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">编辑</button>
+              ${includeDelete ? `<button class="btn btn-danger" onclick="deleteTrade('${escapeHtml(trade.id)}')">删</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderOverview() {
+  const month = getCurrentReportMonth();
+  const monthTrades = getTradesForMonth(month);
+  const openTrades = getOpenTradesForMonth(month);
+  const closedTrades = getClosedTradesForMonth(month).filter((trade) => getTradeNetPnl(trade) !== null);
+  const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) >= 0);
+  const losses = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) < 0);
+  const realized = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
+  const openRisk = getMonthOpenRisk(month);
+  const avgUsedStop = openTrades.length ? openTrades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0) / openTrades.length : 0;
+
+  document.getElementById('overviewMetricGrid').innerHTML = [
+    { label: '当月相关交易', value: monthTrades.length, sub: '包含跨月延续到本月的仓位' },
+    { label: '已结交易', value: closedTrades.length, sub: `${wins.length} 胜 / ${losses.length} 负` },
+    { label: '净结果', value: formatCurrency(realized, 2), sub: '只统计本月真正平仓的交易' },
+    { label: '月末持仓', value: openTrades.length, sub: '这些仓位会滚动占用月度预算' },
+    { label: '月末持仓风险', value: formatCurrency(openRisk, 2), sub: '止损不在买价下方时记为 0' },
+    { label: '平均占用止损', value: formatCurrency(avgUsedStop, 2), sub: '仅统计当前仍持仓的仓位' }
+  ].map((item) => `
+    <div class="mini-metric">
+      <div class="label">${escapeHtml(item.label)}</div>
+      <div class="value">${escapeHtml(String(item.value))}</div>
+      <div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">${escapeHtml(item.sub)}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('overviewCoreList').innerHTML = getCompactTradeTableHtml(
+    monthTrades,
+    { emptyMessage: '当前月份还没有核心交易记录。', maxRows: 8 }
+  );
+
+  document.getElementById('overviewOpenList').innerHTML = getCompactTradeTableHtml(
+    openTrades,
+    { emptyMessage: '当前查看月份月末没有未结持仓。', maxRows: 8 }
+  );
+}
+
+function renderJournal() {
+  const filtered = getFilteredJournalTrades();
+  const list = document.getElementById('journalList');
+  const countLabel = document.getElementById('journalCountLabel');
+  const month = getCurrentReportMonth();
+  const monthLabel = document.getElementById('journalMonthCurrent');
+  if (countLabel) countLabel.textContent = `${filtered.length} 笔`;
+  if (monthLabel) monthLabel.textContent = `当前查看月份：${month}`;
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">这个筛选条件下还没有交易记录。<br>你可以切换月份、状态，或者直接新建一笔交易。</div>`;
+    return;
+  }
+  list.innerHTML = getCompactTradeTableHtml(filtered, {
+    includeDelete: true,
+    emptyMessage: '这个筛选条件下还没有交易记录。'
+  });
+}
+
+function renderHero() {
+  const s = getSettings();
+  const month = getCurrentReportMonth();
+  const singleStop = s.total * (s.singleStop / 100);
+  const monthBudget = s.total * (s.monthStop / 100);
+  const used = getMonthStopBudgetUsed(month);
+  const remaining = Math.max(0, monthBudget - used);
+  const pct = monthBudget > 0 ? Math.min(100, used / monthBudget * 100) : 0;
+
+  document.getElementById('heroTotal').textContent = s.total ? formatCurrency(s.total, 0) : '未设置';
+  document.getElementById('heroSingleStop').textContent = s.total ? formatCurrency(singleStop, 2) : '—';
+  document.getElementById('heroMonthBudget').textContent = s.total ? formatCurrency(monthBudget, 2) : '—';
+  document.getElementById('heroRemaining').textContent = s.total ? formatCurrency(remaining, 2) : '—';
+  document.getElementById('heroUsedPct').textContent = formatPercent(pct, 0);
+  document.getElementById('heroMonthSubtitle').textContent = `用于筛选交易日志、统计分析和月度风险预算。当前是 ${month}。`;
+  document.getElementById('heroTotalSub').textContent = s.total ? `当前单笔 ${s.singleStop}% / 月度 ${s.monthStop}% 风险规则已启用` : '先去设置里填总资金和风险比例';
+  document.getElementById('heroRemainingSub').textContent = `已用 ${formatCurrency(used, 2)}，剩余 ${formatCurrency(remaining, 2)}`;
+  document.getElementById('heroUsedText').textContent = `本月已实现亏损 ${formatCurrency(getMonthRealizedLosses(month), 2)} + 月末持仓风险 ${formatCurrency(getMonthOpenRisk(month), 2)}`;
+  const fill = document.getElementById('heroRiskFill');
+  fill.style.width = `${pct}%`;
+  fill.style.background = pct > 80 ? 'linear-gradient(90deg, var(--red), #ffad6d)' : pct > 50 ? 'linear-gradient(90deg, var(--yellow), #ffef93)' : 'linear-gradient(90deg, var(--green), var(--accent))';
+
+  const focusList = document.getElementById('heroFocusList');
+  const focusIntro = document.getElementById('heroFocusIntro');
+  const editState = document.getElementById('heroEditState');
+  const continueBtn = document.getElementById('heroContinueEditBtn');
+  const monthTrades = getTradesForMonth(month);
+  const openTrades = getOpenTradesForMonth(month);
+  const focusTrades = (openTrades.length ? openTrades : monthTrades).slice(0, 3);
+
+  if (focusIntro) {
+    focusIntro.textContent = openTrades.length
+      ? '优先把还在持仓的交易放到最上面。'
+      : '当前没有未结持仓时，显示本月最近相关的交易。';
+  }
+
+  if (focusList) {
+    focusList.innerHTML = focusTrades.length ? focusTrades.map((trade) => {
+      const status = getTradeStatusMeta(trade);
+      const stopStatus = getStopStatus(parseNumberValue(trade.buy_price), parseNumberValue(trade.stop_loss), trade.direction);
+      const stopHint = stopStatus?.type === 'locked'
+        ? '已锁盈'
+        : stopStatus?.type === 'breakeven'
+          ? '已保本'
+          : `占用 ${formatCurrency(getTradeUsedStop(trade), 2)}`;
+      return `
+        <div class="hero-focus-item">
+          <div class="hero-focus-copy">
+            <strong>${escapeHtml(trade.stock || '—')} · ${escapeHtml(getDirectionLabel(trade.direction))} · ${escapeHtml(status.label)}</strong>
+            <span>${escapeHtml(trade.buy_date || '未填日期')} · ${escapeHtml(stopHint)} · ${escapeHtml(trade.stop_reason || '未写交易方法')}</span>
+          </div>
+          <button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">编辑</button>
+        </div>
+      `;
+    }).join('') : `<div class="empty-state">当前月份还没有需要优先处理的交易。<br>你可以直接新建一笔，或者去日志页筛选历史记录。</div>`;
+  }
+
+  const editingTrade = trades.find((trade) => sameId(trade.id, editingId));
+  if (continueBtn) continueBtn.style.display = editingTrade ? 'inline-flex' : 'none';
+  if (continueBtn) continueBtn.textContent = editingTrade ? `继续编辑 ${editingTrade.stock || '当前交易'} · ${getDirectionLabel(editingTrade.direction)}` : '继续当前编辑';
+  if (editState) {
+    editState.textContent = editingTrade
+      ? `正在编辑 ${editingTrade.stock || '一笔交易'} · ${getDirectionLabel(editingTrade.direction)}。`
+      : '保留录入和统计两个高频入口。';
+  }
+
+  clearGlobalAlert();
+  if (!s.total) {
+    showAlert('globalAlertZone', '请先在设置页填写总资金，否则页面无法准确计算单笔和月度止损预算。', 'warn');
+  } else if (remaining <= 0) {
+    showAlert('globalAlertZone', '本月止损预算已耗尽。按当前规则，建议暂停新开仓，优先处理现有持仓。', 'danger');
+  } else if (pct > 80) {
+    showAlert('globalAlertZone', `本月已使用 ${formatPercent(pct, 0)} 的止损预算，请谨慎出手。`, 'warn');
+  }
+}
+
+function renderStats() {
+  const s = getSettings();
+  const month = getCurrentReportMonth();
+  const monthTrades = getTradesForMonth(month);
+  const closedTrades = getClosedTradesForMonth(month).filter((trade) => getTradeNetPnl(trade) !== null);
+  const openTrades = getOpenTradesForMonth(month);
+  const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) >= 0);
+  const losses = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) < 0);
+  const totalPnl = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
+  const winRate = closedTrades.length ? wins.length / closedTrades.length * 100 : 0;
+  const avgWin = wins.length ? wins.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0) / wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((sum, trade) => sum + Math.abs(getTradeNetPnl(trade) || 0), 0) / losses.length : 0;
+  const rr = avgWin && avgLoss ? avgWin / avgLoss : null;
+  const realizedLoss = getMonthRealizedLosses(month);
+  const openRisk = getMonthOpenRisk(month);
+  const used = getMonthStopBudgetUsed(month);
+  const budget = s.total * (s.monthStop / 100);
+  const remaining = Math.max(0, budget - used);
+  const reviewCoverage = closedTrades.length ? closedTrades.filter((trade) => hasTextValue(trade.review)).length / closedTrades.length * 100 : 0;
+
+  document.getElementById('statsGrid').innerHTML = [
+    { value: formatCurrency(totalPnl, 2), label: '本月净结果', desc: '只统计本月真正平仓的净利润', tone: totalPnl >= 0 ? 'var(--green)' : 'var(--red)' },
+    { value: String(closedTrades.length), label: '已结交易', desc: '本月完成结算的交易数量' },
+    { value: formatPercent(winRate, 1), label: '胜率', desc: '盈利交易数 / 已结交易数', tone: 'var(--accent)' },
+    { value: avgWin ? formatCurrency(avgWin, 2) : '$0.00', label: '平均盈利', desc: '本月盈利单的平均净利润', tone: 'var(--green)' },
+    { value: avgLoss ? formatCurrency(avgLoss, 2) : '$0.00', label: '平均亏损', desc: '本月亏损单的平均净亏损', tone: 'var(--red)' },
+    { value: rr !== null ? formatNumber(rr, 2) : '—', label: '盈亏比', desc: '平均盈利 / 平均亏损' },
+    { value: String(openTrades.length), label: '月末持仓数', desc: '会继续滚动到下个月的仓位' },
+    { value: formatPercent(reviewCoverage, 0), label: '复盘覆盖率', desc: '已结交易里写了复盘的比例' }
+  ].map((item) => `
+    <div class="stats-card">
+      <strong style="${item.tone ? `color:${item.tone}` : ''}">${escapeHtml(item.value)}</strong>
+      <span>${escapeHtml(item.label)}</span>
+      <p>${escapeHtml(item.desc)}</p>
+    </div>
+  `).join('');
+
+  document.getElementById('monthlyRiskGrid').innerHTML = [
+    { label: '统计月份', value: month },
+    { label: '本月相关交易', value: String(monthTrades.length) },
+    { label: '本月已实现亏损', value: formatCurrency(realizedLoss, 2) },
+    { label: '月末持仓止损占用', value: formatCurrency(openRisk, 2) },
+    { label: `单笔上限 (${s.singleStop}%)`, value: s.total ? formatCurrency(s.total * s.singleStop / 100, 2) : '—' },
+    { label: `月度上限 (${s.monthStop}%)`, value: s.total ? formatCurrency(budget, 2) : '—' },
+    { label: '月度止损已用', value: formatCurrency(used, 2) },
+    { label: '剩余额度', value: formatCurrency(remaining, 2) }
+  ].map((item) => `
+    <div class="mini-metric">
+      <div class="label">${escapeHtml(item.label)}</div>
+      <div class="value">${escapeHtml(item.value)}</div>
+    </div>
+  `).join('');
+
+  const suggestions = [];
+  if (!closedTrades.length) suggestions.push('本月还没有已结交易，可以重点观察持仓和计划执行情况。');
+  if (reviewCoverage < 50 && closedTrades.length) suggestions.push('已结交易里复盘覆盖率偏低，建议至少给每笔已结交易留几句复盘。');
+  if (budget > 0 && used > budget) suggestions.push('月度风险已经超预算，下个月要优先降低仓位和集中度。');
+  if (wins.length && losses.length && avgWin < avgLoss) suggestions.push('当前平均盈利还没有覆盖平均亏损，目标位或持仓管理可能偏保守。');
+  if (!suggestions.length) suggestions.push('本月的记录结构比较完整，接下来重点看哪些 setup 最稳定、哪些错误最常重复。');
+  document.getElementById('statsNarrative').innerHTML = suggestions.map((text) => `<div class="alert warn" style="margin-bottom:12px">${escapeHtml(text)}</div>`).join('');
+}
+
+function renderJournalCount() {
+  const label = document.getElementById('journalCountLabel');
+  if (!label) return;
+  label.textContent = `${getFilteredJournalTrades().length} 笔`;
+}
+
+function refreshAll() {
+  updateRiskRuleLabels();
+  syncMonthPickers();
+  resetCaptureModeText();
+  renderHero();
+  renderOverview();
+  renderJournal();
+  renderStats();
+  renderJournalCount();
+  computeCapture();
+}
+
+function saveConfig() {
+  document.getElementById('cfgBtn').disabled = true;
+  document.getElementById('cfgBtn').textContent = '连接中…';
+  setView('boot', '正在验证本地 Journal 服务…');
+  initSupabase();
+}
+
+function resetConfig() {
+  location.reload();
+}
+
+async function initSupabase() {
+  prefillConfigInputs();
+  try {
+    setView('boot', '正在连接本地 Journal 服务…');
+    const health = await withTimeout(
+      apiRequest('/health'),
+      10000,
+      '数据库连接超时，请检查浏览器网络或插件拦截。'
+    );
+    sbClient = { health };
+    setDbStatus(true);
+    setView('app');
+    initUI();
+    loadSettingsFromDb().catch((err) => {
+      console.error(err);
+      setSettingsSyncStatus('warn', err.message || String(err));
+    });
+    loadTrades().catch((err) => {
+      console.error(err);
+      showAlert('globalAlertZone', `读取交易记录失败：${err.message || err}`, 'danger');
+    });
+  } catch (error) {
+    setDbStatus(false);
+    setView('config');
+    document.getElementById('cfgError').innerHTML = `<div class="alert danger">连接失败：${escapeHtml(error.message || error)}。请确认已启动本地 FastAPI server，并且 <span class="mono">${escapeHtml(getSupabaseConfig().url)}</span> 可访问。</div>`;
+    const btn = document.getElementById('cfgBtn');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '重试连接';
+    }
+  }
+}
+
+async function exportData() {
+  if (!sbClient) return;
+  const blob = new Blob([JSON.stringify(trades || [], null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `trade_journal_${getLocalDateStamp()}.json`;
+  link.click();
+}
+
+async function clearAll() {
+  if (!sbClient) return;
+  const ok = confirm('确定删除数据库中全部交易记录吗？这个操作不能恢复。');
+  if (!ok) return;
+  try {
+    await apiRequest('/trades', { method: 'DELETE' });
+    trades = [];
+    cancelEditing();
+    refreshAll();
+    showAlert('globalAlertZone', '全部交易记录已清除。', 'ok');
+  } catch (error) {
+    showAlert('globalAlertZone', `清除失败：${error.message || error}`, 'danger');
+  }
+}
+
+function initUI() {
+  enhanceNumberInputs();
+  document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long'
+  });
+  if (!settings.month) {
+    settings.month = getLocalMonthStamp();
+    cacheSettings();
+  }
+  clearCaptureForm();
+  loadSettingsUI();
+  setPanel(activePanel);
+  setSettingsSyncStatus('warn', `设置将同步到本地 SQLite 表 ${SETTINGS_TABLE}`);
+}
+
+setView('boot', '正在初始化页面并检查本地 SQLite Journal 服务…');
+initSupabase();
+</script>
+</body>
+</html>

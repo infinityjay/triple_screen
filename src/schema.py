@@ -11,6 +11,12 @@ class AppMetaConfig:
 
 
 @dataclass(frozen=True)
+class ServerConfig:
+    host: str
+    port: int
+
+
+@dataclass(frozen=True)
 class AlpacaHistoryConfig:
     weekly_weeks: int
     daily_days: int
@@ -153,6 +159,7 @@ class AppConfig:
     project_root: Path
     config_path: Path
     app: AppMetaConfig
+    server: ServerConfig
     alpaca: AlpacaConfig
     earnings_calendar: EarningsCalendarConfig
     universe: UniverseConfig

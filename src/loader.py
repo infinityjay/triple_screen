@@ -14,6 +14,7 @@ from schema import (
     AlertConfig,
     AppConfig,
     AppMetaConfig,
+    ServerConfig,
     DailyStrategyConfig,
     EarningsCalendarConfig,
     HourlyStrategyConfig,
@@ -83,6 +84,7 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
     raw = _load_yaml(resolved_path)
 
     app_raw = raw.get("app", {})
+    server_raw = raw.get("server", {})
     alpaca_raw = raw.get("data_source", {}).get("alpaca", {})
     alpaca_history_raw = alpaca_raw.get("history", {})
     alpaca_rate_limit_raw = alpaca_raw.get("rate_limit", {})
@@ -114,6 +116,10 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
         app=AppMetaConfig(
             name=app_raw.get("name", "Triple Screen Scanner"),
             timezone=app_raw.get("timezone", "UTC"),
+        ),
+        server=ServerConfig(
+            host=server_raw.get("host", "127.0.0.1"),
+            port=int(server_raw.get("port", 8100)),
         ),
         alpaca=AlpacaConfig(
             api_key_id=_require_env(alpaca_raw["api_key_id_env"]),

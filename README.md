@@ -135,6 +135,42 @@ python src/scanner.py --once --dry-run
 python src/scanner.py --loop
 ```
 
+## 交易日志 Web UI
+
+项目现在内置了一个基于 FastAPI + SQLite 的交易日志前端，页面文件在 [index.html](/Users/jay/workspace/my_github/triple_screen/frontend/trade_journal/index.html)。
+
+启动本地 Journal Server：
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+PYTHONPATH=src .venv/bin/python -m journal
+```
+
+启动后访问：
+
+- [http://127.0.0.1:8100/](http://127.0.0.1:8100/)
+- [http://127.0.0.1:8100/api/health](http://127.0.0.1:8100/api/health)
+
+如果部署到 AWS 并想直接用实例公网 IP 访问，不需要 nginx，也不需要域名：
+
+- `http://<EC2_PUBLIC_IP>:8100/`
+- `http://<EC2_PUBLIC_IP>:8100/api/health`
+
+这种方式下前端和 API 都是同一个 FastAPI 进程提供的，所以不需要额外配置 CORS。
+
+当前 Journal Server 提供：
+
+- 交易记录 CRUD，统一写入本地 SQLite
+- 风险设置持久化到 `trade_settings`
+- 页面不再直连 Supabase，而是通过本地 `/api` 访问
+
+另外，收盘后 `--mode eod` 现在会在更新候选池后，顺带读取所有未平仓交易并更新保护性止损：
+
+- 多头止损只会上调，不会下调
+- 空头止损只会下移，不会上移
+- 更新结果会和候选池摘要一起汇总到 Telegram
+
 ## 调度建议
 
 更推荐用 cron 或 systemd 以 one-shot 方式每小时调用一次：

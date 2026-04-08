@@ -1,6 +1,6 @@
 # AWS Deployment
 
-当前项目可以直接部署到单台 EC2，并通过 `systemd timer` 在美股交易时段定时扫描。
+当前项目可以直接部署到单台 EC2，并通过 `systemd timer` 在美股交易时段定时扫描。交易日志前后端也可以一起放在同一台 EC2 上，直接通过公网 IP 访问。
 
 ## 推荐环境
 
@@ -31,6 +31,12 @@ src/
 python src/scanner.py --once
 ```
 
+Journal Server 的启动命令是：
+
+```bash
+PYTHONPATH=src .venv/bin/python -m journal
+```
+
 ## 当前扫描逻辑
 
 当前实现遵循《以交易为生》的三重过滤主线，但输出方式做了更适合盘中扫描的调整：
@@ -58,6 +64,14 @@ source .venv/bin/activate
 pip install -r requirements.txt
 mkdir -p data logs
 ```
+
+如果你要最简单直接地通过公网 IP 打开前端页面，不需要 nginx，只需要：
+
+1. EC2 安全组放行 TCP `8100`
+2. 启动 FastAPI Journal Server
+3. 浏览器访问 `http://<EC2_PUBLIC_IP>:8100/`
+
+更安全的做法是把 `8100` 的来源限制成你的固定公网 IP，而不是 `0.0.0.0/0`
 
 把真实凭证写入：
 
@@ -140,8 +154,10 @@ python src/scanner.py --once --mode intraday
 ```bash
 sudo cp deploy/aws/systemd/triple-screen.service /etc/systemd/system/
 sudo cp deploy/aws/systemd/triple-screen.timer /etc/systemd/system/
+sudo cp deploy/aws/systemd/journal.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now triple-screen.timer
+sudo systemctl enable --now journal.service
 ```
 
 当前 service 的执行命令是：
@@ -151,6 +167,25 @@ ExecStart=/home/ec2-user/triple_screen/.venv/bin/python src/scanner.py --once
 ```
 
 这与当前项目结构一致，不需要再改成包形式入口。
+
+Journal Server 的 service 执行命令是：
+
+```ini
+ExecStart=/home/ec2-user/triple_screen/.venv/bin/python -m journal
+```
+
+启动后你可以直接访问：
+
+```text
+http://<EC2_PUBLIC_IP>:8100/
+```
+
+因为前端和 API 由同一个 FastAPI 进程提供：
+
+- 前端页面走 `/`
+- API 走 `/api/...`
+
+所以不需要单独配置 CORS，也不需要反向代理。
 
 ## 定时规则
 
@@ -173,8 +208,10 @@ ExecStart=/home/ec2-user/triple_screen/.venv/bin/python src/scanner.py --once
 systemctl list-timers | grep triple-screen
 systemctl status triple-screen.timer
 systemctl status triple-screen.service
+journalctl -u journal.service -n 100 --no-pager
 journalctl -u triple-screen.service -n 100 --no-pager
 tail -f /home/ec2-user/triple_screen/logs/systemd.log
+tail -f /home/ec2-user/triple_screen/logs/journal.log
 ```
 
 如果要手动触发一轮：

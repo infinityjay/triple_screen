@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import indicators
 from alpaca import AlpacaClient
 from earnings import EarningsCalendarClient
+from journal import JournalManager
 from schema import AppConfig
 from sqlite import SQLiteStorage
 from telegram import TelegramNotifier
@@ -37,6 +38,11 @@ class TripleScreenScanner:
         self.storage = storage
         self.notifier = notifier
         self.dry_run = dry_run
+        self.journal_manager = JournalManager(
+            storage=storage,
+            market_data=market_data,
+            trade_plan=settings.trade_plan,
+        )
         self.market_timezone = ZoneInfo(settings.app.timezone)
         self.market_open_time = clock_time(hour=9, minute=30)
         self.market_close_time = clock_time(hour=16, minute=0)
@@ -438,6 +444,10 @@ class TripleScreenScanner:
 
         candidates.sort(key=self._candidate_sort_key)
         self.storage.replace_qualified_candidates(session_date.isoformat(), candidates)
+        if self.dry_run:
+            stop_update_summary = self.journal_manager.preview_open_position_stops(session_date=session_date)
+        else:
+            stop_update_summary = self.journal_manager.update_open_position_stops(session_date=session_date)
 
         display_limit = max(self.settings.alerts.qualified_display_limit, 0)
         displayed_candidates = candidates[:display_limit] if display_limit else []
@@ -457,16 +467,27 @@ class TripleScreenScanner:
 
         elapsed = time.time() - started_at
         if not self.dry_run:
-            if not candidates:
-                self.notifier.send_no_opportunity(elapsed)
-            else:
-                self.notifier.send_candidate_summary(displayed_candidates, len(candidates), session_date.isoformat(), elapsed)
+            self.notifier.send_candidate_summary(
+                displayed_candidates,
+                len(candidates),
+                session_date.isoformat(),
+                elapsed,
+                stop_update_summary={
+                    "session_date": stop_update_summary.session_date,
+                    "total_positions": stop_update_summary.total_positions,
+                    "updated_count": stop_update_summary.updated_count,
+                    "unchanged_count": stop_update_summary.unchanged_count,
+                    "error_count": stop_update_summary.error_count,
+                    "updates": stop_update_summary.updates,
+                },
+            )
 
         logger.info(
-            "end-of-day qualification finished: %s qualified, %s displayed, %s strong divergences, elapsed %.1fs",
+            "end-of-day qualification finished: %s qualified, %s displayed, %s strong divergences, %s stop updates, elapsed %.1fs",
             len(candidates),
             len(displayed_candidates),
             strong_divergence_count,
+            stop_update_summary.updated_count,
             elapsed,
         )
         return candidates

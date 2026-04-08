@@ -4,6 +4,7 @@ import json
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 
@@ -17,6 +18,12 @@ class SQLiteStorage:
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    @staticmethod
+    def _row_to_dict(row):
+        if row is None:
+            return None
+        return dict(row)
 
     @staticmethod
     def _json_safe(value):
@@ -161,10 +168,88 @@ class SQLiteStorage:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS trades (
+                    id TEXT PRIMARY KEY,
+                    stock TEXT NOT NULL,
+                    direction TEXT NOT NULL DEFAULT 'long',
+                    buy_price REAL,
+                    shares REAL,
+                    stop_loss REAL,
+                    stop_reason TEXT,
+                    buy_date TEXT,
+                    day_high REAL,
+                    day_low REAL,
+                    target_price REAL,
+                    target_pct REAL,
+                    chan_high REAL,
+                    chan_low REAL,
+                    sell_price REAL,
+                    sell_date TEXT,
+                    sell_high REAL,
+                    sell_low REAL,
+                    sell_reason TEXT,
+                    buy_comm REAL DEFAULT 1,
+                    sell_comm REAL DEFAULT 0,
+                    review TEXT,
+                    used_stop REAL,
+                    pnl REAL,
+                    pnl_net REAL,
+                    protective_stop_basis TEXT,
+                    stop_updated_at TEXT,
+                    last_stop_session_date TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS trade_settings (
+                    id INTEGER PRIMARY KEY,
+                    total REAL NOT NULL DEFAULT 0,
+                    single_stop REAL NOT NULL DEFAULT 2,
+                    month_stop REAL NOT NULL DEFAULT 6,
+                    report_month TEXT,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS trade_stop_updates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trade_id TEXT,
+                    symbol TEXT,
+                    direction TEXT,
+                    session_date TEXT,
+                    previous_stop_loss REAL,
+                    proposed_stop_loss REAL,
+                    applied_stop_loss REAL,
+                    stop_basis TEXT,
+                    changed INTEGER DEFAULT 0,
+                    status TEXT,
+                    note TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_bars_lookup ON price_bars(symbol, timeframe, timestamp)")
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_candidates_session_score ON qualified_candidates(session_date, signal_score DESC)"
+            )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_created_at ON trades(created_at DESC)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_trade_stop_updates_session ON trade_stop_updates(session_date, created_at DESC)"
+            )
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO trade_settings (id, total, single_stop, month_stop, report_month, updated_at)
+                VALUES (1, 0, 2, 6, ?, ?)
+                """,
+                (datetime.utcnow().strftime("%Y-%m"), datetime.utcnow().isoformat()),
             )
 
     def upsert_symbol(self, symbol: str, market_cap: float | None, sector: str | None) -> None:
@@ -560,4 +645,258 @@ class SQLiteStorage:
                   )
                 """,
                 (symbol, timeframe, symbol, timeframe, keep_rows),
+            )
+
+    def list_trades(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM trades
+                ORDER BY datetime(created_at) DESC, datetime(COALESCE(buy_date, created_at)) DESC, stock ASC
+                """
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def list_open_trades(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM trades
+                WHERE sell_price IS NULL OR sell_date IS NULL OR TRIM(COALESCE(sell_date, '')) = ''
+                ORDER BY datetime(COALESCE(buy_date, created_at)) DESC, stock ASC
+                """
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def get_trade(self, trade_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
+        return self._row_to_dict(row)
+
+    def insert_trade(self, payload: dict) -> dict:
+        trade_id = str(payload.get("id") or uuid4().hex)
+        now = datetime.utcnow().isoformat()
+        row = {
+            "id": trade_id,
+            "stock": str(payload.get("stock", "")).strip().upper(),
+            "direction": str(payload.get("direction", "long")).strip().lower() or "long",
+            "buy_price": payload.get("buy_price"),
+            "shares": payload.get("shares"),
+            "stop_loss": payload.get("stop_loss"),
+            "stop_reason": payload.get("stop_reason"),
+            "buy_date": payload.get("buy_date"),
+            "day_high": payload.get("day_high"),
+            "day_low": payload.get("day_low"),
+            "target_price": payload.get("target_price"),
+            "target_pct": payload.get("target_pct"),
+            "chan_high": payload.get("chan_high"),
+            "chan_low": payload.get("chan_low"),
+            "sell_price": payload.get("sell_price"),
+            "sell_date": payload.get("sell_date"),
+            "sell_high": payload.get("sell_high"),
+            "sell_low": payload.get("sell_low"),
+            "sell_reason": payload.get("sell_reason"),
+            "buy_comm": payload.get("buy_comm"),
+            "sell_comm": payload.get("sell_comm"),
+            "review": payload.get("review"),
+            "used_stop": payload.get("used_stop"),
+            "pnl": payload.get("pnl"),
+            "pnl_net": payload.get("pnl_net"),
+            "protective_stop_basis": payload.get("protective_stop_basis"),
+            "stop_updated_at": payload.get("stop_updated_at"),
+            "last_stop_session_date": payload.get("last_stop_session_date"),
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO trades (
+                    id, stock, direction, buy_price, shares, stop_loss, stop_reason, buy_date,
+                    day_high, day_low, target_price, target_pct, chan_high, chan_low,
+                    sell_price, sell_date, sell_high, sell_low, sell_reason,
+                    buy_comm, sell_comm, review, used_stop, pnl, pnl_net,
+                    protective_stop_basis, stop_updated_at, last_stop_session_date,
+                    created_at, updated_at
+                )
+                VALUES (
+                    :id, :stock, :direction, :buy_price, :shares, :stop_loss, :stop_reason, :buy_date,
+                    :day_high, :day_low, :target_price, :target_pct, :chan_high, :chan_low,
+                    :sell_price, :sell_date, :sell_high, :sell_low, :sell_reason,
+                    :buy_comm, :sell_comm, :review, :used_stop, :pnl, :pnl_net,
+                    :protective_stop_basis, :stop_updated_at, :last_stop_session_date,
+                    :created_at, :updated_at
+                )
+                """,
+                row,
+            )
+        return self.get_trade(trade_id) or row
+
+    def update_trade(self, trade_id: str, payload: dict) -> dict | None:
+        current = self.get_trade(trade_id)
+        if not current:
+            return None
+
+        merged = dict(current)
+        for key, value in payload.items():
+            if key in merged and key not in {"id", "created_at"}:
+                if key == "stock" and value is not None:
+                    merged[key] = str(value).strip().upper()
+                elif key == "direction" and value is not None:
+                    merged[key] = str(value).strip().lower() or "long"
+                else:
+                    merged[key] = value
+        merged["updated_at"] = datetime.utcnow().isoformat()
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE trades
+                SET stock = :stock,
+                    direction = :direction,
+                    buy_price = :buy_price,
+                    shares = :shares,
+                    stop_loss = :stop_loss,
+                    stop_reason = :stop_reason,
+                    buy_date = :buy_date,
+                    day_high = :day_high,
+                    day_low = :day_low,
+                    target_price = :target_price,
+                    target_pct = :target_pct,
+                    chan_high = :chan_high,
+                    chan_low = :chan_low,
+                    sell_price = :sell_price,
+                    sell_date = :sell_date,
+                    sell_high = :sell_high,
+                    sell_low = :sell_low,
+                    sell_reason = :sell_reason,
+                    buy_comm = :buy_comm,
+                    sell_comm = :sell_comm,
+                    review = :review,
+                    used_stop = :used_stop,
+                    pnl = :pnl,
+                    pnl_net = :pnl_net,
+                    protective_stop_basis = :protective_stop_basis,
+                    stop_updated_at = :stop_updated_at,
+                    last_stop_session_date = :last_stop_session_date,
+                    updated_at = :updated_at
+                WHERE id = :id
+                """,
+                merged,
+            )
+        return self.get_trade(trade_id)
+
+    def delete_trade(self, trade_id: str) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute("DELETE FROM trades WHERE id = ?", (trade_id,))
+        return cursor.rowcount > 0
+
+    def clear_trades(self) -> int:
+        with self._connect() as connection:
+            cursor = connection.execute("DELETE FROM trades")
+        return int(cursor.rowcount or 0)
+
+    def get_trade_settings(self) -> dict:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, total, single_stop, month_stop, report_month, updated_at
+                FROM trade_settings
+                WHERE id = 1
+                """
+            ).fetchone()
+        if row:
+            return self._row_to_dict(row)
+        return {
+            "id": 1,
+            "total": 0,
+            "single_stop": 2,
+            "month_stop": 6,
+            "report_month": datetime.utcnow().strftime("%Y-%m"),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+    def upsert_trade_settings(self, payload: dict) -> dict:
+        row = {
+            "id": int(payload.get("id", 1)),
+            "total": payload.get("total", 0),
+            "single_stop": payload.get("single_stop", 2),
+            "month_stop": payload.get("month_stop", 6),
+            "report_month": payload.get("report_month") or datetime.utcnow().strftime("%Y-%m"),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO trade_settings (id, total, single_stop, month_stop, report_month, updated_at)
+                VALUES (:id, :total, :single_stop, :month_stop, :report_month, :updated_at)
+                """,
+                row,
+            )
+        return self.get_trade_settings()
+
+    def update_trade_protective_stop(
+        self,
+        trade_id: str,
+        stop_loss: float | None,
+        used_stop: float | None,
+        stop_basis: str,
+        session_date: str,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE trades
+                SET stop_loss = ?,
+                    used_stop = ?,
+                    protective_stop_basis = ?,
+                    stop_updated_at = ?,
+                    last_stop_session_date = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    stop_loss,
+                    used_stop,
+                    stop_basis,
+                    datetime.utcnow().isoformat(),
+                    session_date,
+                    datetime.utcnow().isoformat(),
+                    trade_id,
+                ),
+            )
+
+    def insert_trade_stop_updates(self, updates: list[dict]) -> None:
+        if not updates:
+            return
+        records = [
+            (
+                item.get("trade_id"),
+                item.get("symbol"),
+                item.get("direction"),
+                item.get("session_date"),
+                item.get("previous_stop_loss"),
+                item.get("proposed_stop_loss"),
+                item.get("applied_stop_loss"),
+                item.get("stop_basis"),
+                int(bool(item.get("changed"))),
+                item.get("status"),
+                item.get("note"),
+                datetime.utcnow().isoformat(),
+            )
+            for item in updates
+        ]
+        with self._connect() as connection:
+            connection.executemany(
+                """
+                INSERT INTO trade_stop_updates (
+                    trade_id, symbol, direction, session_date, previous_stop_loss,
+                    proposed_stop_loss, applied_stop_loss, stop_basis, changed,
+                    status, note, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                records,
             )

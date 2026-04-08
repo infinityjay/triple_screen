@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Any
 
 import requests
 
@@ -205,18 +206,25 @@ class TelegramNotifier:
         total_candidates: int,
         session_date: str,
         scan_time_sec: float,
+        stop_update_summary: dict[str, Any] | None = None,
     ) -> str:
         if total_candidates <= 0:
-            return (
+            message = (
                 "🔍 <b>本轮收盘后未发现符合条件的交易候选</b>\n"
                 f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
             )
+            if stop_update_summary:
+                message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
+            return message
         if not qualified_signals:
-            return (
+            message = (
                 f"📘 <b>{session_date} 候选池更新完成</b>\n"
                 f"共筛出 {total_candidates} 个合格标的，但当前展示条数配置为 0\n"
                 f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
             )
+            if stop_update_summary:
+                message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
+            return message
 
         strong_divergence_count = sum(1 for signal in qualified_signals if signal.get("strong_divergence"))
         lines = [
@@ -237,8 +245,45 @@ class TelegramNotifier:
                 f"   {daily_state} · 后续盘中持续跟踪小时线 stop · 财报 {earnings_status}\n"
             )
 
+        if stop_update_summary:
+            lines.append(f"\n{self.format_stop_update_section(stop_update_summary)}")
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
         return "".join(lines)
+
+    def format_stop_update_section(self, stop_update_summary: dict[str, Any]) -> str:
+        total_positions = int(stop_update_summary.get("total_positions", 0) or 0)
+        updated_count = int(stop_update_summary.get("updated_count", 0) or 0)
+        unchanged_count = int(stop_update_summary.get("unchanged_count", 0) or 0)
+        error_count = int(stop_update_summary.get("error_count", 0) or 0)
+        updates = list(stop_update_summary.get("updates", []))
+
+        lines = [
+            "🛡 <b>持仓保护止损更新</b>\n",
+            f"持仓 {total_positions} 笔 · 更新 {updated_count} 笔 · 未变 {unchanged_count} 笔 · 失败 {error_count} 笔\n",
+        ]
+
+        display_items = [item for item in updates if item.get("status") == "UPDATED"][:8]
+        if not display_items and total_positions == 0:
+            lines.append("当前没有未平仓交易需要更新。\n")
+            return "".join(lines)
+        if not display_items and total_positions > 0:
+            lines.append("本轮没有需要上调/下移的保护性止损。\n")
+            return "".join(lines)
+
+        for index, item in enumerate(display_items, start=1):
+            previous_stop = item.get("previous_stop_loss")
+            applied_stop = item.get("applied_stop_loss")
+            stop_basis = item.get("stop_basis", "UNKNOWN")
+            lines.append(
+                f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
+                f"{previous_stop if previous_stop is not None else '—'} → {applied_stop if applied_stop is not None else '—'} "
+                f"({stop_basis})\n"
+            )
+        return "".join(lines)
+
+    @staticmethod
+    def get_direction_text(value: str | None) -> str:
+        return "做空" if str(value or "").strip().lower() == "short" else "做多"
 
     def format_trigger_summary_message(
         self,
@@ -279,6 +324,7 @@ class TelegramNotifier:
         total_candidates: int,
         session_date: str,
         scan_time_sec: float,
+        stop_update_summary: dict[str, Any] | None = None,
     ) -> bool:
         return self._send(
             self.format_candidate_summary_message(
@@ -286,6 +332,7 @@ class TelegramNotifier:
                 total_candidates,
                 session_date,
                 scan_time_sec,
+                stop_update_summary=stop_update_summary,
             )
         )
 
