@@ -144,6 +144,8 @@ python src/scanner.py --loop
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+export JOURNAL_AUTH_USERNAME=your_username
+export JOURNAL_AUTH_PASSWORD=your_password
 PYTHONPATH=src .venv/bin/python -m journal
 ```
 
@@ -158,6 +160,8 @@ PYTHONPATH=src .venv/bin/python -m journal
 - `http://<EC2_PUBLIC_IP>:8100/api/health`
 
 这种方式下前端和 API 都是同一个 FastAPI 进程提供的，所以不需要额外配置 CORS。
+
+如果设置了 `JOURNAL_AUTH_USERNAME` 和 `JOURNAL_AUTH_PASSWORD`，浏览器打开页面时会直接弹出最简单的用户名/密码框。对个人使用场景，这已经比裸露公网安全很多。
 
 当前 Journal Server 提供：
 

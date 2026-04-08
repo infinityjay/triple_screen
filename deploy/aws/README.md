@@ -73,6 +73,15 @@ mkdir -p data logs
 
 更安全的做法是把 `8100` 的来源限制成你的固定公网 IP，而不是 `0.0.0.0/0`
 
+推荐再加一层最简单认证，在服务器的 `.env` 里设置：
+
+```env
+JOURNAL_AUTH_USERNAME=your_username
+JOURNAL_AUTH_PASSWORD=your_password
+```
+
+这样浏览器访问 `http://<EC2_PUBLIC_IP>:8100/` 时会先弹出 Basic Auth 登录框。
+
 把真实凭证写入：
 
 `/home/ec2-user/triple_screen/.env`
@@ -228,6 +237,24 @@ sudo systemctl start triple-screen.service
 - 首次运行时会批量回补 K 线缓存，耗时会比后续增量扫描更长
 - 如果 Telegram 没消息，先看 `journalctl` 和 `logs/systemd.log` 是否有 `Telegram send failed`
 - 如果 Alpaca 拉数失败，优先检查安全组、实例出网和 DNS
+
+## 安全组最简建议
+
+如果这是你个人长期使用的页面，建议：
+
+- `22` 端口：只允许你的当前公网 IP
+- `8100` 端口：也只允许你的当前公网 IP
+
+AWS 控制台里修改方式：
+
+1. `EC2`
+2. `Instances`
+3. 选中实例
+4. `Security`
+5. 点击绑定的 `Security group`
+6. `Inbound rules`
+7. `Edit inbound rules`
+8. 把 `8100` 规则的 Source 改成你的公网 IP，例如 `1.2.3.4/32`
 
 ## 备注
 

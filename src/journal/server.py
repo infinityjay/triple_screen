@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import os
+import secrets
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -14,6 +20,7 @@ from sqlite import SQLiteStorage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_ROOT = PROJECT_ROOT / "frontend" / "trade_journal"
+load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 
 class _ServerRuntime:
@@ -21,6 +28,12 @@ class _ServerRuntime:
         self.database_path = database_path
         self.host = host
         self.port = port
+        self.auth_username = (os.getenv("JOURNAL_AUTH_USERNAME") or "").strip()
+        self.auth_password = os.getenv("JOURNAL_AUTH_PASSWORD") or ""
+
+    @property
+    def auth_enabled(self) -> bool:
+        return bool(self.auth_username and self.auth_password)
 
 
 def _load_runtime() -> _ServerRuntime:
@@ -54,6 +67,42 @@ storage.init_db()
 
 app = FastAPI(title="Triple Screen Journal API", version="1.0.0")
 app.mount("/frontend", StaticFiles(directory=FRONTEND_ROOT), name="frontend")
+
+
+def _build_basic_auth_response() -> JSONResponse:
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Authentication required"},
+        headers={"WWW-Authenticate": 'Basic realm="Trading Journal"'},
+    )
+
+
+def _is_authorized(request: Request) -> bool:
+    if not runtime.auth_enabled:
+        return True
+
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Basic "):
+        return False
+
+    token = header.split(" ", 1)[1].strip()
+    try:
+        decoded = base64.b64decode(token).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError):
+        return False
+
+    if ":" not in decoded:
+        return False
+
+    username, password = decoded.split(":", 1)
+    return secrets.compare_digest(username, runtime.auth_username) and secrets.compare_digest(password, runtime.auth_password)
+
+
+@app.middleware("http")
+async def require_basic_auth(request: Request, call_next):
+    if not _is_authorized(request):
+        return _build_basic_auth_response()
+    return await call_next(request)
 
 
 class TradePayload(BaseModel):
@@ -102,6 +151,7 @@ def get_health() -> dict[str, Any]:
         "status": "ok",
         "database_path": str(runtime.database_path),
         "server": {"host": runtime.host, "port": runtime.port},
+        "auth_enabled": runtime.auth_enabled,
     }
 
 
