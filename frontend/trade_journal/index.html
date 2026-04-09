@@ -356,6 +356,98 @@
     grid-template-columns: 280px minmax(0, 1fr);
     gap: 12px;
   }
+  .overview-module-grid {
+    display: grid;
+    gap: 14px;
+  }
+  .overview-module-card {
+    display: grid;
+    gap: 14px;
+  }
+  .reminder-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .reminder-mini {
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+    display: grid;
+    gap: 6px;
+  }
+  .reminder-mini .label {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .reminder-mini .value {
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 800;
+  }
+  .reminder-mini .sub {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .reminder-list {
+    display: grid;
+    gap: 10px;
+  }
+  .reminder-item {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)),
+      rgba(12, 18, 19, 0.84);
+    display: grid;
+    gap: 10px;
+  }
+  .reminder-item-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .reminder-item-top strong {
+    font-size: 15px;
+    line-height: 1.2;
+  }
+  .reminder-meta {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .reminder-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .reminder-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 211, 109, 0.22);
+    background: rgba(255, 211, 109, 0.1);
+    color: var(--yellow);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .reminder-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
   .stack {
     display: grid;
     gap: 12px;
@@ -434,6 +526,162 @@
   .trade-list {
     display: grid;
     gap: 8px;
+  }
+  .journal-shell {
+    display: grid;
+    gap: 14px;
+  }
+  .journal-card-head {
+    margin-bottom: 0;
+  }
+  .journal-help {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .journal-grid-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+      rgba(9, 15, 16, 0.86);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .journal-grid {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .journal-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(20, 28, 30, 0.98);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    white-space: nowrap;
+  }
+  .journal-grid tbody td {
+    padding: 13px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: top;
+    background: transparent;
+  }
+  .journal-grid tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .journal-grid tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .journal-sticky-left-1,
+  .journal-sticky-left-2,
+  .journal-sticky-right {
+    position: sticky;
+    background: rgba(13, 20, 21, 0.98);
+    backdrop-filter: blur(10px);
+  }
+  .journal-grid thead .journal-sticky-left-1,
+  .journal-grid thead .journal-sticky-left-2,
+  .journal-grid thead .journal-sticky-right {
+    background: rgba(20, 28, 30, 0.99);
+  }
+  .journal-sticky-left-1 {
+    left: 0;
+    z-index: 6;
+    box-shadow: 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+  .journal-sticky-left-2 {
+    left: 196px;
+    z-index: 6;
+    box-shadow: 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+  .journal-sticky-right {
+    right: 0;
+    z-index: 6;
+    box-shadow: -1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+  .journal-col-symbol { min-width: 196px; width: 196px; }
+  .journal-col-state { min-width: 126px; width: 126px; }
+  .journal-col-date { min-width: 118px; width: 118px; }
+  .journal-col-dir { min-width: 86px; width: 86px; }
+  .journal-col-price { min-width: 116px; width: 116px; }
+  .journal-col-shares { min-width: 92px; width: 92px; }
+  .journal-col-risk { min-width: 116px; width: 116px; }
+  .journal-col-pnl { min-width: 126px; width: 126px; }
+  .journal-col-rating { min-width: 138px; width: 138px; }
+  .journal-col-plan { min-width: 240px; width: 240px; }
+  .journal-col-reason { min-width: 220px; width: 220px; }
+  .journal-col-review { min-width: 280px; width: 280px; }
+  .journal-col-range { min-width: 124px; width: 124px; }
+  .journal-col-fee { min-width: 124px; width: 124px; }
+  .journal-col-actions { min-width: 134px; width: 134px; }
+  .journal-stock {
+    display: grid;
+    gap: 7px;
+  }
+  .journal-stock-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .journal-symbol {
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+  }
+  .journal-stack,
+  .journal-metric,
+  .journal-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .journal-main {
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .journal-main.safe { color: var(--green); }
+  .journal-main.danger { color: var(--red); }
+  .journal-sub {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .journal-copy .journal-main,
+  .journal-copy .journal-sub {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journal-rating {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .journal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .journal-actions .btn {
+    padding: 6px 10px;
+    font-size: 11px;
   }
   .compact-table-wrap {
     overflow-x: auto;
@@ -949,6 +1197,11 @@
     .capture-side { position: static; }
   }
   @media (max-width: 900px) {
+    .reminder-summary { grid-template-columns: 1fr; }
+    .journal-grid thead th,
+    .journal-grid tbody td {
+      padding: 10px 12px;
+    }
     .trade-meta, .stats-grid, .metric-grid, .three-m-grid, .table-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .filter-bar { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1127,51 +1380,83 @@
         <div class="section-head">
           <div>
             <div class="eyebrow">Overview</div>
-            <h2>月度终端总览</h2>
-            <p>只保留风险节奏和核心记录，适合盘前快速扫一遍。</p>
+            <h2>总览回顾</h2>
+            <p>把月度总览和历史补全提醒拆成独立模块，先看节奏，再补旧账。</p>
           </div>
         </div>
 
-        <div class="overview-grid">
-          <div class="stack">
-            <div class="info-card">
-              <div class="card-head">
-                <div>
-                  <h3>风险节奏</h3>
-                  <p>当前月的最小必要风险视图。</p>
+        <div class="overview-module-grid">
+          <div class="info-card overview-module-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Module 01</div>
+                <h3>月度总览</h3>
+                <p>只看当前月份的风险节奏、核心记录和滚动持仓。</p>
+              </div>
+              <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
+            </div>
+
+            <div class="overview-grid">
+              <div class="stack">
+                <div class="info-card">
+                  <div class="card-head">
+                    <div>
+                      <h3>风险节奏</h3>
+                      <p>当前月的最小必要风险视图。</p>
+                    </div>
+                  </div>
+                  <div class="metric-grid" id="overviewMetricGrid"></div>
                 </div>
               </div>
-              <div class="metric-grid" id="overviewMetricGrid"></div>
+
+              <div class="stack">
+                <div class="info-card">
+                  <div class="card-head">
+                    <div>
+                      <h3>本月核心记录</h3>
+                      <p>最近要处理或最值得回看的交易。</p>
+                    </div>
+                  </div>
+                  <div id="overviewCoreList"></div>
+                </div>
+
+                <div class="info-card">
+                  <div class="card-head">
+                    <div>
+                      <h3>滚动持仓</h3>
+                      <p>继续占用月度风险预算的仓位。</p>
+                    </div>
+                  </div>
+                  <div id="overviewOpenList"></div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="stack">
-            <div class="info-card">
-              <div class="card-head">
-                <div>
-                  <h3>本月核心记录</h3>
-                  <p>最近要处理或最值得回看的交易。</p>
-                </div>
-                <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
+          <div class="info-card overview-module-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Module 02</div>
+                <h3>补全提醒</h3>
+                <p>超过 3 个月还没补完整的交易，会在这里提醒你继续编辑补全。</p>
               </div>
-              <div id="overviewCoreList"></div>
+              <button class="btn btn-secondary" onclick="setPanel('capture')">打开录入页</button>
             </div>
-
-            <div class="info-card">
-              <div class="card-head">
-                <div>
-                  <h3>滚动持仓</h3>
-                  <p>继续占用月度风险预算的仓位。</p>
-                </div>
-              </div>
-              <div id="overviewOpenList"></div>
-            </div>
+            <div class="reminder-summary" id="overviewReminderSummary"></div>
+            <div class="reminder-list" id="overviewReminderList"></div>
           </div>
         </div>
       </section>
 
       <section id="panel-journal" class="panel-shell active">
-        <div class="table-card">
+        <div class="table-card journal-shell">
+          <div class="card-head journal-card-head">
+            <div>
+              <div class="eyebrow">Journal</div>
+              <h2>所有交易日志</h2>
+              <p>关键列固定在前面，其余字段保留在右侧，直接横向滑动就能看全。</p>
+            </div>
+          </div>
           <div class="filter-bar">
             <input class="input mono" type="month" id="journalMonthPicker" onchange="setReportMonth(this.value)">
             <select class="select" id="journalStatusFilter" onchange="refreshAll()">
@@ -1188,9 +1473,9 @@
               <div class="month-chip mono" id="journalCountLabel">0 笔</div>
             </div>
           </div>
+          <div class="journal-help mono">左右滑动查看完整字段，左侧优先固定标的和状态，右侧保留编辑操作。</div>
+          <div class="trade-list" id="journalList"></div>
         </div>
-
-        <div class="trade-list" id="journalList"></div>
       </section>
 
       <section id="panel-capture" class="panel-shell">
@@ -1544,6 +1829,10 @@ function parseNumberValue(value) {
   return Number.isFinite(num) ? num : null;
 }
 
+function hasNumberValue(value) {
+  return parseNumberValue(value) !== null;
+}
+
 function formatNumber(value, decimals = 0) {
   const num = Number(value);
   if (!Number.isFinite(num)) return '—';
@@ -1825,6 +2114,57 @@ function getClosedTradesForMonth(month) {
 
 function getOpenTradesForMonth(month) {
   return trades.filter((trade) => isTradeOpenAtMonthEnd(trade, month));
+}
+
+function parseTradeDateValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getTradeAnchorDate(trade) {
+  return parseTradeDateValue(trade.buy_date) || parseTradeDateValue(trade.created_at);
+}
+
+function getThreeMonthsAgo(referenceDate = new Date()) {
+  const cutoff = new Date(referenceDate);
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setMonth(cutoff.getMonth() - 3);
+  return cutoff;
+}
+
+function getTradeAgeInDays(trade, referenceDate = new Date()) {
+  const anchor = getTradeAnchorDate(trade);
+  if (!anchor) return null;
+  return Math.max(0, Math.floor((referenceDate.getTime() - anchor.getTime()) / 86400000));
+}
+
+function getTradeCompletionGaps(trade) {
+  const gaps = [];
+  if (!hasTextValue(trade.stop_reason)) gaps.push('交易计划');
+  if (!hasTextValue(trade.review)) gaps.push('交易心得');
+  if (!hasNumberValue(trade.day_high) || !hasNumberValue(trade.day_low)) gaps.push('买入日高低');
+  if (!hasNumberValue(trade.chan_high) || !hasNumberValue(trade.chan_low)) gaps.push('通道高低点');
+  if (isTradeClosed(trade)) {
+    if (!hasTextValue(trade.sell_reason)) gaps.push('平仓原因');
+    if (!hasNumberValue(trade.sell_high) || !hasNumberValue(trade.sell_low)) gaps.push('平仓日高低');
+  }
+  return gaps;
+}
+
+function getOverdueIncompleteTrades(months = 3, referenceDate = new Date()) {
+  const cutoff = getThreeMonthsAgo(referenceDate);
+  return trades
+    .filter((trade) => {
+      const anchor = getTradeAnchorDate(trade);
+      if (!anchor) return false;
+      return anchor <= cutoff && getTradeCompletionGaps(trade).length > 0;
+    })
+    .sort((a, b) => {
+      const aDate = getTradeAnchorDate(a)?.getTime() || 0;
+      const bDate = getTradeAnchorDate(b)?.getTime() || 0;
+      return aDate - bDate;
+    });
 }
 
 function getMonthRealizedLosses(month) {
@@ -2690,6 +3030,219 @@ function getTradeCardHtml(trade, compact = false) {
   `;
 }
 
+function getStopBasisLabel(value) {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return '—';
+  if (normalized === 'SAFEZONE') return 'SafeZone';
+  if (normalized === 'SIGNAL_BAR') return '信号K';
+  if (normalized === 'PULLBACK_PIVOT') return '回调摆点';
+  if (normalized === 'MANUAL') return '手动';
+  if (normalized === 'UNKNOWN') return '未知';
+  return normalized;
+}
+
+function getJournalTableHtml(tradeList, options = {}) {
+  const { includeDelete = false, emptyMessage = '暂无记录' } = options;
+  if (!tradeList.length) return `<div class="empty-state">${emptyMessage}</div>`;
+
+  return `
+    <div class="journal-grid-wrap">
+      <table class="journal-grid">
+        <thead>
+          <tr>
+            <th class="journal-col-symbol journal-sticky-left-1">标的</th>
+            <th class="journal-col-state journal-sticky-left-2">状态</th>
+            <th class="journal-col-date">入场日</th>
+            <th class="journal-col-dir">方向</th>
+            <th class="journal-col-price">入场价</th>
+            <th class="journal-col-price">当前止损</th>
+            <th class="journal-col-price">初始止损</th>
+            <th class="journal-col-shares">股数</th>
+            <th class="journal-col-risk">止损占用</th>
+            <th class="journal-col-pnl">净盈亏</th>
+            <th class="journal-col-price">目标价</th>
+            <th class="journal-col-price">平仓价</th>
+            <th class="journal-col-date">平仓日</th>
+            <th class="journal-col-rating">评级</th>
+            <th class="journal-col-plan">交易计划</th>
+            <th class="journal-col-reason">平仓原因</th>
+            <th class="journal-col-review">复盘</th>
+            <th class="journal-col-range">日内高低</th>
+            <th class="journal-col-range">平仓高低</th>
+            <th class="journal-col-range">通道</th>
+            <th class="journal-col-fee">手续费</th>
+            <th class="journal-col-actions journal-sticky-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tradeList.map((trade) => {
+            const direction = normalizeDirection(trade.direction);
+            const status = getTradeStatusMeta(trade);
+            const buyPrice = parseNumberValue(trade.buy_price);
+            const stopLoss = parseNumberValue(trade.stop_loss);
+            const initialStop = parseNumberValue(trade.initial_stop_loss);
+            const shares = parseNumberValue(trade.shares);
+            const usedStop = getTradeUsedStop(trade);
+            const pnlNet = getTradeNetPnl(trade);
+            const targetPrice = getTradeTargetPrice(trade);
+            const exitPrice = parseNumberValue(trade.sell_price);
+            const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
+            const buyRating = getBuyRating(buyPrice, parseNumberValue(trade.day_high), parseNumberValue(trade.day_low), direction);
+            const sellRating = getSellRating(exitPrice, parseNumberValue(trade.sell_high), parseNumberValue(trade.sell_low), direction);
+            const channelRating = getChannelRating(buyPrice, parseNumberValue(trade.chan_high), parseNumberValue(trade.chan_low), direction);
+            const stopHint = stopStatus?.type === 'locked'
+              ? '已锁盈'
+              : stopStatus?.type === 'breakeven'
+                ? '已保本'
+                : stopStatus
+                  ? `风险 ${formatPercent(stopStatus.pct, 2)}`
+                  : '未识别';
+            const currentStopBasis = getStopBasisLabel(trade.protective_stop_basis);
+            const initialStopBasis = getStopBasisLabel(trade.initial_stop_basis);
+            const reviewText = trade.review || '';
+            const planText = trade.stop_reason || '';
+            const exitText = trade.sell_reason || '';
+            const dayRangeText = hasNumberValue(trade.day_high) || hasNumberValue(trade.day_low)
+              ? `${formatCurrency(trade.day_high, 3)} / ${formatCurrency(trade.day_low, 3)}`
+              : '—';
+            const sellRangeText = hasNumberValue(trade.sell_high) || hasNumberValue(trade.sell_low)
+              ? `${formatCurrency(trade.sell_high, 3)} / ${formatCurrency(trade.sell_low, 3)}`
+              : '—';
+            const channelText = hasNumberValue(trade.chan_high) || hasNumberValue(trade.chan_low)
+              ? `${formatCurrency(trade.chan_high, 3)} / ${formatCurrency(trade.chan_low, 3)}`
+              : '—';
+            return `
+              <tr>
+                <td class="journal-col-symbol journal-sticky-left-1">
+                  <div class="journal-stock">
+                    <div class="journal-stock-top">
+                      <span class="journal-symbol">${escapeHtml(trade.stock || '—')}</span>
+                      <span class="badge ${status.className}">${escapeHtml(status.label)}</span>
+                    </div>
+                    <div class="journal-sub">${escapeHtml(trade.buy_date || '未填日期')} ${trade.sell_date ? `· 平仓 ${escapeHtml(trade.sell_date)}` : '· 仍在持仓/等待'}</div>
+                  </div>
+                </td>
+                <td class="journal-col-state journal-sticky-left-2">
+                  <div class="journal-stack">
+                    <div class="journal-main">${escapeHtml(getDirectionLabel(direction))}</div>
+                    <div class="journal-sub">${escapeHtml(stopHint)}</div>
+                  </div>
+                </td>
+                <td class="journal-col-date">
+                  <div class="journal-metric">
+                    <div class="journal-main">${escapeHtml(trade.buy_date || '—')}</div>
+                    <div class="journal-sub">${escapeHtml(getTradeBuyMonth(trade) || '未归档')}</div>
+                  </div>
+                </td>
+                <td class="journal-col-dir">
+                  <div class="journal-main">${escapeHtml(getDirectionLabel(direction))}</div>
+                </td>
+                <td class="journal-col-price">
+                  <div class="journal-metric">
+                    <div class="journal-main">${formatCurrency(buyPrice, 3)}</div>
+                    <div class="journal-sub">目标 ${targetPrice !== null ? formatCurrency(targetPrice, 3) : '—'}</div>
+                  </div>
+                </td>
+                <td class="journal-col-price">
+                  <div class="journal-metric">
+                    <div class="journal-main">${formatCurrency(stopLoss, 3)}</div>
+                    <div class="journal-sub">${escapeHtml(currentStopBasis)} · ${escapeHtml(stopHint)}</div>
+                  </div>
+                </td>
+                <td class="journal-col-price">
+                  <div class="journal-metric">
+                    <div class="journal-main">${formatCurrency(initialStop, 3)}</div>
+                    <div class="journal-sub">${escapeHtml(initialStopBasis)}</div>
+                  </div>
+                </td>
+                <td class="journal-col-shares">
+                  <div class="journal-main">${shares !== null ? formatShares(shares) : '—'}</div>
+                </td>
+                <td class="journal-col-risk">
+                  <div class="journal-metric">
+                    <div class="journal-main">${formatCurrency(usedStop, 2)}</div>
+                    <div class="journal-sub">${stopStatus?.type === 'locked' ? '已锁盈不占用' : stopStatus?.type === 'breakeven' ? '已保本' : '按当前止损计算'}</div>
+                  </div>
+                </td>
+                <td class="journal-col-pnl">
+                  <div class="journal-metric">
+                    <div class="journal-main ${pnlNet === null ? '' : pnlNet >= 0 ? 'safe' : 'danger'}">${pnlNet === null ? '持仓中' : formatCurrency(pnlNet, 2)}</div>
+                    <div class="journal-sub">${pnlNet === null ? '等待平仓后落地' : '净值含手续费'}</div>
+                  </div>
+                </td>
+                <td class="journal-col-price">
+                  <div class="journal-main">${targetPrice !== null ? formatCurrency(targetPrice, 3) : '—'}</div>
+                </td>
+                <td class="journal-col-price">
+                  <div class="journal-main">${exitPrice !== null ? formatCurrency(exitPrice, 3) : '—'}</div>
+                </td>
+                <td class="journal-col-date">
+                  <div class="journal-main">${escapeHtml(trade.sell_date || '未平仓')}</div>
+                </td>
+                <td class="journal-col-rating">
+                  <div class="journal-rating">
+                    ${getRatingChipHtml('买', buyRating)}
+                    ${getRatingChipHtml('卖', sellRating)}
+                    ${getRatingChipHtml('通', channelRating)}
+                  </div>
+                </td>
+                <td class="journal-col-plan">
+                  <div class="journal-copy" title="${escapeHtml(planText || '未填写交易计划 / 止损依据')}">
+                    <div class="journal-main">${escapeHtml(planText || '未填写交易计划 / 止损依据')}</div>
+                    <div class="journal-sub">开仓计划 / 止损依据</div>
+                  </div>
+                </td>
+                <td class="journal-col-reason">
+                  <div class="journal-copy" title="${escapeHtml(exitText || '尚未填写平仓原因')}">
+                    <div class="journal-main">${escapeHtml(exitText || '尚未填写平仓原因')}</div>
+                    <div class="journal-sub">离场触发或管理动作</div>
+                  </div>
+                </td>
+                <td class="journal-col-review">
+                  <div class="journal-copy" title="${escapeHtml(reviewText || '还没有写复盘')}">
+                    <div class="journal-main">${escapeHtml(reviewText || '还没有写复盘')}</div>
+                    <div class="journal-sub">复盘摘录</div>
+                  </div>
+                </td>
+                <td class="journal-col-range">
+                  <div class="journal-metric">
+                    <div class="journal-main">${dayRangeText}</div>
+                    <div class="journal-sub">买入日高 / 低</div>
+                  </div>
+                </td>
+                <td class="journal-col-range">
+                  <div class="journal-metric">
+                    <div class="journal-main">${sellRangeText}</div>
+                    <div class="journal-sub">平仓日高 / 低</div>
+                  </div>
+                </td>
+                <td class="journal-col-range">
+                  <div class="journal-metric">
+                    <div class="journal-main">${channelText}</div>
+                    <div class="journal-sub">通道高 / 低</div>
+                  </div>
+                </td>
+                <td class="journal-col-fee">
+                  <div class="journal-metric">
+                    <div class="journal-main">${formatCurrency((parseNumberValue(trade.buy_comm) || 0) + (parseNumberValue(trade.sell_comm) || 0), 2)}</div>
+                    <div class="journal-sub">买 ${formatCurrency(trade.buy_comm, 2)} · 卖 ${formatCurrency(trade.sell_comm, 2)}</div>
+                  </div>
+                </td>
+                <td class="journal-col-actions journal-sticky-right">
+                  <div class="journal-actions">
+                    <button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">编辑</button>
+                    ${includeDelete ? `<button class="btn btn-danger" onclick="deleteTrade('${escapeHtml(trade.id)}')">删</button>` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function getCompactTradeTableHtml(tradeList, options = {}) {
   const {
     includeDelete = false,
@@ -2793,11 +3346,14 @@ function renderOverview() {
   const monthTrades = getTradesForMonth(month);
   const openTrades = getOpenTradesForMonth(month);
   const closedTrades = getClosedTradesForMonth(month).filter((trade) => getTradeNetPnl(trade) !== null);
+  const overdueIncompleteTrades = getOverdueIncompleteTrades(3);
   const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) >= 0);
   const losses = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) < 0);
   const realized = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
   const openRisk = getMonthOpenRisk(month);
   const avgUsedStop = openTrades.length ? openTrades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0) / openTrades.length : 0;
+  const oldestIncomplete = overdueIncompleteTrades[0] || null;
+  const maxGapCount = overdueIncompleteTrades.reduce((max, trade) => Math.max(max, getTradeCompletionGaps(trade).length), 0);
 
   document.getElementById('overviewMetricGrid').innerHTML = [
     { label: '当月相关交易', value: monthTrades.length, sub: '包含跨月延续到本月的仓位' },
@@ -2823,6 +3379,69 @@ function renderOverview() {
     openTrades,
     { emptyMessage: '当前查看月份月末没有未结持仓。', maxRows: 8 }
   );
+
+  const reminderSummary = document.getElementById('overviewReminderSummary');
+  const reminderList = document.getElementById('overviewReminderList');
+  if (reminderSummary) {
+    reminderSummary.innerHTML = [
+      {
+        label: '待补全交易',
+        value: overdueIncompleteTrades.length,
+        sub: '已超过 3 个月仍缺关键字段'
+      },
+      {
+        label: '最早待补全',
+        value: oldestIncomplete ? (oldestIncomplete.stock || '—') : '—',
+        sub: oldestIncomplete ? `${getTradeAgeInDays(oldestIncomplete)} 天未补全` : '当前没有超时记录'
+      },
+      {
+        label: '最大缺项数',
+        value: maxGapCount || 0,
+        sub: maxGapCount ? '优先补缺项最多的旧交易' : '所有旧交易都已补齐'
+      }
+    ].map((item) => `
+      <div class="reminder-mini">
+        <div class="label">${escapeHtml(item.label)}</div>
+        <div class="value">${escapeHtml(String(item.value))}</div>
+        <div class="sub">${escapeHtml(item.sub)}</div>
+      </div>
+    `).join('');
+  }
+
+  if (reminderList) {
+    reminderList.innerHTML = overdueIncompleteTrades.length
+      ? overdueIncompleteTrades.slice(0, 8).map((trade) => {
+          const gaps = getTradeCompletionGaps(trade);
+          const anchorDate = getTradeAnchorDate(trade);
+          const ageDays = getTradeAgeInDays(trade);
+          return `
+            <div class="reminder-item">
+              <div class="reminder-item-top">
+                <div>
+                  <strong>${escapeHtml(trade.stock || '—')} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
+                  <div class="reminder-meta">
+                    ${escapeHtml(trade.buy_date || '未填日期')} · ${isTradeClosed(trade) ? `已平仓 ${escapeHtml(trade.sell_date || '')}` : '仍在持仓 / 未平仓'} ·
+                    已过 ${escapeHtml(String(ageDays ?? '—'))} 天
+                  </div>
+                </div>
+                <div class="badge warn">待补全</div>
+              </div>
+              <div class="reminder-tags">
+                ${gaps.map((gap) => `<span class="reminder-tag">${escapeHtml(gap)}</span>`).join('')}
+              </div>
+              <div class="reminder-meta">
+                建议补齐：交易心得、通道高低点、计划依据；已平仓的再补平仓原因和平仓日高低。
+                ${anchorDate ? `最早参考日期：${escapeHtml(anchorDate.toISOString().slice(0, 10))}` : ''}
+              </div>
+              <div class="reminder-actions">
+                <button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">立即补全</button>
+                <button class="btn btn-secondary" onclick="setPanel('journal')">去日志查看</button>
+              </div>
+            </div>
+          `;
+        }).join('')
+      : `<div class="empty-state">目前没有超过 3 个月仍未补完整的交易。<br>旧记录里的交易心得、通道高低点和平仓细节都已经补齐。</div>`;
+  }
 }
 
 function renderJournal() {
@@ -2837,7 +3456,7 @@ function renderJournal() {
     list.innerHTML = `<div class="empty-state">这个筛选条件下还没有交易记录。<br>你可以切换月份、状态，或者直接新建一笔交易。</div>`;
     return;
   }
-  list.innerHTML = getCompactTradeTableHtml(filtered, {
+  list.innerHTML = getJournalTableHtml(filtered, {
     includeDelete: true,
     emptyMessage: '这个筛选条件下还没有交易记录。'
   });
