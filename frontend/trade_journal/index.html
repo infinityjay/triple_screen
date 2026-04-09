@@ -360,13 +360,50 @@
     display: grid;
     gap: 14px;
   }
-  .overview-module-card {
+  .overview-module-card { display: grid; gap: 14px; }
+  .overview-priority-card {
+    border: 1px solid rgba(255, 211, 109, 0.18);
+    background:
+      radial-gradient(circle at top right, rgba(255, 211, 109, 0.08), transparent 32%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+      rgba(10, 16, 17, 0.92);
+  }
+  .overview-split {
     display: grid;
+    grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
     gap: 14px;
+  }
+  .overview-focus-list {
+    display: grid;
+    gap: 10px;
+  }
+  .overview-focus-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .overview-focus-copy {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .overview-focus-copy strong {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+  .overview-focus-copy span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
   }
   .reminder-summary {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
   .reminder-mini {
@@ -1197,6 +1234,7 @@
     .capture-side { position: static; }
   }
   @media (max-width: 900px) {
+    .overview-split { grid-template-columns: 1fr; }
     .reminder-summary { grid-template-columns: 1fr; }
     .journal-grid thead th,
     .journal-grid tbody td {
@@ -1381,69 +1419,44 @@
           <div>
             <div class="eyebrow">Overview</div>
             <h2>总览回顾</h2>
-            <p>把月度总览和历史补全提醒拆成独立模块，先看节奏，再补旧账。</p>
+            <p>只保留最重要的信息。先看提醒，再看本月摘要和当前待处理事项。</p>
           </div>
         </div>
 
         <div class="overview-module-grid">
-          <div class="info-card overview-module-card">
+          <div class="info-card overview-module-card overview-priority-card">
             <div class="card-head">
               <div>
-                <div class="eyebrow">Module 01</div>
-                <h3>月度总览</h3>
-                <p>只看当前月份的风险节奏、核心记录和滚动持仓。</p>
-              </div>
-              <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
-            </div>
-
-            <div class="overview-grid">
-              <div class="stack">
-                <div class="info-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>风险节奏</h3>
-                      <p>当前月的最小必要风险视图。</p>
-                    </div>
-                  </div>
-                  <div class="metric-grid" id="overviewMetricGrid"></div>
-                </div>
-              </div>
-
-              <div class="stack">
-                <div class="info-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>本月核心记录</h3>
-                      <p>最近要处理或最值得回看的交易。</p>
-                    </div>
-                  </div>
-                  <div id="overviewCoreList"></div>
-                </div>
-
-                <div class="info-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>滚动持仓</h3>
-                      <p>继续占用月度风险预算的仓位。</p>
-                    </div>
-                  </div>
-                  <div id="overviewOpenList"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-card overview-module-card">
-            <div class="card-head">
-              <div>
-                <div class="eyebrow">Module 02</div>
-                <h3>补全提醒</h3>
-                <p>超过 3 个月还没补完整的交易，会在这里提醒你继续编辑补全。</p>
+                <h3>优先提醒</h3>
+                <p>超过 3 个月还没补完整的交易放在最前面，先补记录，再看统计。</p>
               </div>
               <button class="btn btn-secondary" onclick="setPanel('capture')">打开录入页</button>
             </div>
             <div class="reminder-summary" id="overviewReminderSummary"></div>
             <div class="reminder-list" id="overviewReminderList"></div>
+          </div>
+
+          <div class="overview-split">
+            <div class="info-card overview-module-card">
+              <div class="card-head">
+                <div>
+                  <h3>月度摘要</h3>
+                  <p>当前月份只保留预算、结果和持仓这几个关键指标。</p>
+                </div>
+              </div>
+              <div class="metric-grid" id="overviewMetricGrid"></div>
+            </div>
+
+            <div class="info-card overview-module-card">
+              <div class="card-head">
+                <div>
+                  <h3>本月待处理</h3>
+                  <p>优先展示还在持仓的仓位；没有持仓时，再看最近需要回顾的记录。</p>
+                </div>
+                <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
+              </div>
+              <div class="overview-focus-list" id="overviewFocusList"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -3347,21 +3360,30 @@ function renderOverview() {
   const openTrades = getOpenTradesForMonth(month);
   const closedTrades = getClosedTradesForMonth(month).filter((trade) => getTradeNetPnl(trade) !== null);
   const overdueIncompleteTrades = getOverdueIncompleteTrades(3);
+  const s = getSettings();
   const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) >= 0);
   const losses = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) < 0);
   const realized = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
   const openRisk = getMonthOpenRisk(month);
-  const avgUsedStop = openTrades.length ? openTrades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0) / openTrades.length : 0;
+  const monthBudget = s.total * (s.monthStop / 100);
+  const usedBudget = getMonthStopBudgetUsed(month);
+  const remainingBudget = s.total ? Math.max(0, monthBudget - usedBudget) : null;
   const oldestIncomplete = overdueIncompleteTrades[0] || null;
-  const maxGapCount = overdueIncompleteTrades.reduce((max, trade) => Math.max(max, getTradeCompletionGaps(trade).length), 0);
+  const oldestAgeDays = oldestIncomplete ? getTradeAgeInDays(oldestIncomplete) : null;
+  const focusTrades = (openTrades.length
+    ? [...openTrades].sort((a, b) => getTradeUsedStop(b) - getTradeUsedStop(a))
+    : [...monthTrades].sort((a, b) => {
+        const aPnl = Math.abs(getTradeNetPnl(a) ?? 0);
+        const bPnl = Math.abs(getTradeNetPnl(b) ?? 0);
+        return bPnl - aPnl;
+      })
+  ).slice(0, 5);
 
   document.getElementById('overviewMetricGrid').innerHTML = [
-    { label: '当月相关交易', value: monthTrades.length, sub: '包含跨月延续到本月的仓位' },
-    { label: '已结交易', value: closedTrades.length, sub: `${wins.length} 胜 / ${losses.length} 负` },
-    { label: '净结果', value: formatCurrency(realized, 2), sub: '只统计本月真正平仓的交易' },
-    { label: '月末持仓', value: openTrades.length, sub: '这些仓位会滚动占用月度预算' },
-    { label: '月末持仓风险', value: formatCurrency(openRisk, 2), sub: '止损不在买价下方时记为 0' },
-    { label: '平均占用止损', value: formatCurrency(avgUsedStop, 2), sub: '仅统计当前仍持仓的仓位' }
+    { label: '月度已用', value: s.total ? formatCurrency(usedBudget, 2) : '未设置', sub: s.total ? `预算上限 ${formatCurrency(monthBudget, 2)}` : '先填写总资金和月度规则' },
+    { label: '剩余额度', value: remainingBudget !== null ? formatCurrency(remainingBudget, 2) : '未设置', sub: remainingBudget !== null ? '低于 0 时视为本月超限' : '需要设置页支持' },
+    { label: '已结净结果', value: formatCurrency(realized, 2), sub: `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${losses.length} 负` },
+    { label: '当前持仓', value: openTrades.length, sub: `${formatCurrency(openRisk, 2)} 风险仍在占用月度预算` }
   ].map((item) => `
     <div class="mini-metric">
       <div class="label">${escapeHtml(item.label)}</div>
@@ -3369,16 +3391,6 @@ function renderOverview() {
       <div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">${escapeHtml(item.sub)}</div>
     </div>
   `).join('');
-
-  document.getElementById('overviewCoreList').innerHTML = getCompactTradeTableHtml(
-    monthTrades,
-    { emptyMessage: '当前月份还没有核心交易记录。', maxRows: 8 }
-  );
-
-  document.getElementById('overviewOpenList').innerHTML = getCompactTradeTableHtml(
-    openTrades,
-    { emptyMessage: '当前查看月份月末没有未结持仓。', maxRows: 8 }
-  );
 
   const reminderSummary = document.getElementById('overviewReminderSummary');
   const reminderList = document.getElementById('overviewReminderList');
@@ -3390,14 +3402,9 @@ function renderOverview() {
         sub: '已超过 3 个月仍缺关键字段'
       },
       {
-        label: '最早待补全',
-        value: oldestIncomplete ? (oldestIncomplete.stock || '—') : '—',
-        sub: oldestIncomplete ? `${getTradeAgeInDays(oldestIncomplete)} 天未补全` : '当前没有超时记录'
-      },
-      {
-        label: '最大缺项数',
-        value: maxGapCount || 0,
-        sub: maxGapCount ? '优先补缺项最多的旧交易' : '所有旧交易都已补齐'
+        label: '最久未补全',
+        value: oldestAgeDays !== null ? `${oldestAgeDays} 天` : '—',
+        sub: oldestIncomplete ? `${oldestIncomplete.stock || '—'} 需要优先补完` : '当前没有超时记录'
       }
     ].map((item) => `
       <div class="reminder-mini">
@@ -3410,9 +3417,8 @@ function renderOverview() {
 
   if (reminderList) {
     reminderList.innerHTML = overdueIncompleteTrades.length
-      ? overdueIncompleteTrades.slice(0, 8).map((trade) => {
+      ? overdueIncompleteTrades.slice(0, 5).map((trade) => {
           const gaps = getTradeCompletionGaps(trade);
-          const anchorDate = getTradeAnchorDate(trade);
           const ageDays = getTradeAgeInDays(trade);
           return `
             <div class="reminder-item">
@@ -3420,8 +3426,8 @@ function renderOverview() {
                 <div>
                   <strong>${escapeHtml(trade.stock || '—')} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
                   <div class="reminder-meta">
-                    ${escapeHtml(trade.buy_date || '未填日期')} · ${isTradeClosed(trade) ? `已平仓 ${escapeHtml(trade.sell_date || '')}` : '仍在持仓 / 未平仓'} ·
-                    已过 ${escapeHtml(String(ageDays ?? '—'))} 天
+                    ${escapeHtml(trade.buy_date || '未填日期')} · 已过 ${escapeHtml(String(ageDays ?? '—'))} 天 ·
+                    ${isTradeClosed(trade) ? `已平仓 ${escapeHtml(trade.sell_date || '')}` : '仍在持仓 / 未平仓'}
                   </div>
                 </div>
                 <div class="badge warn">待补全</div>
@@ -3430,17 +3436,46 @@ function renderOverview() {
                 ${gaps.map((gap) => `<span class="reminder-tag">${escapeHtml(gap)}</span>`).join('')}
               </div>
               <div class="reminder-meta">
-                建议补齐：交易心得、通道高低点、计划依据；已平仓的再补平仓原因和平仓日高低。
-                ${anchorDate ? `最早参考日期：${escapeHtml(anchorDate.toISOString().slice(0, 10))}` : ''}
+                补齐这些字段后，这笔交易的复盘价值会完整很多。
               </div>
               <div class="reminder-actions">
                 <button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">立即补全</button>
-                <button class="btn btn-secondary" onclick="setPanel('journal')">去日志查看</button>
               </div>
             </div>
           `;
         }).join('')
       : `<div class="empty-state">目前没有超过 3 个月仍未补完整的交易。<br>旧记录里的交易心得、通道高低点和平仓细节都已经补齐。</div>`;
+  }
+
+  const focusList = document.getElementById('overviewFocusList');
+  if (focusList) {
+    focusList.innerHTML = focusTrades.length
+      ? focusTrades.map((trade) => {
+          const status = getTradeStatusMeta(trade);
+          const usedStop = getTradeUsedStop(trade);
+          const pnlNet = getTradeNetPnl(trade);
+          const stopStatus = getStopStatus(parseNumberValue(trade.buy_price), parseNumberValue(trade.stop_loss), trade.direction);
+          const focusHint = isTradeClosed(trade)
+            ? `净结果 ${formatCurrency(pnlNet, 2)}`
+            : `止损占用 ${formatCurrency(usedStop, 2)}`;
+          const stopHint = stopStatus?.type === 'locked'
+            ? '已锁盈'
+            : stopStatus?.type === 'breakeven'
+              ? '已保本'
+              : hasTextValue(trade.stop_reason)
+                ? trade.stop_reason
+                : '未写交易计划';
+          return `
+            <div class="overview-focus-item">
+              <div class="overview-focus-copy">
+                <strong>${escapeHtml(trade.stock || '—')} · ${escapeHtml(getDirectionLabel(trade.direction))} · ${escapeHtml(status.label)}</strong>
+                <span>${escapeHtml(trade.buy_date || '未填日期')} · ${escapeHtml(focusHint)} · ${escapeHtml(stopHint)}</span>
+              </div>
+              <button class="btn btn-secondary" onclick="editTrade('${escapeHtml(trade.id)}')">查看</button>
+            </div>
+          `;
+        }).join('')
+      : `<div class="empty-state">当前月份没有需要优先处理的交易。<br>等有持仓或新记录后，这里会给出最短待办清单。</div>`;
   }
 }
 
