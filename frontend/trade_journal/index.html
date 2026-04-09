@@ -279,7 +279,7 @@
   }
   .hero-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
   .summary-card {
@@ -1234,6 +1234,7 @@
     .capture-side { position: static; }
   }
   @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .overview-split { grid-template-columns: 1fr; }
     .reminder-summary { grid-template-columns: 1fr; }
     .journal-grid thead th,
@@ -1399,6 +1400,16 @@
                   <div class="summary-value safe" id="heroRemaining">$0</div>
                   <div class="summary-sub" id="heroRemainingSub">风险预算未使用</div>
                 </div>
+                <div class="summary-card">
+                  <div class="summary-label">已结净结果</div>
+                  <div class="summary-value" id="heroClosedResult">$0</div>
+                  <div class="summary-sub" id="heroClosedResultSub">本月已结交易表现</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-label">当前持仓</div>
+                  <div class="summary-value" id="heroOpenCount">0</div>
+                  <div class="summary-sub" id="heroOpenCountSub">月末持仓仍会占用风险预算</div>
+                </div>
               </div>
 
               <div class="summary-card">
@@ -1419,7 +1430,7 @@
           <div>
             <div class="eyebrow">Overview</div>
             <h2>总览回顾</h2>
-            <p>只保留最重要的信息。先看提醒，再看本月摘要和当前待处理事项。</p>
+            <p>只保留最重要的信息。预算和月度摘要已经合并到顶部主卡，这里只看提醒和待处理事项。</p>
           </div>
         </div>
 
@@ -1436,27 +1447,15 @@
             <div class="reminder-list" id="overviewReminderList"></div>
           </div>
 
-          <div class="overview-split">
-            <div class="info-card overview-module-card">
-              <div class="card-head">
-                <div>
-                  <h3>月度摘要</h3>
-                  <p>当前月份只保留预算、结果和持仓这几个关键指标。</p>
-                </div>
+          <div class="info-card overview-module-card">
+            <div class="card-head">
+              <div>
+                <h3>本月待处理</h3>
+                <p>优先展示还在持仓的仓位；没有持仓时，再看最近需要回顾的记录。</p>
               </div>
-              <div class="metric-grid" id="overviewMetricGrid"></div>
+              <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
             </div>
-
-            <div class="info-card overview-module-card">
-              <div class="card-head">
-                <div>
-                  <h3>本月待处理</h3>
-                  <p>优先展示还在持仓的仓位；没有持仓时，再看最近需要回顾的记录。</p>
-                </div>
-                <button class="btn btn-secondary" onclick="setPanel('journal')">打开日志</button>
-              </div>
-              <div class="overview-focus-list" id="overviewFocusList"></div>
-            </div>
+            <div class="overview-focus-list" id="overviewFocusList"></div>
           </div>
         </div>
       </section>
@@ -3358,16 +3357,7 @@ function renderOverview() {
   const month = getCurrentReportMonth();
   const monthTrades = getTradesForMonth(month);
   const openTrades = getOpenTradesForMonth(month);
-  const closedTrades = getClosedTradesForMonth(month).filter((trade) => getTradeNetPnl(trade) !== null);
   const overdueIncompleteTrades = getOverdueIncompleteTrades(3);
-  const s = getSettings();
-  const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) >= 0);
-  const losses = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) < 0);
-  const realized = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
-  const openRisk = getMonthOpenRisk(month);
-  const monthBudget = s.total * (s.monthStop / 100);
-  const usedBudget = getMonthStopBudgetUsed(month);
-  const remainingBudget = s.total ? Math.max(0, monthBudget - usedBudget) : null;
   const oldestIncomplete = overdueIncompleteTrades[0] || null;
   const oldestAgeDays = oldestIncomplete ? getTradeAgeInDays(oldestIncomplete) : null;
   const focusTrades = (openTrades.length
@@ -3378,19 +3368,6 @@ function renderOverview() {
         return bPnl - aPnl;
       })
   ).slice(0, 5);
-
-  document.getElementById('overviewMetricGrid').innerHTML = [
-    { label: '月度已用', value: s.total ? formatCurrency(usedBudget, 2) : '未设置', sub: s.total ? `预算上限 ${formatCurrency(monthBudget, 2)}` : '先填写总资金和月度规则' },
-    { label: '剩余额度', value: remainingBudget !== null ? formatCurrency(remainingBudget, 2) : '未设置', sub: remainingBudget !== null ? '低于 0 时视为本月超限' : '需要设置页支持' },
-    { label: '已结净结果', value: formatCurrency(realized, 2), sub: `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${losses.length} 负` },
-    { label: '当前持仓', value: openTrades.length, sub: `${formatCurrency(openRisk, 2)} 风险仍在占用月度预算` }
-  ].map((item) => `
-    <div class="mini-metric">
-      <div class="label">${escapeHtml(item.label)}</div>
-      <div class="value">${escapeHtml(String(item.value))}</div>
-      <div class="muted" style="margin-top:8px;font-size:12px;line-height:1.7">${escapeHtml(item.sub)}</div>
-    </div>
-  `).join('');
 
   const reminderSummary = document.getElementById('overviewReminderSummary');
   const reminderList = document.getElementById('overviewReminderList');
@@ -3500,21 +3477,41 @@ function renderJournal() {
 function renderHero() {
   const s = getSettings();
   const month = getCurrentReportMonth();
+  const monthTrades = getTradesForMonth(month);
+  const openTrades = getOpenTradesForMonth(month);
+  const closedTrades = getClosedTradesForMonth(month).filter((trade) => getTradeNetPnl(trade) !== null);
+  const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) >= 0);
+  const losses = closedTrades.filter((trade) => (getTradeNetPnl(trade) ?? 0) < 0);
+  const realized = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
+  const openRisk = getMonthOpenRisk(month);
   const singleStop = s.total * (s.singleStop / 100);
   const monthBudget = s.total * (s.monthStop / 100);
   const used = getMonthStopBudgetUsed(month);
   const remaining = Math.max(0, monthBudget - used);
   const pct = monthBudget > 0 ? Math.min(100, used / monthBudget * 100) : 0;
+  const focusTrades = (openTrades.length ? openTrades : monthTrades).slice(0, 3);
+  const closedResultEl = document.getElementById('heroClosedResult');
 
   document.getElementById('heroTotal').textContent = s.total ? formatCurrency(s.total, 0) : '未设置';
   document.getElementById('heroSingleStop').textContent = s.total ? formatCurrency(singleStop, 2) : '—';
   document.getElementById('heroMonthBudget').textContent = s.total ? formatCurrency(monthBudget, 2) : '—';
   document.getElementById('heroRemaining').textContent = s.total ? formatCurrency(remaining, 2) : '—';
+  if (closedResultEl) {
+    closedResultEl.textContent = formatCurrency(realized, 2);
+    closedResultEl.classList.remove('safe', 'danger');
+    if (realized > 0) closedResultEl.classList.add('safe');
+    if (realized < 0) closedResultEl.classList.add('danger');
+  }
+  document.getElementById('heroClosedResultSub').textContent = `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${losses.length} 负`;
+  document.getElementById('heroOpenCount').textContent = String(openTrades.length);
+  document.getElementById('heroOpenCountSub').textContent = openTrades.length
+    ? `${formatCurrency(openRisk, 2)} 风险仍在占用月度预算`
+    : '当前月份没有继续占用预算的持仓';
   document.getElementById('heroUsedPct').textContent = formatPercent(pct, 0);
   document.getElementById('heroMonthSubtitle').textContent = `用于筛选交易日志、统计分析和月度风险预算。当前是 ${month}。`;
   document.getElementById('heroTotalSub').textContent = s.total ? `当前单笔 ${s.singleStop}% / 月度 ${s.monthStop}% 风险规则已启用` : '先去设置里填总资金和风险比例';
   document.getElementById('heroRemainingSub').textContent = `已用 ${formatCurrency(used, 2)}，剩余 ${formatCurrency(remaining, 2)}`;
-  document.getElementById('heroUsedText').textContent = `本月已实现亏损 ${formatCurrency(getMonthRealizedLosses(month), 2)} + 月末持仓风险 ${formatCurrency(getMonthOpenRisk(month), 2)}`;
+  document.getElementById('heroUsedText').textContent = `本月已实现亏损 ${formatCurrency(getMonthRealizedLosses(month), 2)} + 月末持仓风险 ${formatCurrency(openRisk, 2)}`;
   const fill = document.getElementById('heroRiskFill');
   fill.style.width = `${pct}%`;
   fill.style.background = pct > 80 ? 'linear-gradient(90deg, var(--red), #ffad6d)' : pct > 50 ? 'linear-gradient(90deg, var(--yellow), #ffef93)' : 'linear-gradient(90deg, var(--green), var(--accent))';
@@ -3523,9 +3520,6 @@ function renderHero() {
   const focusIntro = document.getElementById('heroFocusIntro');
   const editState = document.getElementById('heroEditState');
   const continueBtn = document.getElementById('heroContinueEditBtn');
-  const monthTrades = getTradesForMonth(month);
-  const openTrades = getOpenTradesForMonth(month);
-  const focusTrades = (openTrades.length ? openTrades : monthTrades).slice(0, 3);
 
   if (focusIntro) {
     focusIntro.textContent = openTrades.length
