@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -148,6 +148,16 @@ def get_index() -> FileResponse:
     return FileResponse(FRONTEND_ROOT / "index.html")
 
 
+@app.get("/journal")
+def get_journal_page() -> FileResponse:
+    return FileResponse(FRONTEND_ROOT / "journal.html")
+
+
+@app.get("/watchlist")
+def get_watchlist_page() -> FileResponse:
+    return FileResponse(FRONTEND_ROOT / "watchlist.html")
+
+
 @app.get("/api/health")
 def get_health() -> dict[str, Any]:
     return {
@@ -198,6 +208,25 @@ def get_trade_settings() -> dict[str, Any]:
 @app.put("/api/settings")
 def put_trade_settings(payload: TradeSettingsPayload) -> dict[str, Any]:
     return storage.upsert_trade_settings(payload.model_dump())
+
+
+@app.get("/api/watchlist")
+def get_watchlist_data(
+    session_date: str | None = Query(default=None),
+    session_limit: int = Query(default=8, ge=1, le=30),
+) -> dict[str, Any]:
+    sessions = storage.list_candidate_sessions(limit=session_limit)
+    latest_session = sessions[0]["session_date"] if sessions else None
+    target_session = session_date or latest_session
+    items = storage.get_qualified_candidates(target_session) if target_session else []
+
+    return {
+        "session_date": target_session,
+        "latest_session_date": latest_session,
+        "available_sessions": sessions,
+        "count": len(items),
+        "items": items,
+    }
 
 
 def run() -> None:

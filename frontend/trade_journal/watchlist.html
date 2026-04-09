@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Triple Screen Watchlist</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b2c2a'/%3E%3Cpath d='M14 42c8-1 13-8 19-20l7 11 11-16' fill='none' stroke='%23f2ddb0' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='16' r='5' fill='%23d38a2e'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/frontend/assets/styles/app.css">
+</head>
+<body>
+  <div id="bootScreen" class="gate-screen">
+    <div class="gate-card">
+      <div class="eyebrow">Watchlist Boot</div>
+      <h1>正在加载观察列表</h1>
+      <p id="bootMessage">读取最近扫描结果，并生成周 / 日 / 小时三重滤网看板。</p>
+    </div>
+  </div>
+
+  <div id="configGate" class="gate-screen" style="display:none">
+    <div class="gate-card">
+      <div class="eyebrow">Local API</div>
+      <h1>观察列表暂时无法连接本地服务</h1>
+      <p>请先启动 `triple_screen` 的 Journal API，然后重试。</p>
+      <div class="gate-stack">
+        <div id="configError" class="alert danger">当前无法连接到 `/api/watchlist`。</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="retryConnectBtn" type="button">重新连接</button>
+          <a class="btn btn-secondary" href="/journal">先看交易日志</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainApp" style="display:none">
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">∿</div>
+          <div class="brand-copy">
+            <strong>Triple Screen Atlas</strong>
+            <span>观察列表与技术分析原因看板</span>
+          </div>
+        </div>
+        <nav class="topbar-nav">
+          <a class="nav-link" data-app-link="journal" href="/journal">交易日志</a>
+          <a class="nav-link" data-app-link="watchlist" href="/watchlist">观察列表</a>
+        </nav>
+        <div class="topbar-meta">
+          <div class="status-pill">
+            <span class="status-dot" id="connectionDot"></span>
+            <span id="connectionLabel">正在连接…</span>
+          </div>
+          <div class="status-pill mono" id="shellDate">—</div>
+        </div>
+      </header>
+
+      <div class="page-grid">
+        <section class="shell-card">
+          <div class="hero-grid">
+            <div class="page-head">
+              <div class="eyebrow">Watchlist</div>
+              <h1>把最新扫描出来的观察列表，拆成能直接执行的三重滤网看板</h1>
+              <p>周线负责方向，日线负责 setup，小时线负责触发。即使收盘候选阶段还没有小时线触发数据，这里也会明确告诉你下一步该等什么。</p>
+            </div>
+            <div class="side-card">
+              <div class="eyebrow">Session</div>
+              <h3 id="sessionHeadline">最新扫描会话：—</h3>
+              <p id="sessionHeadlineBody">切换不同扫描日，可以回看当时的候选池和筛选理由。</p>
+              <div class="toolbar" style="margin-top:14px">
+                <select class="select" id="sessionSelect"></select>
+                <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">刷新</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="watchlist-summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">候选总数</div>
+            <div class="summary-value" id="watchlistCount">0</div>
+            <div class="summary-sub">当前会话里进入观察列表的标的数量。</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">已触发机会</div>
+            <div class="summary-value accent-safe" id="watchlistTriggered">0</div>
+            <div class="summary-sub">已经由小时线触发的机会。</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">方向分布</div>
+            <div class="summary-value" id="watchlistDirectionMix">—</div>
+            <div class="summary-sub">做多 / 做空的数量对比。</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">强背离提示</div>
+            <div class="summary-value accent-warn" id="watchlistDivergence">0</div>
+            <div class="summary-sub">需要优先警惕衰竭风险的标的。</div>
+          </div>
+        </section>
+
+        <section class="watchlist-layout">
+          <div class="watchlist-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Recent Sessions</div>
+                <h3>最近扫描会话</h3>
+                <p>快速切回最近几次收盘扫描，横向比较候选池变化。</p>
+              </div>
+            </div>
+            <div class="session-chip-list" id="sessionChips"></div>
+          </div>
+
+          <div class="watchlist-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Execution Lens</div>
+                <h3>执行提示</h3>
+                <p>盘后观察列表默认以周线方向 + 日线 setup 为主，小时线用于第二天盘中触发。</p>
+              </div>
+            </div>
+            <div class="insight-list" id="watchlistInsights"></div>
+          </div>
+        </section>
+
+        <section class="table-card">
+          <div class="section-head">
+            <div>
+              <div class="eyebrow">Triple Screen Table</div>
+              <h2>周 / 日 / 小时三层分析</h2>
+              <p>每一列都直接回答“它为什么进观察列表”和“下一步该等什么”。</p>
+            </div>
+            <div class="toolbar">
+              <select class="select" style="max-width:180px" id="statusFilter">
+                <option value="all">全部状态</option>
+                <option value="watchlist">仅观察中</option>
+                <option value="triggered">仅已触发</option>
+              </select>
+              <select class="select" style="max-width:180px" id="directionFilter">
+                <option value="all">全部方向</option>
+                <option value="LONG">仅做多</option>
+                <option value="SHORT">仅做空</option>
+              </select>
+              <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="搜索股票、理由、财报、状态…">
+            </div>
+          </div>
+          <div id="watchlistTableContainer"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/frontend/assets/scripts/watchlist-page.js"></script>
+</body>
+</html>

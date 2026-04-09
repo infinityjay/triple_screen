@@ -583,6 +583,28 @@ class SQLiteStorage:
             items.append(payload)
         return items
 
+    def list_candidate_sessions(self, limit: int = 10) -> list[dict]:
+        capped_limit = max(int(limit), 1)
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    session_date,
+                    COUNT(*) AS candidate_count,
+                    SUM(CASE WHEN opportunity_status = 'TRIGGERED' THEN 1 ELSE 0 END) AS triggered_count,
+                    SUM(CASE WHEN direction = 'LONG' THEN 1 ELSE 0 END) AS long_count,
+                    SUM(CASE WHEN direction = 'SHORT' THEN 1 ELSE 0 END) AS short_count,
+                    SUM(CASE WHEN strong_divergence = 1 THEN 1 ELSE 0 END) AS strong_divergence_count,
+                    MAX(created_at) AS updated_at
+                FROM qualified_candidates
+                GROUP BY session_date
+                ORDER BY session_date DESC
+                LIMIT ?
+                """,
+                (capped_limit,),
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
     def get_price_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
         with self._connect() as connection:
             rows = connection.execute(
