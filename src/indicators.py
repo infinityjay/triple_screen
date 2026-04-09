@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
@@ -563,7 +563,7 @@ def _split_hourly_execution_bars(
     if df_hour.empty:
         return df_hour, None, False
 
-    reference_time = pd.Timestamp(as_of or datetime.utcnow())
+    reference_time = pd.Timestamp(as_of or datetime.now(UTC))
     if reference_time.tzinfo is None:
         reference_time = reference_time.tz_localize("UTC")
     else:

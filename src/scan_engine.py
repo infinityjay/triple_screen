@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime, time as clock_time, timedelta
+from datetime import UTC, date, datetime, time as clock_time, timedelta
 from zoneinfo import ZoneInfo
 
 import indicators
@@ -15,6 +15,10 @@ from sqlite import SQLiteStorage
 from telegram import TelegramNotifier
 
 logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 def _format_check_map(values: dict[str, object]) -> str:
@@ -52,8 +56,10 @@ class TripleScreenScanner:
         if not row:
             return False
         last_alert_at = datetime.fromisoformat(row["last_alert_at"])
+        if last_alert_at.tzinfo is None:
+            last_alert_at = last_alert_at.replace(tzinfo=UTC)
         cooldown = timedelta(hours=self.settings.alerts.cooldown_hours)
-        return datetime.utcnow() - last_alert_at <= cooldown and row["last_direction"] == direction
+        return _utc_now() - last_alert_at <= cooldown and row["last_direction"] == direction
 
     def _market_now(self) -> datetime:
         return datetime.now(self.market_timezone)
@@ -183,6 +189,52 @@ class TripleScreenScanner:
             "strong_divergence": strong_divergence,
         }
 
+    def _build_open_position_earnings_summary(self, session_date: date) -> dict:
+        open_trades = self.storage.list_open_trades()
+        if not open_trades:
+            return {
+                "session_date": session_date.isoformat(),
+                "window_days": self.settings.qualification.earnings_block_days_before,
+                "total_positions": 0,
+                "reminder_count": 0,
+                "items": [],
+            }
+
+        symbols = sorted({str(item.get("stock", "")).strip().upper() for item in open_trades if item.get("stock")})
+        earnings_map = self.earnings_calendar.get_upcoming_earnings(symbols, session_date=session_date)
+        reminder_items: list[dict] = []
+
+        for trade in open_trades:
+            symbol = str(trade.get("stock", "")).strip().upper()
+            if not symbol:
+                continue
+
+            earnings = self._classify_earnings_event(symbol, session_date, earnings_map.get(symbol))
+            days_until = earnings.get("days_until")
+            if days_until is None or not (0 <= int(days_until) <= self.settings.qualification.earnings_block_days_before):
+                continue
+
+            reminder_items.append(
+                {
+                    "trade_id": str(trade.get("id", "")),
+                    "symbol": symbol,
+                    "direction": str(trade.get("direction", "long")),
+                    "report_date": earnings.get("report_date"),
+                    "days_until": int(days_until),
+                    "status": earnings.get("status", "UNKNOWN"),
+                    "reason": earnings.get("reason", "未获取到财报日期"),
+                }
+            )
+
+        reminder_items.sort(key=lambda item: (item.get("days_until", 9999), item.get("symbol", "")))
+        return {
+            "session_date": session_date.isoformat(),
+            "window_days": self.settings.qualification.earnings_block_days_before,
+            "total_positions": len(open_trades),
+            "reminder_count": len(reminder_items),
+            "items": reminder_items,
+        }
+
     def _build_candidate(
         self,
         symbol: str,
@@ -307,7 +359,7 @@ class TripleScreenScanner:
         try:
             daily_frame = self.market_data.get_daily_bars(symbol)
             hourly_frame = self.market_data.get_hourly_bars(symbol)
-            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy, as_of=datetime.utcnow())
+            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy, as_of=_utc_now())
             if "close" not in hourly:
                 return None
 
@@ -448,6 +500,7 @@ class TripleScreenScanner:
             stop_update_summary = self.journal_manager.preview_open_position_stops(session_date=session_date)
         else:
             stop_update_summary = self.journal_manager.update_open_position_stops(session_date=session_date)
+        open_position_earnings_summary = self._build_open_position_earnings_summary(session_date)
 
         display_limit = max(self.settings.alerts.qualified_display_limit, 0)
         displayed_candidates = candidates[:display_limit] if display_limit else []
@@ -480,6 +533,7 @@ class TripleScreenScanner:
                     "error_count": stop_update_summary.error_count,
                     "updates": stop_update_summary.updates,
                 },
+                open_position_earnings_summary=open_position_earnings_summary,
             )
 
         logger.info(

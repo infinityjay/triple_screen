@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -9,6 +9,18 @@ import requests
 from schema import TelegramConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _utc_clock_label() -> str:
+    return _utc_now().strftime("%H:%M UTC")
+
+
+def _utc_datetime_label() -> str:
+    return _utc_now().strftime("%Y-%m-%d %H:%M UTC")
 
 
 class TelegramNotifier:
@@ -194,7 +206,7 @@ class TelegramNotifier:
             f"日线背离：{'是' if divergence.get('daily', {}).get('detected') else '否'}\n"
             f"{'强提醒：' + divergence.get('daily', {}).get('exhaustion_reason', '') if signal.get('strong_divergence') else '强提醒：无'}\n"
             f"{'─' * 32}\n"
-            f"<i>{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</i>"
+            f"<i>{_utc_datetime_label()}</i>"
         )
 
     def send_signal(self, signal: dict) -> bool:
@@ -207,23 +219,28 @@ class TelegramNotifier:
         session_date: str,
         scan_time_sec: float,
         stop_update_summary: dict[str, Any] | None = None,
+        open_position_earnings_summary: dict[str, Any] | None = None,
     ) -> str:
         if total_candidates <= 0:
             message = (
                 "🔍 <b>本轮收盘后未发现符合条件的交易候选</b>\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
             if stop_update_summary:
                 message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
+            if open_position_earnings_summary:
+                message = f"{message}\n\n{self.format_open_position_earnings_section(open_position_earnings_summary)}"
             return message
         if not qualified_signals:
             message = (
                 f"📘 <b>{session_date} 候选池更新完成</b>\n"
                 f"共筛出 {total_candidates} 个合格标的，但当前展示条数配置为 0\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
             if stop_update_summary:
                 message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
+            if open_position_earnings_summary:
+                message = f"{message}\n\n{self.format_open_position_earnings_section(open_position_earnings_summary)}"
             return message
 
         strong_divergence_count = sum(1 for signal in qualified_signals if signal.get("strong_divergence"))
@@ -247,7 +264,9 @@ class TelegramNotifier:
 
         if stop_update_summary:
             lines.append(f"\n{self.format_stop_update_section(stop_update_summary)}")
-        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
+        if open_position_earnings_summary:
+            lines.append(f"\n{self.format_open_position_earnings_section(open_position_earnings_summary)}")
+        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
     def format_stop_update_section(self, stop_update_summary: dict[str, Any]) -> str:
@@ -281,6 +300,33 @@ class TelegramNotifier:
             )
         return "".join(lines)
 
+    def format_open_position_earnings_section(self, earnings_summary: dict[str, Any]) -> str:
+        total_positions = int(earnings_summary.get("total_positions", 0) or 0)
+        reminder_count = int(earnings_summary.get("reminder_count", 0) or 0)
+        window_days = int(earnings_summary.get("window_days", 0) or 0)
+        items = list(earnings_summary.get("items", []))
+
+        lines = [
+            "📅 <b>持仓临近财报提醒</b>\n",
+            f"持仓 {total_positions} 笔 · 未来 {window_days} 天内需留意 {reminder_count} 笔\n",
+        ]
+        if total_positions == 0:
+            lines.append("当前没有未平仓交易。\n")
+            return "".join(lines)
+        if not items:
+            lines.append(f"当前没有持仓在未来 {window_days} 天内进入财报窗口。\n")
+            return "".join(lines)
+
+        for index, item in enumerate(items[:8], start=1):
+            days_until = int(item.get("days_until", 0) or 0)
+            countdown = "今天" if days_until == 0 else f"{days_until} 天后"
+            lines.append(
+                f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
+                f"财报日 <code>{item.get('report_date', 'UNKNOWN')}</code> ({countdown})\n"
+                "   建议检查是否需要提前卖出或减仓，避免财报跳空风险\n"
+            )
+        return "".join(lines)
+
     @staticmethod
     def get_direction_text(value: str | None) -> str:
         return "做空" if str(value or "").strip().lower() == "short" else "做多"
@@ -297,7 +343,7 @@ class TelegramNotifier:
                 f"⏱ <b>盘中触发扫描完成</b>\n"
                 f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n"
                 "本轮暂无满足条件的触发机会\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
 
         lines = [
@@ -315,7 +361,7 @@ class TelegramNotifier:
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
             )
 
-        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>")
+        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
     def send_candidate_summary(
@@ -325,6 +371,7 @@ class TelegramNotifier:
         session_date: str,
         scan_time_sec: float,
         stop_update_summary: dict[str, Any] | None = None,
+        open_position_earnings_summary: dict[str, Any] | None = None,
     ) -> bool:
         return self._send(
             self.format_candidate_summary_message(
@@ -333,6 +380,7 @@ class TelegramNotifier:
                 session_date,
                 scan_time_sec,
                 stop_update_summary=stop_update_summary,
+                open_position_earnings_summary=open_position_earnings_summary,
             )
         )
 
@@ -355,11 +403,11 @@ class TelegramNotifier:
     def send_no_opportunity(self, scan_time_sec: float) -> bool:
         return self._send(
             "🔍 <b>本轮扫描未发现符合条件的交易机会</b>\n"
-            f"<i>耗时 {scan_time_sec:.1f}s · {datetime.utcnow().strftime('%H:%M UTC')}</i>"
+            f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
         )
 
     def send_error(self, error_message: str) -> bool:
         return self._send(
             f"❗ <b>系统错误</b>\n<code>{error_message}</code>\n"
-            f"<i>{datetime.utcnow().strftime('%H:%M UTC')}</i>"
+            f"<i>{_utc_clock_label()}</i>"
         )

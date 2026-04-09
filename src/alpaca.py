@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from collections import deque
-from datetime import date, datetime, time as clock_time, timedelta
+from datetime import UTC, date, datetime, time as clock_time, timedelta
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -64,6 +64,10 @@ class AlpacaClient:
     @staticmethod
     def _normalize_base_url(base_url: str) -> str:
         return base_url.rstrip("/")
+
+    @staticmethod
+    def _utc_now() -> datetime:
+        return datetime.now(UTC)
 
     @classmethod
     def _build_url(cls, base_url: str, endpoint: str) -> str:
@@ -154,7 +158,7 @@ class AlpacaClient:
         if last_sync_time is None:
             return True
 
-        current_time = now or datetime.utcnow()
+        current_time = now or self._utc_now()
         if timeframe == "hour":
             now_local = self._to_market_datetime(current_time)
             last_sync_local = self._to_market_datetime(last_sync_time)
@@ -167,7 +171,7 @@ class AlpacaClient:
 
     def _bootstrap_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
         metadata = self._timeframe_metadata(timeframe)
-        end = datetime.utcnow()
+        end = self._utc_now()
         start = end - metadata["history_delta"]
         frame = self.fetch_bars(symbol, metadata["api_timeframe"], start, end)
         if frame is not None and self.storage and self.config.cache.enabled:
@@ -181,7 +185,7 @@ class AlpacaClient:
             return
 
         metadata = self._timeframe_metadata(timeframe)
-        end = datetime.utcnow()
+        end = self._utc_now()
         start = end - metadata["history_delta"]
         frames = self.fetch_bars_batch(symbols, metadata["api_timeframe"], start, end)
         self._persist_batch_frames(frames, timeframe, metadata["keep_rows"])
@@ -190,7 +194,7 @@ class AlpacaClient:
         metadata = self._timeframe_metadata(timeframe)
         overlap = min(self.config.cache.overlap_bars, len(cached))
         refresh_start = cached.index[-overlap] if overlap > 0 else cached.index[-1]
-        frame = self.fetch_bars(symbol, metadata["api_timeframe"], pd.Timestamp(refresh_start).to_pydatetime(), datetime.utcnow())
+        frame = self.fetch_bars(symbol, metadata["api_timeframe"], pd.Timestamp(refresh_start).to_pydatetime(), self._utc_now())
         if frame is not None and self.storage:
             self.storage.upsert_price_bars(symbol, timeframe, frame)
             self.storage.trim_price_bars(symbol, timeframe, metadata["keep_rows"])
@@ -216,7 +220,7 @@ class AlpacaClient:
         if not refresh_starts:
             return
 
-        frames = self.fetch_bars_batch(symbols, metadata["api_timeframe"], min(refresh_starts), datetime.utcnow())
+        frames = self.fetch_bars_batch(symbols, metadata["api_timeframe"], min(refresh_starts), self._utc_now())
         self._persist_batch_frames(frames, timeframe, metadata["keep_rows"])
 
     def _persist_batch_frames(self, frames: dict[str, pd.DataFrame], timeframe: str, keep_rows: int) -> None:
@@ -473,7 +477,7 @@ class AlpacaClient:
     def _get_cached_or_incremental_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
         if not self.storage or not self.config.cache.enabled:
             metadata = self._timeframe_metadata(timeframe)
-            end = datetime.utcnow()
+            end = self._utc_now()
             start = end - metadata["history_delta"]
             return self.fetch_bars(symbol, metadata["api_timeframe"], start, end)
 

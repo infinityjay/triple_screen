@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -24,6 +24,25 @@ class SQLiteStorage:
         if row is None:
             return None
         return dict(row)
+
+    @staticmethod
+    def _utc_now() -> datetime:
+        return datetime.now(UTC)
+
+    @classmethod
+    def _utc_iso(cls) -> str:
+        return cls._utc_now().isoformat()
+
+    @classmethod
+    def _utc_year_month(cls) -> str:
+        return cls._utc_now().strftime("%Y-%m")
+
+    @staticmethod
+    def _parse_db_datetime(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        parsed = datetime.fromisoformat(value)
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
     @staticmethod
     def _json_safe(value):
@@ -249,7 +268,7 @@ class SQLiteStorage:
                 INSERT OR IGNORE INTO trade_settings (id, total, single_stop, month_stop, report_month, updated_at)
                 VALUES (1, 0, 2, 6, ?, ?)
                 """,
-                (datetime.utcnow().strftime("%Y-%m"), datetime.utcnow().isoformat()),
+                (self._utc_year_month(), self._utc_iso()),
             )
 
     def upsert_symbol(self, symbol: str, market_cap: float | None, sector: str | None) -> None:
@@ -259,7 +278,7 @@ class SQLiteStorage:
                 INSERT OR REPLACE INTO symbols (symbol, market_cap, sector, updated_at)
                 VALUES (?, ?, ?, ?)
                 """,
-                (symbol, market_cap, sector, datetime.utcnow().isoformat()),
+                (symbol, market_cap, sector, self._utc_iso()),
             )
 
     def upsert_weekly(
@@ -287,7 +306,7 @@ class SQLiteStorage:
                     histogram_prev,
                     confirmed_bars,
                     trend,
-                    datetime.utcnow().isoformat(),
+                    self._utc_iso(),
                 ),
             )
 
@@ -299,7 +318,7 @@ class SQLiteStorage:
                 (symbol, rsi, rsi_prev, rsi_state, updated_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (symbol, rsi, rsi_prev, rsi_state, datetime.utcnow().isoformat()),
+                (symbol, rsi, rsi_prev, rsi_state, self._utc_iso()),
             )
 
     def upsert_hourly(
@@ -327,7 +346,7 @@ class SQLiteStorage:
                     atr,
                     int(breakout_long),
                     int(breakout_short),
-                    datetime.utcnow().isoformat(),
+                    self._utc_iso(),
                 ),
             )
 
@@ -370,7 +389,7 @@ class SQLiteStorage:
                     h_close,
                     h_atr,
                     pos_size,
-                    datetime.utcnow().isoformat(),
+                    self._utc_iso(),
                 ),
             )
 
@@ -388,14 +407,14 @@ class SQLiteStorage:
                 INSERT OR REPLACE INTO alert_log (symbol, last_alert_at, last_direction)
                 VALUES (?, ?, ?)
                 """,
-                (symbol, datetime.utcnow().isoformat(), direction),
+                (symbol, self._utc_iso(), direction),
             )
 
     def upsert_earnings_events(self, events: list[dict]) -> None:
         if not events:
             return
 
-        now = datetime.utcnow().isoformat()
+        now = self._utc_iso()
         records = [
             (
                 item["symbol"],
@@ -443,10 +462,10 @@ class SQLiteStorage:
             ).fetchone()
         if not row:
             return None
-        return datetime.fromisoformat(row["updated_at"])
+        return self._parse_db_datetime(row["updated_at"])
 
     def replace_qualified_candidates(self, session_date: str, candidates: list[dict]) -> None:
-        now = datetime.utcnow().isoformat()
+        now = self._utc_iso()
         records = [
             (
                 session_date,
@@ -579,7 +598,7 @@ class SQLiteStorage:
 
         if not row:
             return None
-        return datetime.fromisoformat(row["timestamp"])
+        return self._parse_db_datetime(row["timestamp"])
 
     def get_latest_bar_sync_time(self, symbol: str, timeframe: str) -> datetime | None:
         with self._connect() as connection:
@@ -596,14 +615,14 @@ class SQLiteStorage:
 
         if not row:
             return None
-        return datetime.fromisoformat(row["updated_at"])
+        return self._parse_db_datetime(row["updated_at"])
 
     def upsert_price_bars(self, symbol: str, timeframe: str, frame: pd.DataFrame) -> None:
         if frame is None or frame.empty:
             return
 
         records = []
-        now = datetime.utcnow().isoformat()
+        now = self._utc_iso()
         for timestamp, row in frame.iterrows():
             records.append(
                 (
@@ -677,7 +696,7 @@ class SQLiteStorage:
 
     def insert_trade(self, payload: dict) -> dict:
         trade_id = str(payload.get("id") or uuid4().hex)
-        now = datetime.utcnow().isoformat()
+        now = self._utc_iso()
         row = {
             "id": trade_id,
             "stock": str(payload.get("stock", "")).strip().upper(),
@@ -748,7 +767,7 @@ class SQLiteStorage:
                     merged[key] = str(value).strip().lower() or "long"
                 else:
                     merged[key] = value
-        merged["updated_at"] = datetime.utcnow().isoformat()
+        merged["updated_at"] = self._utc_iso()
 
         with self._connect() as connection:
             connection.execute(
@@ -814,8 +833,8 @@ class SQLiteStorage:
             "total": 0,
             "single_stop": 2,
             "month_stop": 6,
-            "report_month": datetime.utcnow().strftime("%Y-%m"),
-            "updated_at": datetime.utcnow().isoformat(),
+            "report_month": self._utc_year_month(),
+            "updated_at": self._utc_iso(),
         }
 
     def upsert_trade_settings(self, payload: dict) -> dict:
@@ -824,8 +843,8 @@ class SQLiteStorage:
             "total": payload.get("total", 0),
             "single_stop": payload.get("single_stop", 2),
             "month_stop": payload.get("month_stop", 6),
-            "report_month": payload.get("report_month") or datetime.utcnow().strftime("%Y-%m"),
-            "updated_at": datetime.utcnow().isoformat(),
+            "report_month": payload.get("report_month") or self._utc_year_month(),
+            "updated_at": self._utc_iso(),
         }
         with self._connect() as connection:
             connection.execute(
@@ -861,9 +880,9 @@ class SQLiteStorage:
                     stop_loss,
                     used_stop,
                     stop_basis,
-                    datetime.utcnow().isoformat(),
+                    self._utc_iso(),
                     session_date,
-                    datetime.utcnow().isoformat(),
+                    self._utc_iso(),
                     trade_id,
                 ),
             )
@@ -884,7 +903,7 @@ class SQLiteStorage:
                 int(bool(item.get("changed"))),
                 item.get("status"),
                 item.get("note"),
-                datetime.utcnow().isoformat(),
+                self._utc_iso(),
             )
             for item in updates
         ]

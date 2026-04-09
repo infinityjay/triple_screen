@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import indicators
@@ -101,7 +101,7 @@ class JournalManager:
         session_date: date | None = None,
         apply_changes: bool = True,
     ) -> StopUpdateSummary:
-        target_session = (session_date or date.today()).isoformat()
+        target_session = (session_date or datetime.now(UTC).date()).isoformat()
         trades = self.storage.list_open_trades()
         updates: list[dict[str, Any]] = []
 

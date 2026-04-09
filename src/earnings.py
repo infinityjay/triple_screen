@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import requests
 
@@ -11,6 +11,10 @@ from schema import EarningsCalendarConfig
 from sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 class EarningsCalendarClient:
@@ -64,7 +68,7 @@ class EarningsCalendarClient:
         if not symbols:
             return {}
         unique_symbols = sorted(set(symbols))
-        effective_session_date = session_date or datetime.utcnow().date()
+        effective_session_date = session_date or _utc_now().date()
 
         if not self.config.enabled:
             return {}
@@ -84,7 +88,7 @@ class EarningsCalendarClient:
 
         if self.storage:
             updated_at = self.storage.get_latest_earnings_update_time()
-            if updated_at and datetime.utcnow() - updated_at <= timedelta(hours=12):
+            if updated_at and _utc_now() - updated_at <= timedelta(hours=12):
                 if len(cached) == len(unique_symbols):
                     return cached
 

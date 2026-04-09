@@ -173,6 +173,7 @@ PYTHONPATH=src .venv/bin/python -m journal
 
 - 多头止损只会上调，不会下调
 - 空头止损只会下移，不会上移
+- 如果仍持有未来几天内将发布财报的股票，会在 Telegram 汇总里追加提醒，提示提前卖出或减仓
 - 更新结果会和候选池摘要一起汇总到 Telegram
 
 ## 调度建议
