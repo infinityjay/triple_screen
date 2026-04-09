@@ -111,6 +111,9 @@ class TradePayload(BaseModel):
     buy_price: float | None = None
     shares: float | None = None
     stop_loss: float | None = None
+    initial_stop_loss: float | None = None
+    initial_stop_basis: str | None = None
+    protective_stop_basis: str | None = None
     stop_reason: str | None = None
     buy_date: str | None = None
     day_high: float | None = None

@@ -103,6 +103,13 @@ cp .env.example .env
   常规扫描会收敛到少量批量请求加分页，而不是原先的几百次单票请求
 - 如果你使用 paper 账户，可直接在 `.env` 里设置 `ALPACA_TRADING_BASE_URL=https://paper-api.alpaca.markets/v2`
 
+## 止损模型
+
+- 盘中信号的 `初始止损` 会锚定在小时信号K或日线回调摆点，作为入场时真实风险基准
+- 持仓后的 `保护止损` 单独按日线 SafeZone 计算
+- 收盘后更新未平仓交易时，只会用 SafeZone 单向推进保护止损，不会回头改写初始止损
+- Journal 中 `stop_loss` 表示当前生效的活动止损；`initial_stop_loss` 会保留开仓时的初始防守位
+
 4. 运行一次扫描
 
 收盘后更新候选池：

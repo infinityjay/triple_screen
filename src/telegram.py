@@ -104,7 +104,9 @@ class TelegramNotifier:
     def _stop_basis_label(stop_basis: str) -> str:
         labels = {
             "SAFEZONE": "日线 SafeZone 止损",
-            "TWO_BAR": "日线两根K结构止损",
+            "SIGNAL_BAR": "小时信号K止损",
+            "PULLBACK_PIVOT": "日线回调摆点止损",
+            "MANUAL": "手动录入止损",
             "UNKNOWN": "保护止损",
         }
         return labels.get(stop_basis, stop_basis)
@@ -136,6 +138,8 @@ class TelegramNotifier:
         daily_state_label = self._daily_state_label(daily["rsi_state"])
         hourly_status_label = self._hourly_status_label(hourly["status"])
         stop_basis_label = self._stop_basis_label(exits["stop_basis"])
+        initial_stop_basis_label = self._stop_basis_label(exits.get("initial_stop_basis", exits["stop_basis"]))
+        protective_stop_basis_label = self._stop_basis_label(exits.get("protective_stop_basis", "SAFEZONE"))
         hist_bar = self._bar(abs(weekly["histogram"]) * 1000, 5, length=8)
         rsi_bar = self._bar(daily["rsi"], 100, length=10)
         breakout_bar = self._bar(hourly.get("breakout_strength", 0), 1.0, length=8)
@@ -193,8 +197,11 @@ class TelegramNotifier:
             f"{'─' * 32}\n"
             f"<b>交易建议</b>\n"
             f"建议入场：<code>{exits['entry']:.2f}</code>\n"
-            f"保护止损：<code>{exits['stop_loss']:.2f}</code> ({stop_basis_label})\n"
-            f"日线 SafeZone：<code>{exits['stop_loss_safezone']:.2f}</code>  日线两根K：<code>{exits['stop_loss_two_bar']:.2f}</code>\n"
+            f"初始止损：<code>{exits['initial_stop_loss']:.2f}</code> ({initial_stop_basis_label})\n"
+            f"信号K止损：<code>{exits['initial_stop_signal_bar']:.2f}</code>  回调摆点：<code>{exits['initial_stop_pullback_pivot']:.2f}</code>\n"
+            f"后续保护止损：<code>{exits['protective_stop_loss']:.2f}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
+            f"当前激活止损：<code>{exits['stop_loss']:.2f}</code> ({stop_basis_label})\n"
+            f"日线 SafeZone：<code>{exits['stop_loss_safezone']:.2f}</code>\n"
             f"首个止盈：<code>{exits['take_profit']:.2f}</code>\n"
             f"日线 Thermometer EMA：<code>{exits['thermometer_ema']:.2f}</code>  投影基准：{exits['target_reference']:.2f}\n"
             f"每股风险：{exits['risk_per_share']:.2f}  预估盈亏比：{exits['reward_risk_ratio']:.2f}R\n"

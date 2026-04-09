@@ -379,6 +379,8 @@ class TripleScreenScanner:
                 daily_frame,
                 hourly["atr"],
                 self.settings.trade_plan,
+                signal_bar_high=hourly.get("signal_bar_high"),
+                signal_bar_low=hourly.get("signal_bar_low"),
             )
             if exits["reward_risk_ratio"] < self.settings.qualification.intraday_minimum_reward_risk:
                 logger.info(

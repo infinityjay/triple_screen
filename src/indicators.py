@@ -237,6 +237,16 @@ def calc_safezone_stop(df: pd.DataFrame, direction: str, plan: TradePlanConfig) 
     return stop, average_penetration
 
 
+def calc_pullback_pivot_stop(df: pd.DataFrame, direction: str) -> float | None:
+    if df is None or df.empty:
+        return None
+
+    window = df.tail(DAILY_CORRECTION_WINDOW_MAX)
+    if direction == "LONG":
+        return float(window["low"].min())
+    return float(window["high"].max())
+
+
 def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dict:
     required = settings.weekly.macd_slow + settings.weekly.macd_signal + 5
     if df_week is None or len(df_week) < required:
@@ -698,57 +708,72 @@ def calc_exits(
     daily_frame: pd.DataFrame | None,
     atr: float,
     trade_plan: TradePlanConfig,
+    signal_bar_high: float | None = None,
+    signal_bar_low: float | None = None,
 ) -> dict:
     if daily_frame is None or daily_frame.empty:
         stop_loss = entry
+        initial_stop_loss = entry
+        protective_stop_loss = entry
         take_profit = entry
         thermometer = 0.0
         thermometer_ema = 0.0
         safezone_stop = entry
-        two_bar_stop = entry
+        pullback_pivot_stop = entry
+        signal_bar_stop = entry
         stop_basis = "UNKNOWN"
+        initial_stop_basis = "UNKNOWN"
+        protective_stop_basis = "UNKNOWN"
         target_reference = entry
         safezone_noise = 0.0
     else:
         latest_high = float(daily_frame["high"].iloc[-1])
         latest_low = float(daily_frame["low"].iloc[-1])
-        if len(daily_frame) >= 2:
-            two_bar_stop_long = min(float(daily_frame["low"].iloc[-2]), latest_low)
-            two_bar_stop_short = max(float(daily_frame["high"].iloc[-2]), latest_high)
-        else:
-            two_bar_stop_long = latest_low
-            two_bar_stop_short = latest_high
-
         safezone_stop, safezone_noise = calc_safezone_stop(daily_frame, direction, trade_plan)
+        pullback_pivot_stop = calc_pullback_pivot_stop(daily_frame, direction)
         temperature, average_temperature = calc_market_thermometer(daily_frame, trade_plan.thermometer_period)
         thermometer = float(temperature.iloc[-1])
         thermometer_ema = float(average_temperature.iloc[-1])
         projected_move = thermometer_ema * trade_plan.thermometer_target_multiplier
 
         if direction == "LONG":
-            two_bar_stop = two_bar_stop_long
-            safezone_stop = safezone_stop if safezone_stop is not None else two_bar_stop
-            stop_loss = min(two_bar_stop, safezone_stop)
-            stop_basis = "SAFEZONE" if safezone_stop < two_bar_stop else "TWO_BAR"
+            signal_bar_stop = float(signal_bar_low) if signal_bar_low is not None else latest_low
+            pullback_pivot_stop = pullback_pivot_stop if pullback_pivot_stop is not None else signal_bar_stop
+            initial_stop_loss = min(signal_bar_stop, pullback_pivot_stop)
+            initial_stop_basis = "PULLBACK_PIVOT" if pullback_pivot_stop < signal_bar_stop else "SIGNAL_BAR"
+            protective_stop_loss = safezone_stop if safezone_stop is not None else initial_stop_loss
+            protective_stop_basis = "SAFEZONE" if safezone_stop is not None else initial_stop_basis
+            stop_loss = initial_stop_loss
+            stop_basis = initial_stop_basis
             target_reference = max(entry, latest_high)
             take_profit = target_reference + projected_move
         else:
-            two_bar_stop = two_bar_stop_short
-            safezone_stop = safezone_stop if safezone_stop is not None else two_bar_stop
-            stop_loss = max(two_bar_stop, safezone_stop)
-            stop_basis = "SAFEZONE" if safezone_stop > two_bar_stop else "TWO_BAR"
+            signal_bar_stop = float(signal_bar_high) if signal_bar_high is not None else latest_high
+            pullback_pivot_stop = pullback_pivot_stop if pullback_pivot_stop is not None else signal_bar_stop
+            initial_stop_loss = max(signal_bar_stop, pullback_pivot_stop)
+            initial_stop_basis = "PULLBACK_PIVOT" if pullback_pivot_stop > signal_bar_stop else "SIGNAL_BAR"
+            protective_stop_loss = safezone_stop if safezone_stop is not None else initial_stop_loss
+            protective_stop_basis = "SAFEZONE" if safezone_stop is not None else initial_stop_basis
+            stop_loss = initial_stop_loss
+            stop_basis = initial_stop_basis
             target_reference = min(entry, latest_low)
             take_profit = target_reference - projected_move
 
-    risk_per_share = abs(entry - stop_loss)
+    risk_per_share = abs(entry - initial_stop_loss)
     reward_per_share = abs(take_profit - entry)
     reward_risk = (reward_per_share / risk_per_share) if risk_per_share > 0 else 0.0
 
     return {
         "entry": round(entry, 4),
         "stop_loss": round(stop_loss, 4),
+        "initial_stop_loss": round(initial_stop_loss, 4),
+        "initial_stop_signal_bar": round(signal_bar_stop, 4),
+        "initial_stop_pullback_pivot": round(pullback_pivot_stop, 4),
+        "initial_stop_basis": initial_stop_basis,
+        "protective_stop_loss": round(protective_stop_loss, 4),
+        "protective_stop_basis": protective_stop_basis,
         "stop_loss_safezone": round(safezone_stop, 4),
-        "stop_loss_two_bar": round(two_bar_stop, 4),
+        "stop_loss_two_bar": round(pullback_pivot_stop, 4),
         "stop_basis": stop_basis,
         "take_profit": round(take_profit, 4),
         "target_reference": round(target_reference, 4),

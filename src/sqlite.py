@@ -45,6 +45,14 @@ class SQLiteStorage:
         return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
     @staticmethod
+    def _ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, definition: str) -> None:
+        rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        existing_columns = {row["name"] for row in rows}
+        if column_name in existing_columns:
+            return
+        connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
+
+    @staticmethod
     def _json_safe(value):
         if isinstance(value, dict):
             return {str(key): SQLiteStorage._json_safe(item) for key, item in value.items()}
@@ -196,6 +204,8 @@ class SQLiteStorage:
                     buy_price REAL,
                     shares REAL,
                     stop_loss REAL,
+                    initial_stop_loss REAL,
+                    initial_stop_basis TEXT,
                     stop_reason TEXT,
                     buy_date TEXT,
                     day_high REAL,
@@ -262,6 +272,16 @@ class SQLiteStorage:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_created_at ON trades(created_at DESC)")
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_trade_stop_updates_session ON trade_stop_updates(session_date, created_at DESC)"
+            )
+            self._ensure_column(cursor.connection, "trades", "initial_stop_loss", "REAL")
+            self._ensure_column(cursor.connection, "trades", "initial_stop_basis", "TEXT")
+            cursor.execute(
+                """
+                UPDATE trades
+                SET initial_stop_loss = COALESCE(initial_stop_loss, stop_loss),
+                    initial_stop_basis = COALESCE(initial_stop_basis, protective_stop_basis, 'UNKNOWN')
+                WHERE initial_stop_loss IS NULL OR initial_stop_basis IS NULL
+                """
             )
             cursor.execute(
                 """
@@ -704,6 +724,12 @@ class SQLiteStorage:
             "buy_price": payload.get("buy_price"),
             "shares": payload.get("shares"),
             "stop_loss": payload.get("stop_loss"),
+            "initial_stop_loss": (
+                payload.get("initial_stop_loss") if payload.get("initial_stop_loss") is not None else payload.get("stop_loss")
+            ),
+            "initial_stop_basis": payload.get("initial_stop_basis")
+            or payload.get("protective_stop_basis")
+            or ("MANUAL" if payload.get("stop_loss") is not None else None),
             "stop_reason": payload.get("stop_reason"),
             "buy_date": payload.get("buy_date"),
             "day_high": payload.get("day_high"),
@@ -723,7 +749,9 @@ class SQLiteStorage:
             "used_stop": payload.get("used_stop"),
             "pnl": payload.get("pnl"),
             "pnl_net": payload.get("pnl_net"),
-            "protective_stop_basis": payload.get("protective_stop_basis"),
+            "protective_stop_basis": payload.get("protective_stop_basis")
+            or payload.get("initial_stop_basis")
+            or ("MANUAL" if payload.get("stop_loss") is not None else None),
             "stop_updated_at": payload.get("stop_updated_at"),
             "last_stop_session_date": payload.get("last_stop_session_date"),
             "created_at": now,
@@ -733,7 +761,7 @@ class SQLiteStorage:
             connection.execute(
                 """
                 INSERT INTO trades (
-                    id, stock, direction, buy_price, shares, stop_loss, stop_reason, buy_date,
+                    id, stock, direction, buy_price, shares, stop_loss, initial_stop_loss, initial_stop_basis, stop_reason, buy_date,
                     day_high, day_low, target_price, target_pct, chan_high, chan_low,
                     sell_price, sell_date, sell_high, sell_low, sell_reason,
                     buy_comm, sell_comm, review, used_stop, pnl, pnl_net,
@@ -741,7 +769,7 @@ class SQLiteStorage:
                     created_at, updated_at
                 )
                 VALUES (
-                    :id, :stock, :direction, :buy_price, :shares, :stop_loss, :stop_reason, :buy_date,
+                    :id, :stock, :direction, :buy_price, :shares, :stop_loss, :initial_stop_loss, :initial_stop_basis, :stop_reason, :buy_date,
                     :day_high, :day_low, :target_price, :target_pct, :chan_high, :chan_low,
                     :sell_price, :sell_date, :sell_high, :sell_low, :sell_reason,
                     :buy_comm, :sell_comm, :review, :used_stop, :pnl, :pnl_net,
@@ -767,6 +795,19 @@ class SQLiteStorage:
                     merged[key] = str(value).strip().lower() or "long"
                 else:
                     merged[key] = value
+        if payload.get("initial_stop_loss") is not None:
+            merged["initial_stop_loss"] = payload.get("initial_stop_loss")
+        elif payload.get("stop_loss") is not None and (merged.get("initial_stop_loss") is None or not merged.get("stop_updated_at")):
+            merged["initial_stop_loss"] = payload.get("stop_loss")
+
+        if payload.get("initial_stop_basis") is not None:
+            merged["initial_stop_basis"] = payload.get("initial_stop_basis")
+        elif payload.get("stop_loss") is not None and (merged.get("initial_stop_basis") is None or not merged.get("stop_updated_at")):
+            merged["initial_stop_basis"] = payload.get("protective_stop_basis") or "MANUAL"
+        if payload.get("protective_stop_basis") is not None:
+            merged["protective_stop_basis"] = payload.get("protective_stop_basis")
+        elif payload.get("stop_loss") is not None and not merged.get("stop_updated_at"):
+            merged["protective_stop_basis"] = merged.get("initial_stop_basis") or "MANUAL"
         merged["updated_at"] = self._utc_iso()
 
         with self._connect() as connection:
@@ -778,6 +819,8 @@ class SQLiteStorage:
                     buy_price = :buy_price,
                     shares = :shares,
                     stop_loss = :stop_loss,
+                    initial_stop_loss = :initial_stop_loss,
+                    initial_stop_basis = :initial_stop_basis,
                     stop_reason = :stop_reason,
                     buy_date = :buy_date,
                     day_high = :day_high,

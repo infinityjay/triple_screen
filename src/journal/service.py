@@ -146,14 +146,8 @@ class JournalManager:
                 if daily_frame is None or daily_frame.empty:
                     raise ValueError("日线数据不足")
 
-                exits = indicators.calc_exits(
-                    direction,
-                    entry_price,
-                    daily_frame,
-                    atr=0.0,
-                    trade_plan=self.trade_plan,
-                )
-                proposed_stop = _to_float(exits.get("stop_loss"))
+                safezone_stop, _ = indicators.calc_safezone_stop(daily_frame, direction, self.trade_plan)
+                proposed_stop = _to_float(safezone_stop)
                 applied_stop = apply_monotonic_stop(previous_stop, proposed_stop, direction)
                 used_stop = compute_used_stop(entry_price, applied_stop, shares, direction)
                 changed = previous_stop is None or (
@@ -161,13 +155,14 @@ class JournalManager:
                 )
                 status = "UPDATED" if changed else "UNCHANGED"
                 note = "保护性止损已上移" if changed and direction == LONG else "保护性止损已下移" if changed else "保护性止损维持不变"
+                stop_basis = "SAFEZONE" if proposed_stop is not None else "UNKNOWN"
 
                 if apply_changes:
                     self.storage.update_trade_protective_stop(
                         trade_id=trade_id,
                         stop_loss=applied_stop,
                         used_stop=used_stop,
-                        stop_basis=str(exits.get("stop_basis", "UNKNOWN")),
+                        stop_basis=stop_basis,
                         session_date=target_session,
                     )
                 updates.append(
@@ -179,7 +174,7 @@ class JournalManager:
                         "previous_stop_loss": _round_or_none(previous_stop),
                         "proposed_stop_loss": _round_or_none(proposed_stop),
                         "applied_stop_loss": _round_or_none(applied_stop),
-                        "stop_basis": str(exits.get("stop_basis", "UNKNOWN")),
+                        "stop_basis": stop_basis,
                         "changed": changed,
                         "status": status,
                         "note": note,
