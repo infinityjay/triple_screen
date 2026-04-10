@@ -64,6 +64,7 @@ def _load_runtime() -> _ServerRuntime:
 runtime = _load_runtime()
 storage = SQLiteStorage(runtime.database_path)
 storage.init_db()
+FRONTEND_ASSET_CACHE_CONTROL = "no-store, no-cache, must-revalidate, max-age=0"
 
 app = FastAPI(title="Triple Screen Journal API", version="1.0.0")
 app.mount("/frontend", StaticFiles(directory=FRONTEND_ROOT), name="frontend")
@@ -102,7 +103,12 @@ def _is_authorized(request: Request) -> bool:
 async def require_basic_auth(request: Request, call_next):
     if not _is_authorized(request):
         return _build_basic_auth_response()
-    return await call_next(request)
+    response = await call_next(request)
+    if request.url.path in {"/", "/journal", "/watchlist"} or request.url.path.startswith("/frontend/"):
+        response.headers["Cache-Control"] = FRONTEND_ASSET_CACHE_CONTROL
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 class TradePayload(BaseModel):
