@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from schema import TelegramConfig
+from config.schema import TelegramConfig
 
 logger = logging.getLogger(__name__)
 

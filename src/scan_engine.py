@@ -7,12 +7,12 @@ from datetime import UTC, date, datetime, time as clock_time, timedelta
 from zoneinfo import ZoneInfo
 
 import indicators
-from alpaca import AlpacaClient
-from earnings import EarningsCalendarClient
+from clients.alpaca import AlpacaClient
+from clients.earnings import EarningsCalendarClient
+from clients.telegram import TelegramNotifier
+from config.schema import AppConfig
 from journal import JournalManager
-from schema import AppConfig
-from sqlite import SQLiteStorage
-from telegram import TelegramNotifier
+from storage.sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 

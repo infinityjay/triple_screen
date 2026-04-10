@@ -15,8 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import yaml
 
-from loader import load_settings
-from sqlite import SQLiteStorage
+from config.loader import load_settings
+from storage.sqlite import SQLiteStorage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_ROOT = PROJECT_ROOT / "frontend" / "trade_journal"

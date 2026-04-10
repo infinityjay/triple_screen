@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 
-from schema import AlpacaConfig, UniverseConfig
-from sqlite import SQLiteStorage
+from config.schema import AlpacaConfig, UniverseConfig
+from storage.sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 

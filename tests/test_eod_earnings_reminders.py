@@ -5,8 +5,8 @@ from datetime import date
 from types import SimpleNamespace
 
 from scan_engine import TripleScreenScanner
-from schema import TelegramConfig
-from telegram import TelegramNotifier
+from clients.telegram import TelegramNotifier
+from config.schema import TelegramConfig
 
 
 class _FakeStorage:

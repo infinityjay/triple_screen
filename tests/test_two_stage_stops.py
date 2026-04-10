@@ -7,7 +7,7 @@ import pandas as pd
 
 import indicators
 from journal.service import JournalManager
-from schema import TradePlanConfig
+from config.schema import TradePlanConfig
 
 
 def _daily_frame() -> pd.DataFrame:

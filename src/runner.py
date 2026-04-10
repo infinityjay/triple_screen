@@ -5,12 +5,12 @@ import logging
 import sys
 import time
 
-from alpaca import AlpacaClient
-from earnings import EarningsCalendarClient
-from loader import load_settings
+from clients.alpaca import AlpacaClient
+from clients.earnings import EarningsCalendarClient
+from clients.telegram import TelegramNotifier
+from config.loader import load_settings
 from scan_engine import TripleScreenScanner
-from sqlite import SQLiteStorage
-from telegram import TelegramNotifier
+from storage.sqlite import SQLiteStorage
 
 
 def _configure_logging(log_level: str, log_file) -> None:

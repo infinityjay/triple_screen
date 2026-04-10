@@ -180,14 +180,14 @@
           </div>
 
           <div class="panel" id="panel-ledger">
-            <div class="table-card">
-              <div class="section-head">
+            <div class="table-card compact-ledger-card">
+              <div class="section-head ledger-head">
                 <div>
                   <div class="eyebrow">Ledger</div>
                   <h2>所有交易日志</h2>
-                  <p>保留完整字段，前面是关键交易信息，后面保留计划、执行和复盘。</p>
+                  <p>保留完整字段，表格更紧凑，列保持完整并支持左右滑动浏览。</p>
                 </div>
-                <div class="toolbar">
+                <div class="toolbar ledger-toolbar">
                   <input class="input mono" style="max-width:180px" type="month" id="journalMonthPicker">
                   <select class="select" style="max-width:180px" id="journalStatusFilter">
                     <option value="all">全部状态</option>
@@ -200,9 +200,10 @@
                   <input class="input" style="min-width:260px" type="search" id="journalSearchInput" placeholder="搜索股票、方向、计划、平仓原因、复盘关键词…">
                 </div>
               </div>
-              <div class="toolbar" style="margin-bottom:14px">
+              <div class="toolbar ledger-meta">
                 <div class="status-pill mono" id="journalMonthCurrent">当前查看月份：—</div>
                 <div class="status-pill mono" id="journalCountLabel">0 笔</div>
+                <div class="ledger-scroll-hint">完整列保留，支持左右滑动</div>
               </div>
               <div id="journalTableContainer"></div>
             </div>

@@ -5,9 +5,9 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 import indicators
-from alpaca import AlpacaClient
-from schema import TradePlanConfig
-from sqlite import SQLiteStorage
+from clients.alpaca import AlpacaClient
+from config.schema import TradePlanConfig
+from storage.sqlite import SQLiteStorage
 
 
 LONG = "LONG"

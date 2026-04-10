@@ -405,8 +405,8 @@ function renderJournal() {
     .join("");
 
   $("journalTableContainer").innerHTML = `
-    <div class="list-table-wrap">
-      <table>
+    <div class="list-table-wrap compact-ledger-scroll">
+      <table class="journal-ledger-table">
         <thead>
           <tr>
             <th>标的</th>

@@ -7,8 +7,8 @@ from datetime import UTC, date, datetime, timedelta
 
 import requests
 
-from schema import EarningsCalendarConfig
-from sqlite import SQLiteStorage
+from config.schema import EarningsCalendarConfig
+from storage.sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 

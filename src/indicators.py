@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import numpy as np
 import pandas as pd
 
-from schema import StrategyConfig, TradePlanConfig
+from config.schema import StrategyConfig, TradePlanConfig
 
 RSI_WATCH_BUFFER = 5.0
 DAILY_REVERSAL_LOOKBACK = 3

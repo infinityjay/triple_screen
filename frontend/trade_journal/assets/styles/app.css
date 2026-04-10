@@ -123,10 +123,10 @@ button {
 }
 
 .app-shell {
-  width: min(1480px, calc(100vw - 32px));
-  margin: 20px auto;
+  width: min(1680px, calc(100vw - 24px));
+  margin: 14px auto;
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .topbar {
@@ -252,7 +252,7 @@ button {
 
 .page-grid {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .hero-grid {
@@ -270,7 +270,7 @@ button {
 }
 
 .shell-card {
-  padding: 28px;
+  padding: 22px;
   background:
     radial-gradient(circle at right top, rgba(39, 86, 79, 0.14), transparent 30%),
     radial-gradient(circle at left top, rgba(234, 212, 165, 0.45), transparent 34%),
@@ -338,7 +338,7 @@ button {
   justify-content: space-between;
   gap: 16px;
   align-items: start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
@@ -408,6 +408,38 @@ button {
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.compact-ledger-card {
+  padding: 18px 18px 16px;
+}
+
+.ledger-head {
+  margin-bottom: 12px;
+}
+
+.ledger-head h2 {
+  margin-bottom: 6px;
+}
+
+.ledger-head p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ledger-toolbar {
+  gap: 8px;
+}
+
+.ledger-meta {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ledger-scroll-hint {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .btn {
@@ -546,19 +578,32 @@ textarea {
   border-radius: 18px;
 }
 
+.compact-ledger-scroll {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.28);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
   min-width: 1080px;
 }
 
+.journal-ledger-table {
+  min-width: 1620px;
+}
+
 th,
 td {
-  padding: 14px 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 th {
@@ -567,18 +612,43 @@ th {
   z-index: 1;
   background: rgba(248, 243, 233, 0.95);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 tbody tr:hover {
   background: rgba(255, 255, 255, 0.48);
 }
 
+.journal-ledger-table td {
+  white-space: nowrap;
+}
+
+.journal-ledger-table .reason-cell {
+  min-width: 180px;
+  max-width: 240px;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.journal-ledger-table th:last-child,
+.journal-ledger-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: rgba(248, 243, 233, 0.96);
+}
+
+.journal-ledger-table tbody td:last-child {
+  background: rgba(255, 252, 246, 0.98);
+}
+
 .symbol-cell strong {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.15;
 }
 
 .symbol-cell span {
@@ -610,11 +680,11 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 4px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -738,5 +808,13 @@ tbody tr:hover {
   .watchlist-card,
   .stats-card {
     padding: 18px;
+  }
+
+  .compact-ledger-card {
+    padding: 16px;
+  }
+
+  .journal-ledger-table {
+    min-width: 1320px;
   }
 }

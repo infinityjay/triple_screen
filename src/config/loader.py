@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
-from schema import (
+from config.schema import (
     AlpacaCacheConfig,
     AlpacaConfig,
     AlpacaHistoryConfig,
@@ -29,7 +29,7 @@ from schema import (
     WeeklyStrategyConfig,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "settings.yaml"
 
 

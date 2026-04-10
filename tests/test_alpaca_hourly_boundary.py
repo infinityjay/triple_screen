@@ -11,8 +11,8 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from alpaca import AlpacaClient
-from schema import AlpacaCacheConfig, AlpacaConfig, AlpacaHistoryConfig, AlpacaRateLimitConfig
+from clients.alpaca import AlpacaClient
+from config.schema import AlpacaCacheConfig, AlpacaConfig, AlpacaHistoryConfig, AlpacaRateLimitConfig
 
 
 def _build_client() -> AlpacaClient:
