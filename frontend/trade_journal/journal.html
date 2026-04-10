@@ -59,11 +59,11 @@
 
       <div class="page-grid">
         <section class="shell-card">
-          <div class="hero-grid">
+          <div class="hero-grid journal-hero-grid">
             <div class="page-head">
               <div class="eyebrow">Trading Journal</div>
-              <h1>把月度风险、交易执行和复盘记录收在一个统一工作台里</h1>
-              <p>这页保留现有交易日志的全部能力，但重组为更清晰的结构。先看本月风险，再切到日志、录入、统计和设置。</p>
+              <h1>交易日志先看节奏，再看每一笔的计划、风险和复盘</h1>
+              <p>页面结构改成更清楚的白底分层。你可以先从月度风险和交易速览判断全局状态，再下钻到完整 ledger、录入、统计和设置。</p>
               <div class="btn-row" style="margin-top:18px">
                 <input class="input mono" style="max-width:180px" type="month" id="heroMonthPicker">
                 <button class="btn btn-primary" id="newTradeBtn" type="button">+ 新建交易</button>
@@ -71,10 +71,10 @@
                 <a class="btn btn-secondary" href="/watchlist">切到观察列表</a>
               </div>
             </div>
-            <div class="side-card">
+            <div class="side-card journal-focus-card">
               <div class="eyebrow">Month Focus</div>
               <h3 id="monthHeadline">当前查看月份：—</h3>
-              <p id="monthHeadlineBody">本月预算、交易表现和复盘优先级会一起更新。</p>
+              <p id="monthHeadlineBody">本月预算、结果和优先处理顺序会一起更新。</p>
               <div class="stack" id="heroNotes" style="margin-top:16px"></div>
             </div>
           </div>
@@ -180,12 +180,12 @@
           </div>
 
           <div class="panel" id="panel-ledger">
-            <div class="table-card compact-ledger-card">
-              <div class="section-head ledger-head">
+            <div class="watchlist-card journal-rail-card">
+              <div class="section-head journal-rail-head">
                 <div>
-                  <div class="eyebrow">Ledger</div>
-                  <h2>所有交易日志</h2>
-                  <p>保留完整字段，表格更紧凑，列保持完整并支持左右滑动浏览。</p>
+                  <div class="eyebrow">Quick Ledger</div>
+                  <h2>横向快速浏览交易</h2>
+                  <p>先扫每笔交易的状态、风险占用、计划和复盘缺口，再决定要不要深入看完整台账。</p>
                 </div>
                 <div class="toolbar ledger-toolbar">
                   <input class="input mono" style="max-width:180px" type="month" id="journalMonthPicker">
@@ -203,7 +203,18 @@
               <div class="toolbar ledger-meta">
                 <div class="status-pill mono" id="journalMonthCurrent">当前查看月份：—</div>
                 <div class="status-pill mono" id="journalCountLabel">0 笔</div>
-                <div class="ledger-scroll-hint">完整列保留，支持左右滑动</div>
+                <div class="ledger-scroll-hint">先横向扫卡片，再往下确认完整字段</div>
+              </div>
+              <div id="journalRailContainer"></div>
+            </div>
+
+            <div class="table-card compact-ledger-card journal-detail-card">
+              <div class="section-head ledger-head">
+                <div>
+                  <div class="eyebrow">Deep Ledger</div>
+                  <h2>完整交易台账</h2>
+                  <p>保留全部字段和操作入口，适合横向深入查看计划、执行、平仓原因与复盘摘要。</p>
+                </div>
               </div>
               <div id="journalTableContainer"></div>
             </div>

@@ -215,6 +215,12 @@ function getRiskNumbers() {
   return { singleStop, monthBudget, used, remaining, pct };
 }
 
+function truncateText(value, length = 100) {
+  const text = String(value || "").trim();
+  if (!text) return "—";
+  return text.length > length ? `${text.slice(0, length).trim()}...` : text;
+}
+
 function setSection(section) {
   state.activeSection = section;
   document.querySelectorAll(".panel").forEach((panel) => {
@@ -361,10 +367,71 @@ function renderOverview() {
     .join("");
 }
 
-function renderJournal() {
-  const list = getFilteredTrades();
-  $("journalCountLabel").textContent = `${list.length} 笔`;
+function renderJournalRail(list) {
+  if (!list.length) {
+    $("journalRailContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有交易卡片。</div>`;
+    return;
+  }
 
+  const cards = list
+    .map((trade) => {
+      const meta = getStatusMeta(trade);
+      const pnl = getTradeNetPnl(trade);
+      const gaps = getTradeCompletionGaps(trade);
+      const target = getTradeTargetPrice(trade);
+      const usedStop = getTradeUsedStop(trade);
+      const primaryNote = trade.stop_reason || trade.sell_reason || trade.review || "这笔交易还没有补充说明。";
+
+      return `
+        <article class="journal-rail-item">
+          <div class="journal-rail-top">
+            <div>
+              <h3>${escapeHtml(trade.stock || "—")}</h3>
+              <p>${escapeHtml(getDirectionLabel(trade.direction))} · ${escapeHtml(formatDateLabel(trade.buy_date || trade.created_at))}</p>
+            </div>
+            <span class="badge badge-${meta.tone}">${escapeHtml(meta.label)}</span>
+          </div>
+          <div class="journal-rail-metrics">
+            <div>
+              <span>入场</span>
+              <strong>${formatCurrency(trade.buy_price, 3)}</strong>
+            </div>
+            <div>
+              <span>风险占用</span>
+              <strong>${formatCurrency(usedStop, 2)}</strong>
+            </div>
+            <div>
+              <span>目标</span>
+              <strong>${formatCurrency(target, 3)}</strong>
+            </div>
+            <div>
+              <span>结果</span>
+              <strong class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "持仓中" : formatCurrency(pnl, 2)}</strong>
+            </div>
+          </div>
+          <div class="journal-rail-body">
+            <div class="journal-rail-block">
+              <strong>计划 / 原因</strong>
+              <p>${escapeHtml(truncateText(primaryNote, 120))}</p>
+            </div>
+            <div class="journal-rail-footer">
+              <span>${gaps.length ? `待补 ${escapeHtml(gaps.join("、"))}` : "记录已完整"}</span>
+              <span>${formatShares(trade.shares)} · 止损 ${formatCurrency(trade.stop_loss, 3)}</span>
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  $("journalRailContainer").innerHTML = `
+    <div class="journal-rail-shell">
+      <div class="journal-rail">${cards}</div>
+    </div>
+  `;
+}
+
+function renderJournalTable(list) {
   if (!list.length) {
     $("journalTableContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有交易记录。</div>`;
     return;
@@ -429,6 +496,13 @@ function renderJournal() {
       </table>
     </div>
   `;
+}
+
+function renderJournal() {
+  const list = getFilteredTrades();
+  $("journalCountLabel").textContent = `${list.length} 笔`;
+  renderJournalRail(list);
+  renderJournalTable(list);
 }
 
 function renderStats() {

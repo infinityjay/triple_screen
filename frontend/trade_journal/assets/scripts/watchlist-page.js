@@ -37,6 +37,12 @@ function getStatusBadge(status) {
   return `<span class="badge badge-${tone}">${escapeHtml(label)}</span>`;
 }
 
+function truncateText(value, length = 92) {
+  const text = String(value || "").trim();
+  if (!text) return "—";
+  return text.length > length ? `${text.slice(0, length).trim()}...` : text;
+}
+
 function buildExecutionPlan(item) {
   const hourly = item.hourly || {};
   const exits = item.exits || {};
@@ -170,6 +176,69 @@ function renderInsights() {
     .join("");
 }
 
+function renderRail() {
+  const items = getFilteredItems();
+  $("watchlistRailCount").textContent = `${items.length} 张卡片`;
+
+  if (!items.length) {
+    $("watchlistRailContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有可展示的观察卡片。</div>`;
+    return;
+  }
+
+  const cards = items
+    .map((item) => {
+      const weekly = item.weekly || {};
+      const daily = item.daily || {};
+      const hourly = item.hourly || {};
+      const earnings = item.earnings || {};
+      const tags = [
+        item.strong_divergence ? "强背离" : "",
+        earnings.warning ? "财报临近" : "",
+        String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "已触发" : "",
+      ].filter(Boolean);
+
+      return `
+        <article class="watchlist-rail-item">
+          <div class="watchlist-rail-top">
+            <div>
+              <h3>${escapeHtml(item.symbol || "—")}</h3>
+              <p>${escapeHtml(getSignalDirectionLabel(item.direction))} · 分数 ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</p>
+            </div>
+            ${getStatusBadge(item.opportunity_status)}
+          </div>
+          <div class="watchlist-rail-tags">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("") : `<span class="tag">常规候选</span>`}</div>
+          <div class="watchlist-rail-body">
+            <div class="watchlist-rail-reason">
+              <strong>入选理由</strong>
+              <p>${escapeHtml(truncateText(item.summary || daily.reason || weekly.reason, 110))}</p>
+            </div>
+            <div class="watchlist-rail-split">
+              <div>
+                <span>周线</span>
+                <strong>${escapeHtml(truncateText(weekly.reason, 42))}</strong>
+              </div>
+              <div>
+                <span>日线</span>
+                <strong>${escapeHtml(truncateText(daily.reason, 42))}</strong>
+              </div>
+            </div>
+            <div class="watchlist-rail-footer">
+              <span>${escapeHtml(buildExecutionPlan(item))}</span>
+              <span>${earnings.report_date ? `财报 ${escapeHtml(formatDateLabel(earnings.report_date))}` : "财报未知"}</span>
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  $("watchlistRailContainer").innerHTML = `
+    <div class="watchlist-rail-shell">
+      <div class="watchlist-rail">${cards}</div>
+    </div>
+  `;
+}
+
 function renderTable() {
   const items = getFilteredItems();
   if (!items.length) {
@@ -250,8 +319,8 @@ function renderTable() {
     .join("");
 
   $("watchlistTableContainer").innerHTML = `
-    <div class="list-table-wrap">
-      <table>
+    <div class="list-table-wrap watchlist-detail-scroll">
+      <table class="watchlist-detail-table">
         <thead>
           <tr>
             <th>标的</th>
@@ -271,6 +340,11 @@ function renderTable() {
   `;
 }
 
+function renderFilteredViews() {
+  renderRail();
+  renderTable();
+}
+
 async function loadWatchlist(sessionDate = "") {
   const query = sessionDate ? `?session_date=${encodeURIComponent(sessionDate)}` : "";
   const payload = await apiRequest(`/watchlist${query}`);
@@ -279,7 +353,7 @@ async function loadWatchlist(sessionDate = "") {
   renderSummary();
   renderSessions();
   renderInsights();
-  renderTable();
+  renderFilteredViews();
 }
 
 async function bootApp() {
@@ -301,9 +375,9 @@ function bindEvents() {
   $("retryConnectBtn").addEventListener("click", bootApp);
   $("refreshWatchlistBtn").addEventListener("click", () => loadWatchlist(state.sessionDate));
   $("sessionSelect").addEventListener("change", (event) => loadWatchlist(event.target.value));
-  $("statusFilter").addEventListener("change", renderTable);
-  $("directionFilter").addEventListener("change", renderTable);
-  $("watchlistSearch").addEventListener("input", renderTable);
+  $("statusFilter").addEventListener("change", renderFilteredViews);
+  $("directionFilter").addEventListener("change", renderFilteredViews);
+  $("watchlistSearch").addEventListener("input", renderFilteredViews);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

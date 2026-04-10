@@ -59,17 +59,17 @@
 
       <div class="page-grid">
         <section class="shell-card">
-          <div class="hero-grid">
+          <div class="hero-grid watchlist-hero-grid">
             <div class="page-head">
               <div class="eyebrow">Watchlist</div>
-              <h1>把最新扫描出来的观察列表，拆成能直接执行的三重滤网看板</h1>
-              <p>周线负责方向，日线负责 setup，小时线负责触发。即使收盘候选阶段还没有小时线触发数据，这里也会明确告诉你下一步该等什么。</p>
+              <h1>观察列表先看全局，再看入选理由和下一步执行</h1>
+              <p>这页先把候选股票压成可快速浏览的横向速览，再把完整的周 / 日 / 小时理由保留在下方宽表中。你可以先扫大面，再横向深入细节。</p>
             </div>
-            <div class="side-card">
+            <div class="side-card watchlist-session-card">
               <div class="eyebrow">Session</div>
               <h3 id="sessionHeadline">最新扫描会话：—</h3>
-              <p id="sessionHeadlineBody">切换不同扫描日，可以回看当时的候选池和筛选理由。</p>
-              <div class="toolbar" style="margin-top:14px">
+              <p id="sessionHeadlineBody">切换不同扫描日，回看当时哪些股票入选，以及当时的执行前提。</p>
+              <div class="toolbar watchlist-session-toolbar">
                 <select class="select" id="sessionSelect"></select>
                 <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">刷新</button>
               </div>
@@ -100,38 +100,14 @@
           </div>
         </section>
 
-        <section class="watchlist-layout">
-          <div class="watchlist-card">
-            <div class="card-head">
-              <div>
-                <div class="eyebrow">Recent Sessions</div>
-                <h3>最近扫描会话</h3>
-                <p>快速切回最近几次收盘扫描，横向比较候选池变化。</p>
-              </div>
-            </div>
-            <div class="session-chip-list" id="sessionChips"></div>
-          </div>
-
-          <div class="watchlist-card">
-            <div class="card-head">
-              <div>
-                <div class="eyebrow">Execution Lens</div>
-                <h3>执行提示</h3>
-                <p>盘后观察列表默认以周线方向 + 日线 setup 为主，小时线用于第二天盘中触发。</p>
-              </div>
-            </div>
-            <div class="insight-list" id="watchlistInsights"></div>
-          </div>
-        </section>
-
-        <section class="table-card">
-          <div class="section-head">
+        <section class="watchlist-card watchlist-rail-card">
+          <div class="section-head watchlist-rail-head">
             <div>
-              <div class="eyebrow">Triple Screen Table</div>
-              <h2>周 / 日 / 小时三层分析</h2>
-              <p>每一列都直接回答“它为什么进观察列表”和“下一步该等什么”。</p>
+              <div class="eyebrow">Quick Scan</div>
+              <h2>横向快速浏览候选</h2>
+              <p>固定卡片宽度，先扫股票、状态和核心入选理由；左右滑动可继续看更多标的。</p>
             </div>
-            <div class="toolbar">
+            <div class="toolbar ledger-toolbar">
               <select class="select" style="max-width:180px" id="statusFilter">
                 <option value="all">全部状态</option>
                 <option value="watchlist">仅观察中</option>
@@ -143,6 +119,45 @@
                 <option value="SHORT">仅做空</option>
               </select>
               <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="搜索股票、理由、财报、状态…">
+            </div>
+          </div>
+          <div class="watchlist-rail-meta">
+            <div class="status-pill mono" id="watchlistRailCount">0 张卡片</div>
+            <div class="watchlist-scroll-hint">拖动下方横向滑条可快速看完整个候选池</div>
+          </div>
+          <div id="watchlistRailContainer"></div>
+        </section>
+
+        <section class="watchlist-layout compact-watchlist-layout">
+          <div class="watchlist-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Recent Sessions</div>
+                <h3>最近扫描会话</h3>
+                <p>快速切回最近几次收盘扫描，比较候选池变化。</p>
+              </div>
+            </div>
+            <div class="session-chip-list" id="sessionChips"></div>
+          </div>
+
+          <div class="watchlist-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Execution Lens</div>
+                <h3>执行提示</h3>
+                <p>这里保留你真正需要优先盯住的执行提醒，不再铺太多解释性文案。</p>
+              </div>
+            </div>
+            <div class="insight-list" id="watchlistInsights"></div>
+          </div>
+        </section>
+
+        <section class="table-card watchlist-detail-card">
+          <div class="section-head watchlist-detail-head">
+            <div>
+              <div class="eyebrow">Deep Dive</div>
+              <h2>完整三层分析宽表</h2>
+              <p>保留全部筛选理由和执行参数，适合横向深看；上面先扫一遍，这里再确认细节。</p>
             </div>
           </div>
           <div id="watchlistTableContainer"></div>
