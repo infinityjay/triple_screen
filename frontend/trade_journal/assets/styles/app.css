@@ -615,7 +615,8 @@ button {
 
 .watchlist-rail-shell {
   overflow-x: auto;
-  padding-bottom: 8px;
+  overflow-y: hidden;
+  padding-bottom: 2px;
 }
 
 .watchlist-rail {
@@ -861,6 +862,41 @@ textarea {
   background: rgba(255, 255, 255, 0.96);
 }
 
+.scrollbar-shell {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 14px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.scrollbar-inner {
+  height: 1px;
+}
+
+.scrollbar-shell::-webkit-scrollbar,
+.watchlist-rail-shell::-webkit-scrollbar,
+.watchlist-detail-scroll::-webkit-scrollbar {
+  height: 14px;
+}
+
+.scrollbar-shell::-webkit-scrollbar-track,
+.watchlist-rail-shell::-webkit-scrollbar-track,
+.watchlist-detail-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 999px;
+}
+
+.scrollbar-shell::-webkit-scrollbar-thumb,
+.watchlist-rail-shell::-webkit-scrollbar-thumb,
+.watchlist-detail-scroll::-webkit-scrollbar-thumb {
+  background: rgba(29, 29, 31, 0.22);
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.75);
+}
+
 .compact-ledger-scroll {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.98);
@@ -983,6 +1019,17 @@ tbody tr:hover {
   min-width: 1740px;
 }
 
+.watchlist-detail-table th,
+.watchlist-detail-table td {
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.watchlist-detail-table th {
+  font-size: 10px;
+}
+
 .watchlist-detail-table th:nth-child(1),
 .watchlist-detail-table td:nth-child(1) {
   position: sticky;
@@ -1000,14 +1047,60 @@ tbody tr:hover {
 }
 
 .watchlist-detail-table .reason-cell {
-  min-width: 240px;
-  max-width: 320px;
+  min-width: 180px;
+  max-width: 220px;
   white-space: normal;
-  line-height: 1.42;
+  line-height: 1.32;
 }
 
 .watchlist-detail-table .stage-stack {
-  min-width: 220px;
+  min-width: 160px;
+  gap: 6px;
+}
+
+.watchlist-detail-table .execution-cell {
+  min-width: 300px;
+}
+
+.watchlist-detail-table .execution-stack {
+  min-width: 300px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(88px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.watchlist-detail-table .reason-cell p,
+.watchlist-detail-table .stage-block p {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.watchlist-detail-table .stage-block {
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+.watchlist-detail-table .execution-stack .stage-block {
+  min-height: 78px;
+}
+
+.watchlist-detail-table .execution-stack .stage-block strong {
+  margin-bottom: 4px;
+}
+
+.watchlist-detail-table .execution-stack .stage-block p {
+  -webkit-line-clamp: 2;
+}
+
+.watchlist-detail-table .symbol-cell strong {
+  font-size: 13px;
+}
+
+.watchlist-detail-table .symbol-cell span {
+  font-size: 10px;
 }
 
 .reason-cell strong,

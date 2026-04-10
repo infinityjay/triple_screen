@@ -43,6 +43,42 @@ function truncateText(value, length = 92) {
   return text.length > length ? `${text.slice(0, length).trim()}...` : text;
 }
 
+function setupHorizontalScrollbar(scrollContainerId, scrollbarId) {
+  const scrollContainer = $(scrollContainerId);
+  const scrollbar = $(scrollbarId);
+  if (!scrollContainer || !scrollbar) return;
+
+  const spacer = scrollbar.querySelector(".scrollbar-inner");
+  if (!spacer) return;
+
+  const syncSizes = () => {
+    const contentWidth = scrollContainer.scrollWidth;
+    const visibleWidth = scrollContainer.clientWidth;
+    spacer.style.width = `${contentWidth}px`;
+    scrollbar.style.display = contentWidth > visibleWidth + 4 ? "block" : "none";
+  };
+
+  let syncingFromContainer = false;
+  let syncingFromBar = false;
+
+  scrollContainer.onscroll = () => {
+    if (syncingFromBar) return;
+    syncingFromContainer = true;
+    scrollbar.scrollLeft = scrollContainer.scrollLeft;
+    syncingFromContainer = false;
+  };
+
+  scrollbar.onscroll = () => {
+    if (syncingFromContainer) return;
+    syncingFromBar = true;
+    scrollContainer.scrollLeft = scrollbar.scrollLeft;
+    syncingFromBar = false;
+  };
+
+  requestAnimationFrame(syncSizes);
+  window.addEventListener("resize", syncSizes, { passive: true });
+}
+
 function buildExecutionPlan(item) {
   const hourly = item.hourly || {};
   const exits = item.exits || {};
@@ -233,10 +269,12 @@ function renderRail() {
     .join("");
 
   $("watchlistRailContainer").innerHTML = `
-    <div class="watchlist-rail-shell">
+    <div class="scrollbar-shell" id="watchlistRailScrollbar"><div class="scrollbar-inner"></div></div>
+    <div class="watchlist-rail-shell" id="watchlistRailScroll">
       <div class="watchlist-rail">${cards}</div>
     </div>
   `;
+  setupHorizontalScrollbar("watchlistRailScroll", "watchlistRailScrollbar");
 }
 
 function renderTable() {
@@ -297,8 +335,8 @@ function renderTable() {
                 "暂无背离说明"
             )}</p>
           </td>
-          <td>
-            <div class="stage-stack">
+          <td class="execution-cell">
+            <div class="stage-stack execution-stack">
               <div class="stage-block">
                 <strong>入场</strong>
                 <p>${hourly.entry_price !== undefined ? formatCurrency(hourly.entry_price, 3) : "等待小时线确认"}</p>
@@ -319,7 +357,8 @@ function renderTable() {
     .join("");
 
   $("watchlistTableContainer").innerHTML = `
-    <div class="list-table-wrap watchlist-detail-scroll">
+    <div class="scrollbar-shell" id="watchlistDetailScrollbar"><div class="scrollbar-inner"></div></div>
+    <div class="list-table-wrap watchlist-detail-scroll" id="watchlistDetailScroll">
       <table class="watchlist-detail-table">
         <thead>
           <tr>
@@ -338,6 +377,7 @@ function renderTable() {
       </table>
     </div>
   `;
+  setupHorizontalScrollbar("watchlistDetailScroll", "watchlistDetailScrollbar");
 }
 
 function renderFilteredViews() {
