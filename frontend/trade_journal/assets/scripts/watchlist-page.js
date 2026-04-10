@@ -97,6 +97,16 @@ function buildExecutionPlan(item) {
     : "等待下一根小时线确认上破，盘中沿上一根已收盘 K 线高点跟踪买入止损。";
 }
 
+function buildExecutionInline(item) {
+  const hourly = item.hourly || {};
+  const exits = item.exits || {};
+  const entry = hourly.entry_price !== undefined ? formatCurrency(hourly.entry_price, 3) : "等待确认";
+  const stop = exits.stop_loss !== undefined ? formatCurrency(exits.stop_loss, 3) : "—";
+  const target = exits.take_profit !== undefined ? formatCurrency(exits.take_profit, 3) : "—";
+  const rr = exits.reward_risk_ratio !== undefined ? `${formatNumber(exits.reward_risk_ratio, 2)}R` : "—";
+  return `入场 ${entry} | 止损 ${stop} | 目标 ${target} / ${rr}`;
+}
+
 function getFilteredItems() {
   const items = state.payload?.items || [];
   const statusFilter = $("statusFilter").value;
@@ -311,10 +321,6 @@ function renderTable() {
             <div style="margin-top:8px">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join(" ") : `<span class="tag">常规候选</span>`}</div>
           </td>
           <td class="reason-cell">
-            <strong>${escapeHtml(buildExecutionPlan(item))}</strong>
-            <p>${escapeHtml(item.summary || "—")}</p>
-          </td>
-          <td class="reason-cell">
             ${getReasonBlock("周线", weekly.trend_score, weekly.reason)}
           </td>
           <td class="reason-cell">
@@ -336,20 +342,7 @@ function renderTable() {
             )}</p>
           </td>
           <td class="execution-cell">
-            <div class="stage-stack execution-stack">
-              <div class="stage-block">
-                <strong>入场</strong>
-                <p>${hourly.entry_price !== undefined ? formatCurrency(hourly.entry_price, 3) : "等待小时线确认"}</p>
-              </div>
-              <div class="stage-block">
-                <strong>止损</strong>
-                <p>${exits.stop_loss !== undefined ? formatCurrency(exits.stop_loss, 3) : "—"}</p>
-              </div>
-              <div class="stage-block">
-                <strong>目标 / RR</strong>
-                <p>${exits.take_profit !== undefined ? `${formatCurrency(exits.take_profit, 3)} · RR ${formatNumber(exits.reward_risk_ratio ?? 0, 2)}` : "—"}</p>
-              </div>
-            </div>
+            <span class="execution-inline-text">${escapeHtml(buildExecutionInline(item))}</span>
           </td>
         </tr>
       `;
@@ -364,7 +357,6 @@ function renderTable() {
           <tr>
             <th>标的</th>
             <th>状态 / 标签</th>
-            <th>为什么在观察列表</th>
             <th>周线过滤</th>
             <th>日线 Setup</th>
             <th>小时线执行</th>

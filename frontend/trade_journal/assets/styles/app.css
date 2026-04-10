@@ -1062,12 +1062,11 @@ tbody tr:hover {
   min-width: 300px;
 }
 
-.watchlist-detail-table .execution-stack {
-  min-width: 300px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(88px, 1fr));
-  gap: 8px;
-  align-items: stretch;
+.watchlist-detail-table .execution-inline-text {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .watchlist-detail-table .reason-cell p,
@@ -1081,18 +1080,6 @@ tbody tr:hover {
 .watchlist-detail-table .stage-block {
   padding: 8px 10px;
   border-radius: 12px;
-}
-
-.watchlist-detail-table .execution-stack .stage-block {
-  min-height: 78px;
-}
-
-.watchlist-detail-table .execution-stack .stage-block strong {
-  margin-bottom: 4px;
-}
-
-.watchlist-detail-table .execution-stack .stage-block p {
-  -webkit-line-clamp: 2;
 }
 
 .watchlist-detail-table .symbol-cell strong {
