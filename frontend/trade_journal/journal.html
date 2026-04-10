@@ -235,6 +235,7 @@
                   <div class="metric-row"><span>最大可损</span><strong id="calcMaxLoss">—</strong></div>
                   <div class="metric-row"><span>初始止损</span><strong id="calcInitialStopDisplay">—</strong></div>
                   <div class="metric-row"><span>当前保护止损</span><strong id="calcCurrentStopDisplay">—</strong></div>
+                  <div class="metric-row"><span>当前建议止损</span><strong id="calcSuggestedStopDisplay">—</strong></div>
                   <div class="metric-row"><span>止损状态</span><strong id="calcStopState">—</strong></div>
                   <div class="metric-row"><span>每股风险</span><strong id="calcRiskPerShare">—</strong></div>
                   <div class="metric-row">
@@ -287,6 +288,10 @@
                     <div class="field-group span-4">
                       <label>当前保护止损 *</label>
                       <input class="input" id="f_stopLoss" type="number" step="0.001">
+                    </div>
+                    <div class="field-group span-4">
+                      <label>当前建议止损</label>
+                      <input class="input" id="f_suggestedStopLoss" type="number" step="0.001" readonly>
                     </div>
                     <div class="field-group span-4">
                       <label>股数 *</label>

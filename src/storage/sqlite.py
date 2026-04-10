@@ -708,13 +708,43 @@ class SQLiteStorage:
                 (symbol, timeframe, symbol, timeframe, keep_rows),
             )
 
+    @staticmethod
+    def _trade_select_clause() -> str:
+        return """
+            SELECT
+                t.*,
+                su.applied_stop_loss AS suggested_stop_loss,
+                su.proposed_stop_loss AS suggested_stop_candidate,
+                su.stop_basis AS suggested_stop_basis,
+                su.session_date AS suggested_stop_session_date,
+                su.created_at AS suggested_stop_updated_at
+            FROM trades t
+            LEFT JOIN (
+                SELECT
+                    u.trade_id,
+                    u.proposed_stop_loss,
+                    u.applied_stop_loss,
+                    u.stop_basis,
+                    u.session_date,
+                    u.created_at
+                FROM trade_stop_updates u
+                INNER JOIN (
+                    SELECT trade_id, MAX(id) AS max_id
+                    FROM trade_stop_updates
+                    GROUP BY trade_id
+                ) latest
+                    ON latest.trade_id = u.trade_id
+                   AND latest.max_id = u.id
+            ) su
+                ON su.trade_id = t.id
+        """
+
     def list_trades(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute(
-                """
-                SELECT *
-                FROM trades
-                ORDER BY datetime(created_at) DESC, datetime(COALESCE(buy_date, created_at)) DESC, stock ASC
+                f"""
+                {self._trade_select_clause()}
+                ORDER BY datetime(t.created_at) DESC, datetime(COALESCE(t.buy_date, t.created_at)) DESC, t.stock ASC
                 """
             ).fetchall()
         return [self._row_to_dict(row) for row in rows]
@@ -722,18 +752,23 @@ class SQLiteStorage:
     def list_open_trades(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute(
-                """
-                SELECT *
-                FROM trades
-                WHERE sell_price IS NULL OR sell_date IS NULL OR TRIM(COALESCE(sell_date, '')) = ''
-                ORDER BY datetime(COALESCE(buy_date, created_at)) DESC, stock ASC
+                f"""
+                {self._trade_select_clause()}
+                WHERE t.sell_price IS NULL OR t.sell_date IS NULL OR TRIM(COALESCE(t.sell_date, '')) = ''
+                ORDER BY datetime(COALESCE(t.buy_date, t.created_at)) DESC, t.stock ASC
                 """
             ).fetchall()
         return [self._row_to_dict(row) for row in rows]
 
     def get_trade(self, trade_id: str) -> dict | None:
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
+            row = connection.execute(
+                f"""
+                {self._trade_select_clause()}
+                WHERE t.id = ?
+                """,
+                (trade_id,),
+            ).fetchone()
         return self._row_to_dict(row)
 
     def insert_trade(self, payload: dict) -> dict:
@@ -933,17 +968,13 @@ class SQLiteStorage:
             connection.execute(
                 """
                 UPDATE trades
-                SET stop_loss = ?,
-                    used_stop = ?,
-                    protective_stop_basis = ?,
+                SET protective_stop_basis = ?,
                     stop_updated_at = ?,
                     last_stop_session_date = ?,
                     updated_at = ?
                 WHERE id = ?
                 """,
                 (
-                    stop_loss,
-                    used_stop,
                     stop_basis,
                     self._utc_iso(),
                     session_date,

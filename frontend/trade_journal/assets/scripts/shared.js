@@ -231,12 +231,11 @@ export function getTradeTargetPrice(trade) {
 }
 
 export function getTradeUsedStop(trade) {
-  const stored = parseNumberValue(trade?.used_stop);
-  if (stored !== null) return Math.abs(stored);
   const risk = getRiskPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
   const shares = parseNumberValue(trade?.shares);
-  if (risk === null || shares === null) return 0;
-  return Math.abs(risk * shares);
+  if (risk !== null && shares !== null) return Math.abs(risk * shares);
+  const stored = parseNumberValue(trade?.used_stop);
+  return stored === null ? 0 : Math.abs(stored);
 }
 
 export function getTradeBuyMonth(trade) {

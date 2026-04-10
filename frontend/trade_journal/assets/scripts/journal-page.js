@@ -72,6 +72,7 @@ const state = {
   settings: normalizeSettings(readStoredJson("tradeSettings", {})),
   editingId: null,
   captureInitialStop: null,
+  captureSuggestedStop: null,
   activeSection: "overview",
   settingsSaveTimer: null,
 };
@@ -84,6 +85,7 @@ const FORM_INPUT_IDS = [
   "f_buyPrice",
   "f_initialStopLoss",
   "f_stopLoss",
+  "f_suggestedStopLoss",
   "f_shares",
   "f_stopReason",
   "f_targetPct",
@@ -140,6 +142,51 @@ function getOpenTradesForMonth(month) {
   return state.trades.filter((trade) => isTradeOpenAtMonthEnd(trade, month));
 }
 
+function getOpenTradesForMonthPreview(month, includeCapturePreview = false) {
+  let trades = getOpenTradesForMonth(month);
+  if (!includeCapturePreview) return trades;
+
+  const preview = getCapturePreviewTrade();
+  if (!preview || !isTradeOpenAtMonthEnd(preview, month)) return trades;
+
+  const index = trades.findIndex((trade) => String(trade.id) === String(preview.id));
+  if (index >= 0) trades[index] = preview;
+  else trades = [preview, ...trades];
+  return trades;
+}
+
+function getCapturePreviewTrade() {
+  const stock = $("f_stock")?.value?.trim()?.toUpperCase() || "";
+  const buyPrice = getNumberInputValue("f_buyPrice");
+  const stopLoss = getNumberInputValue("f_stopLoss");
+  const shares = getNumberInputValue("f_shares");
+  const buyDate = $("f_buyDate")?.value || null;
+  const direction = normalizeDirection($("f_direction")?.value);
+
+  if (!stock || buyPrice === null || stopLoss === null || shares === null || !buyDate) {
+    return null;
+  }
+
+  const existing = state.editingId
+    ? state.trades.find((trade) => String(trade.id) === String(state.editingId)) || {}
+    : {};
+
+  return {
+    ...existing,
+    id: state.editingId || "__capture_preview__",
+    stock,
+    direction,
+    buy_price: buyPrice,
+    stop_loss: stopLoss,
+    initial_stop_loss: state.captureInitialStop ?? stopLoss,
+    suggested_stop_loss: state.captureSuggestedStop,
+    shares,
+    buy_date: buyDate,
+    created_at: existing.created_at || new Date().toISOString(),
+    used_stop: null,
+  };
+}
+
 function getMonthRealizedLosses(month) {
   return getClosedTradesForMonth(month).reduce((sum, trade) => {
     const pnl = getTradeNetPnl(trade);
@@ -147,12 +194,13 @@ function getMonthRealizedLosses(month) {
   }, 0);
 }
 
-function getMonthOpenRisk(month) {
-  return getOpenTradesForMonth(month).reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
+function getMonthOpenRisk(month, includeCapturePreview = false) {
+  const trades = getOpenTradesForMonthPreview(month, includeCapturePreview);
+  return trades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
 }
 
-function getMonthStopBudgetUsed(month) {
-  return getMonthRealizedLosses(month) + getMonthOpenRisk(month);
+function getMonthStopBudgetUsed(month, includeCapturePreview = false) {
+  return getMonthRealizedLosses(month) + getMonthOpenRisk(month, includeCapturePreview);
 }
 
 function getFilteredTrades() {
@@ -207,11 +255,11 @@ function getMonthlyCompletionRate(month) {
   return (completeCount / trades.length) * 100;
 }
 
-function getRiskNumbers() {
+function getRiskNumbers(includeCapturePreview = false) {
   const settings = getSettings();
   const singleStop = settings.total * (settings.singleStop / 100);
   const monthBudget = settings.total * (settings.monthStop / 100);
-  const used = getMonthStopBudgetUsed(settings.month);
+  const used = getMonthStopBudgetUsed(settings.month, includeCapturePreview);
   const remaining = monthBudget - used;
   const pct = monthBudget > 0 ? (used / monthBudget) * 100 : 0;
   return { singleStop, monthBudget, used, remaining, pct };
@@ -229,6 +277,10 @@ function getTradeInitialStop(trade) {
 
 function getTradeCurrentStop(trade) {
   return parseNumberValue(trade?.stop_loss);
+}
+
+function getTradeSuggestedStop(trade) {
+  return parseNumberValue(trade?.suggested_stop_loss);
 }
 
 function setSection(section) {
@@ -259,16 +311,16 @@ function setReportMonth(month, persist = true) {
   if (persist) scheduleSettingsSave();
 }
 
-function renderSummary() {
+function renderSummary(includeCapturePreview = false) {
   const settings = getSettings();
   const month = settings.month;
-  const openTrades = getOpenTradesForMonth(month);
+  const openTrades = getOpenTradesForMonthPreview(month, includeCapturePreview);
   const closedTrades = getClosedTradesForMonth(month);
   const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) || 0) >= 0);
   const netClosed = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
   const completionRate = getMonthlyCompletionRate(month);
   const overdue = getOverdueIncompleteTrades();
-  const { singleStop, monthBudget, used, remaining, pct } = getRiskNumbers();
+  const { singleStop, monthBudget, used, remaining, pct } = getRiskNumbers(includeCapturePreview);
 
   $("summaryTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "未设置";
   $("summarySingleStop").textContent = settings.total ? formatCurrency(singleStop, 2) : "—";
@@ -281,7 +333,7 @@ function renderSummary() {
     : "本月暂无已结交易";
   $("summaryOpenCount").textContent = String(openTrades.length);
   $("summaryUsedPct").textContent = formatPercent(pct, 0);
-  $("summaryUsedText").textContent = `已实现亏损 ${formatCurrency(getMonthRealizedLosses(month), 2)} + 开放风险 ${formatCurrency(getMonthOpenRisk(month), 2)}`;
+  $("summaryUsedText").textContent = `已实现亏损 ${formatCurrency(getMonthRealizedLosses(month), 2)} + 开放风险 ${formatCurrency(getMonthOpenRisk(month, includeCapturePreview), 2)}`;
   $("summaryCompleteness").textContent = completionRate === null ? "暂无样本" : formatPercent(completionRate, 0);
   $("summaryCompletenessSub").textContent = overdue.length
     ? `${overdue.length} 笔超过 3 个月仍未补全`
@@ -417,7 +469,7 @@ function renderJournalRail(list) {
               <strong>${formatCurrency(target, 3)}</strong>
             </div>
             <div>
-              <span>当前止损</span>
+              <span>当前保护止损</span>
               <strong>${formatCurrency(currentStop, 3)}</strong>
             </div>
             <div>
@@ -432,7 +484,7 @@ function renderJournalRail(list) {
             </div>
             <div class="journal-rail-footer">
               <span>${gaps.length ? `待补 ${escapeHtml(gaps.join("、"))}` : "记录已完整"}</span>
-              <span>${formatShares(trade.shares)} · 初始止损 ${formatCurrency(initialStop, 3)} · 当前止损 ${formatCurrency(currentStop, 3)}</span>
+              <span>${formatShares(trade.shares)} · 初始止损 ${formatCurrency(initialStop, 3)} · 当前保护止损 ${formatCurrency(currentStop, 3)}</span>
             </div>
           </div>
         </article>
@@ -501,7 +553,7 @@ function renderJournalTable(list) {
             <th>入场价</th>
             <th>股数</th>
             <th>初始止损价</th>
-            <th>当前止损价</th>
+            <th>当前保护止损</th>
             <th>占用风险</th>
             <th>目标价</th>
             <th>净结果</th>
@@ -616,6 +668,7 @@ function clearCaptureForm() {
   $("f_sellComm").value = "";
   state.editingId = null;
   state.captureInitialStop = null;
+  state.captureSuggestedStop = null;
   updateCaptureHeader();
   computeCapture();
   showAlert("captureAlert", "");
@@ -628,8 +681,10 @@ function populateCaptureForm(trade) {
   $("f_buyDate").value = trade.buy_date || "";
   $("f_buyPrice").value = formatInputNumber(trade.buy_price);
   state.captureInitialStop = getTradeInitialStop(trade);
+  state.captureSuggestedStop = getTradeSuggestedStop(trade);
   $("f_initialStopLoss").value = formatInputNumber(state.captureInitialStop);
   $("f_stopLoss").value = formatInputNumber(trade.stop_loss);
+  $("f_suggestedStopLoss").value = formatInputNumber(state.captureSuggestedStop);
   $("f_shares").value = formatInputNumber(trade.shares);
   $("f_stopReason").value = trade.stop_reason || "";
   $("f_targetPct").value = formatInputNumber(getTradeTargetPct(trade));
@@ -661,6 +716,7 @@ function computeCapture() {
   const buyPrice = getNumberInputValue("f_buyPrice");
   const stopLoss = getNumberInputValue("f_stopLoss");
   const initialStop = state.captureInitialStop ?? stopLoss;
+  const suggestedStop = state.captureSuggestedStop;
   const shares = getNumberInputValue("f_shares");
   const sellPrice = getNumberInputValue("f_sellPrice");
   const targetPct = getNumberInputValue("f_targetPct");
@@ -681,8 +737,10 @@ function computeCapture() {
 
   $("calcMaxLoss").textContent = maxLoss === null ? "先设置总资金" : formatCurrency(maxLoss, 2);
   $("f_initialStopLoss").value = formatInputNumber(initialStop, 3);
+  $("f_suggestedStopLoss").value = formatInputNumber(suggestedStop, 3);
   $("calcInitialStopDisplay").textContent = initialStop === null ? "—" : formatCurrency(initialStop, 3);
   $("calcCurrentStopDisplay").textContent = stopLoss === null ? "—" : formatCurrency(stopLoss, 3);
+  $("calcSuggestedStopDisplay").textContent = suggestedStop === null ? "—" : formatCurrency(suggestedStop, 3);
   $("calcRiskPerShare").textContent = riskPerShare === null ? "—" : formatCurrency(riskPerShare, 3);
   $("calcUsedStop").textContent = usedStop === null ? "—" : formatCurrency(usedStop, 2);
   $("calcRecommendedShares").textContent = recommendedShares === null ? "—" : formatNumber(recommendedShares, 0);
@@ -702,6 +760,7 @@ function computeCapture() {
     : `当前规则建议 ${formatNumber(recommendedShares, 0)} 股，方向为 ${getDirectionLabel(direction)}`;
   $("fillSharesBtn").disabled = recommendedShares === null;
   $("fillSharesInlineBtn").disabled = recommendedShares === null;
+  renderSummary(true);
 }
 
 function applyRecommendedShares() {

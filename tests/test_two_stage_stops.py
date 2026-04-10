@@ -22,6 +22,18 @@ def _daily_frame() -> pd.DataFrame:
     )
 
 
+def _daily_frame_lower_safezone() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "open": [101.0, 103.0, 104.0],
+            "high": [104.0, 105.0, 105.0],
+            "low": [100.0, 101.0, 102.0],
+            "close": [103.0, 104.0, 104.5],
+        },
+        index=pd.to_datetime(["2026-04-07", "2026-04-08", "2026-04-09"]),
+    )
+
+
 class _FakeStorage:
     def list_open_trades(self) -> list[dict]:
         return [
@@ -38,9 +50,31 @@ class _FakeStorage:
         ]
 
 
+class _FakeStorageWithSuggestedStop:
+    def list_open_trades(self) -> list[dict]:
+        return [
+            {
+                "id": "trade-2",
+                "stock": "MSFT",
+                "direction": "long",
+                "buy_price": 108.5,
+                "shares": 10,
+                "stop_loss": 100.0,
+                "initial_stop_loss": 100.0,
+                "initial_stop_basis": "PULLBACK_PIVOT",
+                "suggested_stop_loss": 103.0,
+            }
+        ]
+
+
 class _FakeMarketData:
     def get_daily_bars(self, symbol: str):
         return _daily_frame()
+
+
+class _FakeMarketDataLowerSafezone:
+    def get_daily_bars(self, symbol: str):
+        return _daily_frame_lower_safezone()
 
 
 class TwoStageStopTests(unittest.TestCase):
@@ -86,6 +120,27 @@ class TwoStageStopTests(unittest.TestCase):
         self.assertEqual(summary.updated_count, 1)
         self.assertEqual(summary.updates[0]["previous_stop_loss"], 101.0)
         self.assertEqual(summary.updates[0]["proposed_stop_loss"], 103.0)
+        self.assertEqual(summary.updates[0]["applied_stop_loss"], 103.0)
+        self.assertEqual(summary.updates[0]["stop_basis"], "SAFEZONE")
+
+    def test_open_position_stop_updates_keep_previous_suggested_stop_separate_from_manual_stop(self) -> None:
+        manager = JournalManager(
+            storage=_FakeStorageWithSuggestedStop(),
+            market_data=_FakeMarketDataLowerSafezone(),
+            trade_plan=TradePlanConfig(
+                safezone_lookback=10,
+                safezone_coefficient=2.0,
+                thermometer_period=22,
+                thermometer_target_multiplier=1.0,
+            ),
+        )
+
+        summary = manager.preview_open_position_stops(session_date=date(2026, 4, 9))
+
+        self.assertEqual(summary.updated_count, 0)
+        self.assertEqual(summary.unchanged_count, 1)
+        self.assertEqual(summary.updates[0]["previous_stop_loss"], 103.0)
+        self.assertEqual(summary.updates[0]["proposed_stop_loss"], 102.0)
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 103.0)
         self.assertEqual(summary.updates[0]["stop_basis"], "SAFEZONE")
 

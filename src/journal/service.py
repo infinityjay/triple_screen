@@ -111,7 +111,9 @@ class JournalManager:
             direction = normalize_trade_direction(str(trade.get("direction", "long")))
             entry_price = _to_float(trade.get("buy_price"))
             shares = _to_float(trade.get("shares"))
-            previous_stop = _to_float(trade.get("stop_loss"))
+            previous_stop = _to_float(trade.get("suggested_stop_loss"))
+            if previous_stop is None:
+                previous_stop = _to_float(trade.get("stop_loss"))
 
             if not trade_id or not symbol:
                 updates.append(
