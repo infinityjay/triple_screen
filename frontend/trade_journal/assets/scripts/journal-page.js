@@ -71,6 +71,7 @@ const state = {
   trades: [],
   settings: normalizeSettings(readStoredJson("tradeSettings", {})),
   editingId: null,
+  captureInitialStop: null,
   activeSection: "overview",
   settingsSaveTimer: null,
 };
@@ -81,6 +82,7 @@ const FORM_INPUT_IDS = [
   "f_direction",
   "f_buyDate",
   "f_buyPrice",
+  "f_initialStopLoss",
   "f_stopLoss",
   "f_shares",
   "f_stopReason",
@@ -219,6 +221,14 @@ function truncateText(value, length = 100) {
   const text = String(value || "").trim();
   if (!text) return "—";
   return text.length > length ? `${text.slice(0, length).trim()}...` : text;
+}
+
+function getTradeInitialStop(trade) {
+  return parseNumberValue(trade?.initial_stop_loss) ?? parseNumberValue(trade?.stop_loss);
+}
+
+function getTradeCurrentStop(trade) {
+  return parseNumberValue(trade?.stop_loss);
 }
 
 function setSection(section) {
@@ -380,6 +390,8 @@ function renderJournalRail(list) {
       const gaps = getTradeCompletionGaps(trade);
       const target = getTradeTargetPrice(trade);
       const usedStop = getTradeUsedStop(trade);
+      const initialStop = getTradeInitialStop(trade);
+      const currentStop = getTradeCurrentStop(trade);
       const primaryNote = trade.stop_reason || trade.sell_reason || trade.review || "这笔交易还没有补充说明。";
 
       return `
@@ -405,6 +417,10 @@ function renderJournalRail(list) {
               <strong>${formatCurrency(target, 3)}</strong>
             </div>
             <div>
+              <span>当前止损</span>
+              <strong>${formatCurrency(currentStop, 3)}</strong>
+            </div>
+            <div>
               <span>结果</span>
               <strong class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "持仓中" : formatCurrency(pnl, 2)}</strong>
             </div>
@@ -416,7 +432,7 @@ function renderJournalRail(list) {
             </div>
             <div class="journal-rail-footer">
               <span>${gaps.length ? `待补 ${escapeHtml(gaps.join("、"))}` : "记录已完整"}</span>
-              <span>${formatShares(trade.shares)} · 止损 ${formatCurrency(trade.stop_loss, 3)}</span>
+              <span>${formatShares(trade.shares)} · 初始止损 ${formatCurrency(initialStop, 3)} · 当前止损 ${formatCurrency(currentStop, 3)}</span>
             </div>
           </div>
         </article>
@@ -442,6 +458,8 @@ function renderJournalTable(list) {
       const meta = getStatusMeta(trade);
       const pnl = getTradeNetPnl(trade);
       const gaps = getTradeCompletionGaps(trade);
+      const initialStop = getTradeInitialStop(trade);
+      const currentStop = getTradeCurrentStop(trade);
       return `
         <tr>
           <td class="symbol-cell">
@@ -452,7 +470,8 @@ function renderJournalTable(list) {
           <td>${formatDateLabel(trade.buy_date || trade.created_at)}</td>
           <td>${formatCurrency(trade.buy_price, 3)}</td>
           <td>${formatShares(trade.shares)}</td>
-          <td>${formatCurrency(trade.stop_loss, 3)}</td>
+          <td>${formatCurrency(initialStop, 3)}</td>
+          <td>${formatCurrency(currentStop, 3)}</td>
           <td>${formatCurrency(getTradeUsedStop(trade), 2)}</td>
           <td>${formatCurrency(getTradeTargetPrice(trade), 3)}</td>
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "持仓中" : formatCurrency(pnl, 2)}</td>
@@ -481,7 +500,8 @@ function renderJournalTable(list) {
             <th>入场日期</th>
             <th>入场价</th>
             <th>股数</th>
-            <th>止损价</th>
+            <th>初始止损价</th>
+            <th>当前止损价</th>
             <th>占用风险</th>
             <th>目标价</th>
             <th>净结果</th>
@@ -595,6 +615,7 @@ function clearCaptureForm() {
   $("f_buyComm").value = "1";
   $("f_sellComm").value = "";
   state.editingId = null;
+  state.captureInitialStop = null;
   updateCaptureHeader();
   computeCapture();
   showAlert("captureAlert", "");
@@ -606,6 +627,8 @@ function populateCaptureForm(trade) {
   $("f_direction").value = normalizeDirection(trade.direction);
   $("f_buyDate").value = trade.buy_date || "";
   $("f_buyPrice").value = formatInputNumber(trade.buy_price);
+  state.captureInitialStop = getTradeInitialStop(trade);
+  $("f_initialStopLoss").value = formatInputNumber(state.captureInitialStop);
   $("f_stopLoss").value = formatInputNumber(trade.stop_loss);
   $("f_shares").value = formatInputNumber(trade.shares);
   $("f_stopReason").value = trade.stop_reason || "";
@@ -637,6 +660,7 @@ function computeCapture() {
   const direction = normalizeDirection($("f_direction").value);
   const buyPrice = getNumberInputValue("f_buyPrice");
   const stopLoss = getNumberInputValue("f_stopLoss");
+  const initialStop = state.captureInitialStop ?? stopLoss;
   const shares = getNumberInputValue("f_shares");
   const sellPrice = getNumberInputValue("f_sellPrice");
   const targetPct = getNumberInputValue("f_targetPct");
@@ -656,6 +680,9 @@ function computeCapture() {
   const netPnl = calculateNetPnl(grossPnl, buyComm, sellComm);
 
   $("calcMaxLoss").textContent = maxLoss === null ? "先设置总资金" : formatCurrency(maxLoss, 2);
+  $("f_initialStopLoss").value = formatInputNumber(initialStop, 3);
+  $("calcInitialStopDisplay").textContent = initialStop === null ? "—" : formatCurrency(initialStop, 3);
+  $("calcCurrentStopDisplay").textContent = stopLoss === null ? "—" : formatCurrency(stopLoss, 3);
   $("calcRiskPerShare").textContent = riskPerShare === null ? "—" : formatCurrency(riskPerShare, 3);
   $("calcUsedStop").textContent = usedStop === null ? "—" : formatCurrency(usedStop, 2);
   $("calcRecommendedShares").textContent = recommendedShares === null ? "—" : formatNumber(recommendedShares, 0);
@@ -718,6 +745,7 @@ function getCapturePayload() {
     direction,
     buy_price: buyPrice,
     shares,
+    initial_stop_loss: state.captureInitialStop ?? stopLoss,
     stop_loss: stopLoss,
     stop_reason: $("f_stopReason").value.trim() || null,
     buy_date: $("f_buyDate").value || null,
