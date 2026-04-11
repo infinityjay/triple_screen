@@ -303,18 +303,23 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
     if trend == "LONG":
         setup_state = "BULLISH_SLOPE"
         reason = (
-            f"周线柱线回升，且 13EMA {'上行' if ema_delta > 0 else '未上行'}，"
-            f"可继续观察回调后的做多机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
+            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（回升）；"
+            f"13EMA 斜率 {ema_delta:+.4f}（{'上行' if ema_delta > 0 else '未上行'}）；"
+            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
         )
     elif trend == "SHORT":
         setup_state = "BEARISH_SLOPE"
         reason = (
-            f"周线柱线回落，且 13EMA {'下行' if ema_delta < 0 else '未下行'}，"
-            f"可继续观察反弹后的做空机会（柱线 {hist_prev:+.4f} -> {hist_now:+.4f}）"
+            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（回落）；"
+            f"13EMA 斜率 {ema_delta:+.4f}（{'下行' if ema_delta < 0 else '未下行'}）；"
+            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
         )
     else:
         setup_state = "NEUTRAL"
-        reason = "周线动能方向不清晰，暂不作为重点交易对象"
+        reason = (
+            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（方向不清晰）；"
+            f"13EMA 斜率 {ema_delta:+.4f}；确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+        )
 
     return {
         "trend": trend,
@@ -520,7 +525,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         countertrend_exists = False
         value_zone_reached = False
         structure_intact = False
-        reversal_checks = [False, False, False, False]
+        reversal_checks = [False, False, False]
         rsi_strength = 0.0
         setup_score = 0.0
         state = "REJECT"
@@ -528,18 +533,36 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         rsi_state = "NEUTRAL"
 
     reversal_evidence_count = int(sum(reversal_checks))
+    if trend == "LONG":
+        direction_label = "回调"
+    elif trend == "SHORT":
+        direction_label = "反弹"
+    else:
+        direction_label = "修正"
+
+    value_zone_label = "已进入/靠近" if value_zone_reached else "未进入"
+    structure_label = "完好" if structure_intact else "破坏"
+    momentum_label = "成立" if momentum_reversal else "未成立"
+    price_label = "成立" if price_reversal else "未成立"
+    detail_prefix = (
+        f"价值区：{value_zone_label} 13EMA；"
+        f"结构：{structure_label}；"
+        f"动能拐头：{momentum_label}；"
+        f"价格拐头：{price_label}。"
+    )
+
     if state == "REJECT":
-        reason = reject_reason
+        reason = f"{detail_prefix} 结论：{reject_reason}"
     elif state == "QUALIFIED":
         reason = (
-            f"日线修正已进入或靠近 13EMA 价值区，且出现 {reversal_evidence_count}/4 项拐头证据，"
-            "可进入候选池"
+            f"{detail_prefix} 结论：{direction_label} setup 已具备执行条件，"
+            f"当前 {reversal_evidence_count}/3 项关键信号到位，可进入候选池。"
         )
     else:
         reason = (
-            f"日线修正存在，但仅满足 {reversal_evidence_count}/4 项拐头证据，继续观察小时线前的完成度"
+            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {reversal_evidence_count}/3 项关键信号到位，继续观察。"
             if value_zone_reached
-            else "日线修正存在但尚未进入或靠近 13EMA 价值区，继续观察"
+            else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值区，继续观察。"
         )
 
     return {
