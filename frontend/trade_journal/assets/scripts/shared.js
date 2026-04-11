@@ -231,6 +231,10 @@ export function getTradeTargetPrice(trade) {
 }
 
 export function getTradeUsedStop(trade) {
+  if (isTradeClosed(trade)) {
+    const realizedPnl = calculateGrossPnl(trade?.buy_price, trade?.sell_price, trade?.shares, trade?.direction);
+    if (realizedPnl !== null) return realizedPnl < 0 ? Math.abs(realizedPnl) : 0;
+  }
   const risk = getRiskPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
   const shares = parseNumberValue(trade?.shares);
   if (risk !== null && shares !== null) return Math.abs(risk * shares);

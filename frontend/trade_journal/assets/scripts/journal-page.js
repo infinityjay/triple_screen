@@ -130,29 +130,29 @@ function getCurrentMonth() {
   return getSettings().month;
 }
 
-function getTradesForMonth(month) {
-  return state.trades.filter((trade) => isTradeRelevantToMonth(trade, month));
-}
-
-function getClosedTradesForMonth(month) {
-  return state.trades.filter((trade) => getTradeSellMonth(trade) === month);
-}
-
-function getOpenTradesForMonth(month) {
-  return state.trades.filter((trade) => isTradeOpenAtMonthEnd(trade, month));
-}
-
-function getOpenTradesForMonthPreview(month, includeCapturePreview = false) {
-  let trades = getOpenTradesForMonth(month);
-  if (!includeCapturePreview) return trades;
+function getTradesSource(includeCapturePreview = false) {
+  if (!includeCapturePreview) return state.trades;
 
   const preview = getCapturePreviewTrade();
-  if (!preview || !isTradeOpenAtMonthEnd(preview, month)) return trades;
+  if (!preview) return state.trades;
 
+  const trades = state.trades.slice();
   const index = trades.findIndex((trade) => String(trade.id) === String(preview.id));
   if (index >= 0) trades[index] = preview;
-  else trades = [preview, ...trades];
+  else trades.unshift(preview);
   return trades;
+}
+
+function getTradesForMonth(month, includeCapturePreview = false) {
+  return getTradesSource(includeCapturePreview).filter((trade) => isTradeRelevantToMonth(trade, month));
+}
+
+function getClosedTradesForMonth(month, includeCapturePreview = false) {
+  return getTradesForMonth(month, includeCapturePreview).filter((trade) => getTradeSellMonth(trade) === month);
+}
+
+function getOpenTradesForMonth(month, includeCapturePreview = false) {
+  return getTradesForMonth(month, includeCapturePreview).filter((trade) => isTradeOpenAtMonthEnd(trade, month));
 }
 
 function getCapturePreviewTrade() {
@@ -161,6 +161,8 @@ function getCapturePreviewTrade() {
   const stopLoss = getNumberInputValue("f_stopLoss");
   const shares = getNumberInputValue("f_shares");
   const buyDate = $("f_buyDate")?.value || null;
+  const sellPrice = getNumberInputValue("f_sellPrice");
+  const sellDate = $("f_sellDate")?.value || null;
   const direction = normalizeDirection($("f_direction")?.value);
 
   if (!stock || buyPrice === null || stopLoss === null || shares === null || !buyDate) {
@@ -182,25 +184,24 @@ function getCapturePreviewTrade() {
     suggested_stop_loss: state.captureSuggestedStop,
     shares,
     buy_date: buyDate,
+    sell_price: sellPrice,
+    sell_date: sellDate,
     created_at: existing.created_at || new Date().toISOString(),
     used_stop: null,
   };
 }
 
-function getMonthRealizedLosses(month) {
-  return getClosedTradesForMonth(month).reduce((sum, trade) => {
-    const pnl = getTradeNetPnl(trade);
-    return pnl !== null && pnl < 0 ? sum + Math.abs(pnl) : sum;
-  }, 0);
+function getMonthClosedRiskUsed(month, includeCapturePreview = false) {
+  return getClosedTradesForMonth(month, includeCapturePreview).reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
 }
 
 function getMonthOpenRisk(month, includeCapturePreview = false) {
-  const trades = getOpenTradesForMonthPreview(month, includeCapturePreview);
+  const trades = getOpenTradesForMonth(month, includeCapturePreview);
   return trades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
 }
 
 function getMonthStopBudgetUsed(month, includeCapturePreview = false) {
-  return getMonthRealizedLosses(month) + getMonthOpenRisk(month, includeCapturePreview);
+  return getMonthClosedRiskUsed(month, includeCapturePreview) + getMonthOpenRisk(month, includeCapturePreview);
 }
 
 function getFilteredTrades() {
@@ -314,13 +315,15 @@ function setReportMonth(month, persist = true) {
 function renderSummary(includeCapturePreview = false) {
   const settings = getSettings();
   const month = settings.month;
-  const openTrades = getOpenTradesForMonthPreview(month, includeCapturePreview);
-  const closedTrades = getClosedTradesForMonth(month);
+  const openTrades = getOpenTradesForMonth(month, includeCapturePreview);
+  const closedTrades = getClosedTradesForMonth(month, includeCapturePreview);
   const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) || 0) >= 0);
   const netClosed = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
   const completionRate = getMonthlyCompletionRate(month);
   const overdue = getOverdueIncompleteTrades();
   const { singleStop, monthBudget, used, remaining, pct } = getRiskNumbers(includeCapturePreview);
+  const closedRiskUsed = getMonthClosedRiskUsed(month, includeCapturePreview);
+  const openRiskUsed = getMonthOpenRisk(month, includeCapturePreview);
 
   $("summaryTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "未设置";
   $("summarySingleStop").textContent = settings.total ? formatCurrency(singleStop, 2) : "—";
@@ -333,7 +336,7 @@ function renderSummary(includeCapturePreview = false) {
     : "本月暂无已结交易";
   $("summaryOpenCount").textContent = String(openTrades.length);
   $("summaryUsedPct").textContent = formatPercent(pct, 0);
-  $("summaryUsedText").textContent = `已实现亏损 ${formatCurrency(getMonthRealizedLosses(month), 2)} + 开放风险 ${formatCurrency(getMonthOpenRisk(month, includeCapturePreview), 2)}`;
+  $("summaryUsedText").textContent = `已结亏损占用 ${formatCurrency(closedRiskUsed, 2)} + 开放风险 ${formatCurrency(openRiskUsed, 2)}`;
   $("summaryCompleteness").textContent = completionRate === null ? "暂无样本" : formatPercent(completionRate, 0);
   $("summaryCompletenessSub").textContent = overdue.length
     ? `${overdue.length} 笔超过 3 个月仍未补全`
@@ -726,10 +729,22 @@ function computeCapture() {
   if (targetPrice !== null) $("f_targetPrice").value = targetPrice.toFixed(3);
   else $("f_targetPrice").value = "";
 
-  const { singleStop } = getRiskNumbers();
+  const currentRisk = getRiskNumbers();
+  const previewRisk = getRiskNumbers(true);
+  const { singleStop } = currentRisk;
   const maxLoss = getSettings().total ? singleStop : null;
   const riskPerShare = getRiskPerShare(buyPrice, stopLoss, direction);
-  const usedStop = riskPerShare !== null && shares !== null ? riskPerShare * shares : null;
+  const usedStop =
+    buyPrice !== null && stopLoss !== null && shares !== null
+      ? getTradeUsedStop({
+          buy_price: buyPrice,
+          stop_loss: stopLoss,
+          shares,
+          direction,
+          sell_price: sellPrice,
+          sell_date: $("f_sellDate").value || null,
+        })
+      : null;
   const recommendedShares = getRecommendedShares(maxLoss, buyPrice, stopLoss, direction);
   const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
   const grossPnl = calculateGrossPnl(buyPrice, sellPrice, shares, direction);
@@ -760,6 +775,17 @@ function computeCapture() {
     : `当前规则建议 ${formatNumber(recommendedShares, 0)} 股，方向为 ${getDirectionLabel(direction)}`;
   $("fillSharesBtn").disabled = recommendedShares === null;
   $("fillSharesInlineBtn").disabled = recommendedShares === null;
+
+  if (previewRisk.monthBudget > 0 && previewRisk.remaining < 0 && getCapturePreviewTrade()) {
+    showAlert(
+      "captureAlert",
+      `这笔交易会超出本月剩余止损额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`,
+      "danger"
+    );
+  } else {
+    showAlert("captureAlert", "");
+  }
+
   renderSummary(true);
 }
 
@@ -797,7 +823,17 @@ function getCapturePayload() {
   const targetPrice = getTargetPrice(buyPrice, targetPct, direction);
   const grossPnl = calculateGrossPnl(buyPrice, sellPrice, shares, direction);
   const netPnl = calculateNetPnl(grossPnl, buyComm, sellComm);
-  const riskPerShare = getRiskPerShare(buyPrice, stopLoss, direction);
+  const usedStop =
+    buyPrice !== null && stopLoss !== null && shares !== null
+      ? getTradeUsedStop({
+          buy_price: buyPrice,
+          stop_loss: stopLoss,
+          shares,
+          direction,
+          sell_price: sellPrice,
+          sell_date: sellDate,
+        })
+      : null;
 
   return {
     stock,
@@ -822,7 +858,7 @@ function getCapturePayload() {
     buy_comm: buyComm,
     sell_comm: sellComm,
     review: $("f_review").value.trim() || null,
-    used_stop: riskPerShare !== null && shares !== null ? riskPerShare * shares : null,
+    used_stop: usedStop,
     pnl: grossPnl,
     pnl_net: netPnl,
   };
@@ -844,6 +880,14 @@ async function saveTrade() {
   if (error) {
     showAlert("captureAlert", error, "danger");
     return;
+  }
+
+  const previewRisk = getRiskNumbers(true);
+  if (previewRisk.monthBudget > 0 && previewRisk.remaining < 0) {
+    const confirmed = window.confirm(
+      `这笔交易会超出本月剩余止损额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。仍然继续保存吗？`
+    );
+    if (!confirmed) return;
   }
 
   const button = $("captureSaveBtn");
