@@ -408,6 +408,14 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     recent_rsi = rsi.tail(DAILY_CORRECTION_WINDOW_MAX)
     lookback_slice = slice(-DAILY_CORRECTION_WINDOW_MAX, None)
     prior_closes = close.iloc[lookback_slice]
+    latest_open = float(df_day["open"].iloc[-1])
+    latest_close = float(close.iloc[-1])
+    latest_high = float(high.iloc[-1])
+    latest_low = float(low.iloc[-1])
+    macd_hist_now = float(macd_hist.iloc[-1])
+    macd_hist_prev = float(macd_hist.iloc[-2])
+    rsi_delta = rsi_now - rsi_prev
+    macd_hist_delta = macd_hist_now - macd_hist_prev
 
     down_closes = int((prior_closes.diff() < 0).sum())
     up_closes = int((prior_closes.diff() > 0).sum())
@@ -427,8 +435,16 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     reject_reason = ""
     passed = False
     watch = False
+    correction_count = 0
+    correction_counter_label = "近8日修正收盘数"
+    structure_break_level = None
+    custom_close_rule_pass = False
+    custom_wick_rule_pass = False
+    custom_close_location_rule_pass = False
 
     if trend == "LONG":
+        correction_count = down_closes
+        correction_counter_label = "近8日下跌收盘数"
         recent_gap_to_value_band = (recent_close - recent_value_band_high).clip(lower=0)
         latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
         countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
@@ -445,23 +461,30 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(low.iloc[-1] >= structure_break_level)
-        lower_wick = float(min(close.iloc[-1], float(df_day["open"].iloc[-1])) - low.iloc[-1])
-        candle_range = max(float(high.iloc[-1] - low.iloc[-1]), 1e-9)
-        upper_half_close = close.iloc[-1] >= (low.iloc[-1] + candle_range * 0.5)
-        momentum_reversal = bool(rsi_now > rsi_prev and float(macd_hist.iloc[-1]) > float(macd_hist.iloc[-2]))
-        price_reversal = bool(close.iloc[-1] > close.iloc[-2] and lower_wick >= candle_range * 0.35 and upper_half_close)
-        reversal_checks = [
-            momentum_reversal,
-            price_reversal,
-            value_zone_touch,
-        ]
+        lower_wick = float(min(latest_close, latest_open) - latest_low)
+        candle_range = max(float(latest_high - latest_low), 1e-9)
+        close_location_pct = ((latest_close - latest_low) / candle_range) * 100
+        upper_half_close = latest_close >= (latest_low + candle_range * 0.5)
+        close_above_prev = bool(latest_close > close.iloc[-2])
+        wick_ratio_pct = (lower_wick / candle_range) * 100
+        momentum_reversal = bool(rsi_now > rsi_prev and macd_hist_now > macd_hist_prev)
+        custom_close_rule_pass = close_above_prev
+        custom_wick_rule_pass = bool(lower_wick >= candle_range * 0.35)
+        custom_close_location_rule_pass = upper_half_close
+        custom_kline_confirmation = bool(
+            custom_close_rule_pass and custom_wick_rule_pass and custom_close_location_rule_pass
+        )
         accelerating_correction = bool(
             close.iloc[-1] < close.iloc[-2] < close.iloc[-3]
             and rsi_now < rsi_prev
-            and float(macd_hist.iloc[-1]) < float(macd_hist.iloc[-2])
+            and macd_hist_now < macd_hist_prev
         )
         rsi_strength = max(0.0, 45.0 - rsi_now)
-        setup_score = 1.4 + min(sum(reversal_checks) * 0.8, 2.8) + (0.3 if value_zone_reached else 0.0)
+        elder_core_checks = [
+            value_zone_reached,
+            momentum_reversal,
+        ]
+        setup_score = 1.6 + (0.9 if value_zone_reached else 0.0) + (1.6 if momentum_reversal else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
         if not countertrend_exists:
             state = "REJECT"
             reject_reason = "周线做多但日线未形成可识别回调，不属于可执行 setup"
@@ -470,7 +493,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "回调结构已明显跌穿防守摆点，止损边界不可定义"
             rsi_state = "STRUCTURE_BROKEN"
-        elif accelerating_correction and sum(reversal_checks) == 0:
+        elif accelerating_correction and not momentum_reversal:
             state = "REJECT"
             reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
             rsi_state = "ACCELERATING_PULLBACK"
@@ -479,15 +502,17 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             reject_reason = ""
             rsi_state = "PULLBACK_WAIT_VALUE_BAND"
-        elif momentum_reversal and price_reversal:
+        elif momentum_reversal:
             state = "QUALIFIED"
             passed = True
             rsi_state = "PULLBACK_REVERSING" if rsi_in_value_zone else "PULLBACK_REVERSING_LATE"
         else:
             state = "WATCH"
             watch = True
-            rsi_state = "PULLBACK_WAIT_REVERSAL"
+            rsi_state = "PULLBACK_WAIT_MOMENTUM"
     elif trend == "SHORT":
+        correction_count = up_closes
+        correction_counter_label = "近8日上涨收盘数"
         recent_gap_to_value_band = (recent_value_band_low - recent_close).clip(lower=0)
         latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
         countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
@@ -504,23 +529,30 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
         structure_intact = bool(high.iloc[-1] <= structure_break_level)
-        upper_wick = float(high.iloc[-1] - max(close.iloc[-1], float(df_day["open"].iloc[-1])))
-        candle_range = max(float(high.iloc[-1] - low.iloc[-1]), 1e-9)
-        lower_half_close = close.iloc[-1] <= (high.iloc[-1] - candle_range * 0.5)
-        momentum_reversal = bool(rsi_now < rsi_prev and float(macd_hist.iloc[-1]) < float(macd_hist.iloc[-2]))
-        price_reversal = bool(close.iloc[-1] < close.iloc[-2] and upper_wick >= candle_range * 0.35 and lower_half_close)
-        reversal_checks = [
-            momentum_reversal,
-            price_reversal,
-            value_zone_touch,
-        ]
+        upper_wick = float(latest_high - max(latest_close, latest_open))
+        candle_range = max(float(latest_high - latest_low), 1e-9)
+        close_location_pct = ((latest_close - latest_low) / candle_range) * 100
+        lower_half_close = latest_close <= (latest_high - candle_range * 0.5)
+        close_below_prev = bool(latest_close < close.iloc[-2])
+        wick_ratio_pct = (upper_wick / candle_range) * 100
+        momentum_reversal = bool(rsi_now < rsi_prev and macd_hist_now < macd_hist_prev)
+        custom_close_rule_pass = close_below_prev
+        custom_wick_rule_pass = bool(upper_wick >= candle_range * 0.35)
+        custom_close_location_rule_pass = lower_half_close
+        custom_kline_confirmation = bool(
+            custom_close_rule_pass and custom_wick_rule_pass and custom_close_location_rule_pass
+        )
         accelerating_correction = bool(
             close.iloc[-1] > close.iloc[-2] > close.iloc[-3]
             and rsi_now > rsi_prev
-            and float(macd_hist.iloc[-1]) > float(macd_hist.iloc[-2])
+            and macd_hist_now > macd_hist_prev
         )
         rsi_strength = max(0.0, rsi_now - 55.0)
-        setup_score = 1.4 + min(sum(reversal_checks) * 0.8, 2.8) + (0.3 if value_zone_reached else 0.0)
+        elder_core_checks = [
+            value_zone_reached,
+            momentum_reversal,
+        ]
+        setup_score = 1.6 + (0.9 if value_zone_reached else 0.0) + (1.6 if momentum_reversal else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
         if not countertrend_exists:
             state = "REJECT"
             reject_reason = "周线做空但日线未形成可识别反弹，不属于可执行 setup"
@@ -529,7 +561,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "反弹结构已明显突破防守摆点，止损边界不可定义"
             rsi_state = "STRUCTURE_BROKEN"
-        elif accelerating_correction and sum(reversal_checks) == 0:
+        elif accelerating_correction and not momentum_reversal:
             state = "REJECT"
             reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
             rsi_state = "ACCELERATING_RALLY"
@@ -538,26 +570,40 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             reject_reason = ""
             rsi_state = "RALLY_WAIT_VALUE_BAND"
-        elif momentum_reversal and price_reversal:
+        elif momentum_reversal:
             state = "QUALIFIED"
             passed = True
             rsi_state = "RALLY_ROLLING_OVER" if rsi_in_value_zone else "RALLY_ROLLING_OVER_LATE"
         else:
             state = "WATCH"
             watch = True
-            rsi_state = "RALLY_WAIT_REVERSAL"
+            rsi_state = "RALLY_WAIT_MOMENTUM"
     else:
         countertrend_exists = False
+        entered_value_zone = False
         value_zone_reached = False
+        rsi_in_value_zone = False
         structure_intact = False
-        reversal_checks = [False, False, False]
+        elder_core_checks = [False, False]
         rsi_strength = 0.0
         setup_score = 0.0
         state = "REJECT"
         reject_reason = "周线方向不明，日线不单独提供交易资格"
         rsi_state = "NEUTRAL"
+        momentum_reversal = False
+        custom_kline_confirmation = False
+        close_location_pct = 0.0
+        wick_ratio_pct = 0.0
+        close_above_prev = False
+        close_below_prev = False
+        latest_open = 0.0
+        latest_close = 0.0
+        latest_high = 0.0
+        latest_low = 0.0
+        macd_hist_now = 0.0
+        macd_hist_prev = 0.0
 
-    reversal_evidence_count = int(sum(reversal_checks))
+    elder_core_signal_count = int(sum(elder_core_checks))
     if trend == "LONG":
         direction_label = "回调"
     elif trend == "SHORT":
@@ -565,15 +611,22 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     else:
         direction_label = "修正"
 
-    value_zone_label = "已回到" if value_zone_reached else "尚未回到"
-    structure_label = "完好" if structure_intact else "破坏"
-    momentum_label = "成立" if momentum_reversal else "未成立"
-    price_label = "成立" if price_reversal else "未成立"
+    value_zone_label = (
+        f"{value_band_low.iloc[-1]:.2f}~{value_band_high.iloc[-1]:.2f}，最新区间 {latest_low:.2f}~{latest_high:.2f}"
+        if trend in {"LONG", "SHORT"}
+        else "—"
+    )
+    structure_label = (
+        f"最新低点 {latest_low:.2f} >= 防守位 {structure_break_level:.2f}" if trend == "LONG" and structure_break_level is not None
+        else f"最新高点 {latest_high:.2f} <= 防守位 {structure_break_level:.2f}" if trend == "SHORT" and structure_break_level is not None
+        else "—"
+    )
+    momentum_label = f"RSI {rsi_prev:.2f}->{rsi_now:.2f}；Histogram {macd_hist_prev:+.4f}->{macd_hist_now:+.4f}" if trend in {"LONG", "SHORT"} else "—"
     detail_prefix = (
-        f"13EMA 价值带：{value_zone_label}；"
-        f"结构：{structure_label}；"
-        f"动能拐头：{momentum_label}；"
-        f"价格拐头：{price_label}。"
+        f"{correction_counter_label} {correction_count}；"
+        f"13EMA 价值带 {value_zone_label}；"
+        f"{structure_label}；"
+        f"动能检查 {momentum_label}。"
     )
 
     if state == "REJECT":
@@ -581,11 +634,11 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     elif state == "QUALIFIED":
         reason = (
             f"{detail_prefix} 结论：{direction_label} setup 已具备执行条件，"
-            f"当前 {reversal_evidence_count}/3 项关键信号到位，可进入候选池。"
+            f"当前 {elder_core_signal_count}/2 项 Elder 核心信号到位，可进入候选池。"
         )
     else:
         reason = (
-            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {reversal_evidence_count}/3 项关键信号到位，继续观察。"
+            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/2 项 Elder 核心信号到位，继续观察。"
             if value_zone_reached
             else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值带，继续观察。"
         )
@@ -605,11 +658,26 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "value_band_high": round(float(value_band_high.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
         "value_band_padding": round(float(value_band_padding.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
         "value_band_gap": round(float(latest_gap_window.iloc[-1]), 4) if latest_gap_window is not None and len(latest_gap_window) else None,
+        "correction_count": correction_count if trend in {"LONG", "SHORT"} else 0,
+        "correction_counter_label": correction_counter_label,
         "rsi_in_value_zone": rsi_in_value_zone if trend in {"LONG", "SHORT"} else False,
-        "reversal_evidence_count": reversal_evidence_count,
+        "elder_core_signal_count": elder_core_signal_count,
+        "elder_core_signal_total": 2,
         "structure_intact": structure_intact,
+        "structure_break_level": round(float(structure_break_level), 4) if structure_break_level is not None else None,
         "momentum_reversal": momentum_reversal if trend in {"LONG", "SHORT"} else False,
-        "price_reversal": price_reversal if trend in {"LONG", "SHORT"} else False,
+        "momentum_rsi_delta": round(float(rsi_delta), 2) if trend in {"LONG", "SHORT"} else 0.0,
+        "momentum_hist_now": round(float(macd_hist_now), 6) if trend in {"LONG", "SHORT"} else 0.0,
+        "momentum_hist_prev": round(float(macd_hist_prev), 6) if trend in {"LONG", "SHORT"} else 0.0,
+        "momentum_hist_delta": round(float(macd_hist_delta), 6) if trend in {"LONG", "SHORT"} else 0.0,
+        "price_reversal": custom_kline_confirmation if trend in {"LONG", "SHORT"} else False,
+        "custom_kline_confirmation": custom_kline_confirmation if trend in {"LONG", "SHORT"} else False,
+        "custom_close_vs_prev": close_above_prev if trend == "LONG" else close_below_prev if trend == "SHORT" else False,
+        "custom_close_rule_pass": custom_close_rule_pass if trend in {"LONG", "SHORT"} else False,
+        "custom_wick_rule_pass": custom_wick_rule_pass if trend in {"LONG", "SHORT"} else False,
+        "custom_close_location_rule_pass": custom_close_location_rule_pass if trend in {"LONG", "SHORT"} else False,
+        "custom_wick_ratio_pct": round(float(wick_ratio_pct), 2) if trend in {"LONG", "SHORT"} else 0.0,
+        "custom_close_location_pct": round(float(close_location_pct), 2) if trend in {"LONG", "SHORT"} else 0.0,
         "priority_divergence": False,
         "earnings_blocked": False,
         "watch": watch,

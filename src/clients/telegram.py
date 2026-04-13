@@ -67,6 +67,10 @@ class TelegramNotifier:
         return "⭐" * stars + "☆" * (5 - stars)
 
     @staticmethod
+    def _bool_text(value: Any) -> str:
+        return "是" if bool(value) else "否"
+
+    @staticmethod
     def _status_label(signal: dict) -> str:
         if signal.get("opportunity_status") == "TRIGGERED":
             return "已触发"
@@ -92,8 +96,8 @@ class TelegramNotifier:
             "ACCELERATING_RALLY": "反弹仍在加速",
             "PULLBACK_WAIT_VALUE_BAND": "等待回到 13EMA 价值带",
             "RALLY_WAIT_VALUE_BAND": "等待回到 13EMA 价值带",
-            "PULLBACK_WAIT_REVERSAL": "已回到价值带，等待转强",
-            "RALLY_WAIT_REVERSAL": "已回到价值带，等待转弱",
+            "PULLBACK_WAIT_MOMENTUM": "已回到价值带，等待动能转强",
+            "RALLY_WAIT_MOMENTUM": "已回到价值带，等待动能转弱",
             "PULLBACK_REVERSING": "价值带内开始转强",
             "PULLBACK_REVERSING_LATE": "价值带内转强偏晚",
             "RALLY_ROLLING_OVER": "价值带内开始转弱",
@@ -132,6 +136,14 @@ class TelegramNotifier:
     def _execution_score(signal: dict) -> float:
         return float(signal.get("execution_score", signal.get("signal_score", 0.0)) or 0.0)
 
+    @staticmethod
+    def _fmt_num(value: Any, digits: int = 2, signed: bool = False) -> str:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return "—"
+        return f"{number:+.{digits}f}" if signed else f"{number:.{digits}f}"
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -150,11 +162,9 @@ class TelegramNotifier:
         dir_label = "做多" if direction == "LONG" else "做空"
         daily_state_label = self._daily_state_label(daily["rsi_state"])
         hourly_status_label = self._hourly_status_label(hourly["status"])
-        stop_basis_label = self._stop_basis_label(exits["stop_basis"])
-        initial_stop_basis_label = self._stop_basis_label(exits.get("initial_stop_basis", exits["stop_basis"]))
+        stop_basis_label = self._stop_basis_label(exits.get("stop_basis", "UNKNOWN"))
+        initial_stop_basis_label = self._stop_basis_label(exits.get("initial_stop_basis", exits.get("stop_basis", "UNKNOWN")))
         protective_stop_basis_label = self._stop_basis_label(exits.get("protective_stop_basis", "SAFEZONE"))
-        hist_bar = self._bar(abs(weekly["histogram"]) * 1000, 5, length=8)
-        rsi_bar = self._bar(daily["rsi"], 100, length=10)
         breakout_bar = self._bar(hourly.get("breakout_strength", 0), 1.0, length=8)
 
         if direction == "LONG":
@@ -190,34 +200,40 @@ class TelegramNotifier:
             f"{'─' * 32}\n"
             f"<b>第一重 · 周线 MACD</b>\n"
             f"方向：<b>{weekly['trend']}</b>\n"
-            f"MACD：{weekly['macd']:.4f}  Signal：{weekly['macd_signal']:.4f}\n"
-            f"Histogram：<code>{weekly['histogram']:+.4f}</code>\n"
-            f"强度条：[{hist_bar}]  连续确认：{weekly['confirmed_bars']} 根\n"
-            f"解读：{weekly['reason']}\n"
+            f"MACD：<code>{self._fmt_num(weekly.get('macd'), 4)}</code>  Signal：<code>{self._fmt_num(weekly.get('macd_signal'), 4)}</code>\n"
+            f"Histogram：<code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
+            f"13EMA：<code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  斜率：<code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
+            f"连续同向 bars：<code>{weekly.get('confirmed_bars', '—')}</code> / 收盘位于趋势侧：<b>{self._bool_text(weekly.get('close_on_trend_side'))}</b>\n"
+            f"周线结论：{weekly['reason']}\n"
             f"{'─' * 32}\n"
-            f"<b>第二重 · 日线 RSI</b>\n"
-            f"RSI(14)：<code>{daily['rsi']:.1f}</code> ({daily_state_label})\n"
-            f"上根 RSI：{daily['rsi_prev']:.1f}\n"
-            f"RSI 条：[{rsi_bar}] {daily['rsi']:.0f}\n"
-            f"解读：{daily['reason']}\n"
+            f"<b>第二重 · 日线 Elder 核心</b>\n"
+            f"日线阶段：<b>{daily_state_label}</b>  Elder核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 2)}</code>\n"
+            f"RSI：<code>{self._fmt_num(daily.get('rsi'), 2)}</code>  前一日：<code>{self._fmt_num(daily.get('rsi_prev'), 2)}</code>  变化：<code>{self._fmt_num(daily.get('momentum_rsi_delta'), 2, signed=True)}</code>\n"
+            f"Histogram：<code>{self._fmt_num(daily.get('momentum_hist_now'), 4, signed=True)}</code>  前一日：<code>{self._fmt_num(daily.get('momentum_hist_prev'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
+            f"13EMA价值带：<code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  距离价值带：<code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
+            f"{daily.get('correction_counter_label', '近8日修正收盘数')}：<code>{daily.get('correction_count', 0)}</code>  结构防守位：<code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
+            f"回到价值带：<b>{self._bool_text(daily.get('value_zone_reached'))}</b>  动能同步改善：<b>{self._bool_text(daily.get('momentum_reversal'))}</b>\n"
+            f"辅助K线确认：<b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  收盘相对昨收：<b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
+            f"影线比例：<code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  收盘位置：<code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
+            f"日线结论：{daily['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>第三重 · 1小时突破</b>\n"
             f"{breakout_line}\n"
             f"突破强度：[{breakout_bar}] {hourly.get('breakout_strength', 0):.2f}xATR\n"
             f"ATR：<code>{hourly['atr']:.4f}</code>\n"
             f"触发状态：<b>{hourly_status_label}</b>\n"
-            f"解读：{hourly['reason']}\n"
+            f"小时线结论：{hourly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>交易建议</b>\n"
-            f"建议入场：<code>{exits['entry']:.2f}</code>\n"
-            f"初始止损：<code>{exits['initial_stop_loss']:.2f}</code> ({initial_stop_basis_label})\n"
-            f"信号K止损：<code>{exits['initial_stop_signal_bar']:.2f}</code>  回调摆点：<code>{exits['initial_stop_pullback_pivot']:.2f}</code>\n"
-            f"后续保护止损：<code>{exits['protective_stop_loss']:.2f}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
-            f"当前激活止损：<code>{exits['stop_loss']:.2f}</code> ({stop_basis_label})\n"
-            f"日线 SafeZone：<code>{exits['stop_loss_safezone']:.2f}</code>\n"
-            f"首个止盈：<code>{exits['take_profit']:.2f}</code>\n"
-            f"日线 Thermometer EMA：<code>{exits['thermometer_ema']:.2f}</code>  投影基准：{exits['target_reference']:.2f}\n"
-            f"每股风险：{exits['risk_per_share']:.2f}  预估盈亏比：{exits['reward_risk_ratio']:.2f}R\n"
+            f"建议入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>\n"
+            f"初始止损：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
+            f"信号K止损：<code>{self._fmt_num(exits.get('initial_stop_signal_bar'), 2)}</code>  回调摆点：<code>{self._fmt_num(exits.get('initial_stop_pullback_pivot'), 2)}</code>\n"
+            f"后续保护止损：<code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
+            f"当前激活止损：<code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
+            f"日线 SafeZone：<code>{self._fmt_num(exits.get('stop_loss_safezone'), 2)}</code>\n"
+            f"首个止盈：<code>{self._fmt_num(exits.get('take_profit'), 2)}</code>\n"
+            f"日线 Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  投影基准：{self._fmt_num(exits.get('target_reference'), 2)}\n"
+            f"每股风险：{self._fmt_num(exits.get('risk_per_share'), 2)}  预估盈亏比：{self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"
             f"{'─' * 32}\n"
             f"<b>候选池标签</b>\n"
             f"候选日期：<code>{signal.get('source_session_date', 'UNKNOWN')}</code>\n"
@@ -279,7 +295,8 @@ class TelegramNotifier:
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} 候选 "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   {daily_state} · 后续盘中持续跟踪小时线 stop · 财报 {earnings_status}\n"
+                f"   {daily_state} · Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 2)} · "
+                f"价值带 {self._bool_text(signal['daily'].get('value_zone_reached'))} · 财报 {earnings_status}\n"
             )
 
         if stop_update_summary:
@@ -378,6 +395,7 @@ class TelegramNotifier:
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
                 f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
                 f"   现价 {signal['hourly']['close']:.2f} · RR {signal['exits']['reward_risk_ratio']:.2f}R · "
+                f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 2)} · "
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
             )
 

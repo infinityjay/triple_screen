@@ -76,8 +76,8 @@ def _daily_state_label(state: str | None) -> str:
         "ACCELERATING_RALLY": "反弹仍在加速",
         "PULLBACK_WAIT_VALUE_BAND": "回调已出现，等待回到 13EMA 价值带",
         "RALLY_WAIT_VALUE_BAND": "反弹已出现，等待回到 13EMA 价值带",
-        "PULLBACK_WAIT_REVERSAL": "已回到 13EMA 价值带，等待转强",
-        "RALLY_WAIT_REVERSAL": "已回到 13EMA 价值带，等待转弱",
+        "PULLBACK_WAIT_MOMENTUM": "已回到 13EMA 价值带，等待动能转强",
+        "RALLY_WAIT_MOMENTUM": "已回到 13EMA 价值带，等待动能转弱",
         "PULLBACK_REVERSING": "回调到价值带后开始转强",
         "PULLBACK_REVERSING_LATE": "回调到价值带后转强，但略偏晚",
         "RALLY_ROLLING_OVER": "反弹到价值带后开始转弱",
@@ -268,31 +268,42 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
         _metric("趋势分数", _safe_round(weekly.get("trend_score"), 2)),
     ]
     weekly_checks = [
-        _check("柱线方向明确", weekly.get("actionable", False), "Histogram delta 不为 0，周线存在方向性。"),
         _check(
-            "确认 bars 足够",
+            "Histogram 变化方向",
+            weekly.get("actionable", False),
+            f"本周 Histogram 变化值 {_safe_round(weekly.get('histogram_delta'), 6)}，不为 0 才有方向。",
+        ),
+        _check(
+            "连续同向 Histogram bars",
             bool(weekly.get("pass_checks", {}).get("confirmed_bars")),
             f"当前 {weekly.get('confirmed_bars', 0)} 根，规则要求至少 {settings.strategy.weekly.confirm_bars} 根。",
         ),
         _check(
-            "Impulse 与斜率一致",
+            "13EMA 斜率与 Histogram 同向",
             bool(weekly.get("pass_checks", {}).get("impulse_aligned")),
-            "检查 13EMA 斜率与柱线变化方向是否同向。",
+            f"13EMA 斜率 {_safe_round(weekly.get('ema13_slope'), 6)}，需与 Histogram 变化方向一致。",
         ),
         _check(
-            "收盘站在趋势侧",
+            "收盘位于 13EMA 趋势侧",
             bool(weekly.get("pass_checks", {}).get("close_on_trend_side")),
-            "确认收盘仍位于 13EMA 的趋势有利一侧。",
+            f"周线收盘需位于 13EMA {_safe_round(weekly.get('ema13'), 4)} 的趋势有利一侧。",
         ),
     ]
 
     daily_metrics = [
-        _metric("日线状态", daily.get("state")),
+        _metric("Elder 日线结论", daily.get("state")),
         _metric("RSI", _safe_round(daily.get("rsi"), 2)),
         _metric("前一日 RSI", _safe_round(daily.get("rsi_prev"), 2)),
+        _metric("RSI 变化", _safe_round(daily.get("momentum_rsi_delta"), 2)),
         _metric("日线阶段", _daily_state_label(daily.get("rsi_state"))),
         _metric("Setup 分数", _safe_round(daily.get("setup_score"), 2)),
-        _metric("反转证据", f"{daily.get('reversal_evidence_count', 0)} / 3"),
+        _metric(
+            "Elder 核心信号",
+            f"{daily.get('elder_core_signal_count', 0)} / {daily.get('elder_core_signal_total', 2)}",
+        ),
+        _metric("MACD Histogram", _safe_round(daily.get("momentum_hist_now"), 6)),
+        _metric("前一日 Histogram", _safe_round(daily.get("momentum_hist_prev"), 6)),
+        _metric("Histogram 变化", _safe_round(daily.get("momentum_hist_delta"), 6)),
         _metric("13EMA", daily_ema13),
         _metric(
             "13EMA 价值带",
@@ -303,25 +314,63 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             ),
         ),
         _metric("距价值带", _safe_round(daily.get("value_band_gap"))),
+        _metric(daily.get("correction_counter_label", "近8日修正收盘数"), daily.get("correction_count")),
+        _metric("结构防守位", _safe_round(daily.get("structure_break_level"))),
         _metric("最新收盘", latest_close),
+        _metric("自定义K线确认", "成立" if daily.get("custom_kline_confirmation") else "未成立"),
+        _metric("收盘相对昨收", "满足" if daily.get("custom_close_rule_pass") else "未满足"),
+        _metric("K线影线占比", f"{_safe_round(daily.get('custom_wick_ratio_pct'), 2)}%"),
+        _metric("影线比例>=35%", "满足" if daily.get("custom_wick_rule_pass") else "未满足"),
+        _metric("收盘在K线中的位置", f"{_safe_round(daily.get('custom_close_location_pct'), 2)}%"),
+        _metric("收盘落在有利半区", "满足" if daily.get("custom_close_location_rule_pass") else "未满足"),
         _metric(
             "当日区间",
             f"{latest_low if latest_low is not None else '—'} ~ {latest_high if latest_high is not None else '—'}",
         ),
     ]
     daily_checks = [
-        _check("出现逆势修正", daily.get("countertrend_exists", False), "做多看回调，做空看反弹。"),
+        _check(
+            daily.get("correction_counter_label", "近8日修正收盘数"),
+            daily.get("countertrend_exists", False),
+            (
+                f"当前计数 {daily.get('correction_count', 0)}。"
+                " 做多时看下跌收盘数/RSI回落/价格向13EMA回撤；做空时反向。"
+            ),
+        ),
         _check(
             "回到 13EMA 价值带",
             daily.get("value_zone_reached", False),
             (
-                "按 Elder 的回到价值思路，检查价格是否回到 13EMA 附近的 ATR 动态价值带。"
-                f"当前默认带宽为 {settings.strategy.daily.value_band_atr_multiplier:.2f} ATR。"
+                f"13EMA 价值带为 {_safe_round(daily.get('value_band_low'))} ~ {_safe_round(daily.get('value_band_high'))}；"
+                f" 最新价格离价值带 {_safe_round(daily.get('value_band_gap'))}。"
             ),
         ),
-        _check("结构未被破坏", daily.get("structure_intact", False), "确认防守摆点仍可定义。"),
-        _check("动能拐头", daily.get("momentum_reversal", False), "比较 RSI 与 MACD Histogram 是否同步改善。"),
-        _check("价格拐头", daily.get("price_reversal", False), "检查 K 线实体、影线与收盘位置。"),
+        _check(
+            "结构防守位",
+            daily.get("structure_intact", False),
+            (
+                f"结构防守位 {_safe_round(daily.get('structure_break_level'))}；"
+                f" 最新价格区间 {latest_low if latest_low is not None else '—'} ~ {latest_high if latest_high is not None else '—'}。"
+            ),
+        ),
+        _check(
+            "RSI 与 Histogram 同步改善",
+            daily.get("momentum_reversal", False),
+            (
+                f"RSI 变化 {_safe_round(daily.get('momentum_rsi_delta'), 2)}；"
+                f" Histogram {_safe_round(daily.get('momentum_hist_prev'), 6)} -> {_safe_round(daily.get('momentum_hist_now'), 6)}。"
+            ),
+        ),
+        _check(
+            "自定义K线确认",
+            daily.get("custom_kline_confirmation", False),
+            (
+                "辅助项，不参与 Elder 核心判断。"
+                f" 收盘相对昨收={'满足' if daily.get('custom_close_rule_pass') else '未满足'}；"
+                f" 影线比例>=35%={'满足' if daily.get('custom_wick_rule_pass') else '未满足'}；"
+                f" 收盘位于有利半区={'满足' if daily.get('custom_close_location_rule_pass') else '未满足'}。"
+            ),
+        ),
     ]
 
     weekly_divergence = divergence.get("weekly", {})
