@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import yaml
 
 from config.loader import load_settings
+from journal.technical_analysis import TechnicalAnalysisError, analyze_symbol
 from storage.sqlite import SQLiteStorage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -104,7 +105,7 @@ async def require_basic_auth(request: Request, call_next):
     if not _is_authorized(request):
         return _build_basic_auth_response()
     response = await call_next(request)
-    if request.url.path in {"/", "/journal", "/watchlist"} or request.url.path.startswith("/frontend/"):
+    if request.url.path in {"/", "/journal", "/watchlist", "/analysis"} or request.url.path.startswith("/frontend/"):
         response.headers["Cache-Control"] = FRONTEND_ASSET_CACHE_CONTROL
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -149,6 +150,11 @@ class TradeSettingsPayload(BaseModel):
     report_month: str | None = None
 
 
+class SymbolAnalysisPayload(BaseModel):
+    symbol: str
+    include_ai: bool = True
+
+
 @app.get("/")
 def get_index() -> FileResponse:
     return FileResponse(FRONTEND_ROOT / "index.html")
@@ -162,6 +168,11 @@ def get_journal_page() -> FileResponse:
 @app.get("/watchlist")
 def get_watchlist_page() -> FileResponse:
     return FileResponse(FRONTEND_ROOT / "watchlist.html")
+
+
+@app.get("/analysis")
+def get_analysis_page() -> FileResponse:
+    return FileResponse(FRONTEND_ROOT / "analysis.html")
 
 
 @app.get("/api/health")
@@ -233,6 +244,14 @@ def get_watchlist_data(
         "count": len(items),
         "items": items,
     }
+
+
+@app.post("/api/technical-analysis")
+def post_technical_analysis(payload: SymbolAnalysisPayload) -> dict[str, Any]:
+    try:
+        return analyze_symbol(payload.symbol, include_ai=payload.include_ai)
+    except TechnicalAnalysisError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def run() -> None:
