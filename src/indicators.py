@@ -72,6 +72,17 @@ def calc_market_thermometer(df: pd.DataFrame, period: int) -> tuple[pd.Series, p
     return temperature, average_temperature
 
 
+def calc_value_zone_bounds(
+    ema_series: pd.Series,
+    atr_series: pd.Series,
+    atr_multiplier: float,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    padding = atr_series.abs() * max(float(atr_multiplier), 0.0)
+    lower_band = ema_series - padding
+    upper_band = ema_series + padding
+    return lower_band, upper_band, padding
+
+
 def calc_reward_risk_score(reward_risk_ratio: float) -> float:
     if reward_risk_ratio <= 0:
         return 0.0
@@ -380,6 +391,11 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     low = df_day["low"].astype(float)
     ema13 = calc_ema(close, DAILY_EMA_PERIOD)
     atr_series = calc_atr(df_day, settings.hourly.atr_period)
+    value_band_low, value_band_high, value_band_padding = calc_value_zone_bounds(
+        ema13,
+        atr_series,
+        settings.daily.value_band_atr_multiplier,
+    )
     _, _, macd_hist = calc_macd(df_day, settings)
 
     recent = df_day.tail(DAILY_CORRECTION_WINDOW_MAX).copy()
@@ -387,6 +403,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     recent_high = recent["high"].astype(float)
     recent_low = recent["low"].astype(float)
     recent_ema = ema13.tail(DAILY_CORRECTION_WINDOW_MAX)
+    recent_value_band_low = value_band_low.tail(DAILY_CORRECTION_WINDOW_MAX)
+    recent_value_band_high = value_band_high.tail(DAILY_CORRECTION_WINDOW_MAX)
     recent_rsi = rsi.tail(DAILY_CORRECTION_WINDOW_MAX)
     lookback_slice = slice(-DAILY_CORRECTION_WINDOW_MAX, None)
     prior_closes = close.iloc[lookback_slice]
@@ -395,9 +413,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     up_closes = int((prior_closes.diff() > 0).sum())
     rsi_falling = bool(recent_rsi.iloc[-1] < recent_rsi.iloc[0])
     rsi_rising = bool(recent_rsi.iloc[-1] > recent_rsi.iloc[0])
-    recent_gap_to_ema = (recent_close - recent_ema).abs()
-    latest_gap_window = recent_gap_to_ema.tail(DAILY_REVERSAL_LOOKBACK)
-    value_zone_touch = bool(((recent_low <= recent_ema) & (recent_high >= recent_ema)).tail(DAILY_REVERSAL_LOOKBACK).any())
+    latest_gap_window = None
+    value_zone_touch = bool(
+        ((recent_low <= recent_value_band_high) & (recent_high >= recent_value_band_low))
+        .tail(DAILY_REVERSAL_LOOKBACK)
+        .any()
+    )
 
     correction_bar_count = min(len(recent_close), DAILY_CORRECTION_WINDOW_MAX)
     correction_in_window = correction_bar_count >= DAILY_CORRECTION_WINDOW_MIN
@@ -408,10 +429,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     watch = False
 
     if trend == "LONG":
+        recent_gap_to_value_band = (recent_close - recent_value_band_high).clip(lower=0)
+        latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
         countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
         value_zone_approach = bool(
             len(latest_gap_window) >= 2
-            and close.iloc[-1] >= ema13.iloc[-1]
+            and close.iloc[-1] >= value_band_low.iloc[-1]
             and latest_gap_window.iloc[-1] == latest_gap_window.min()
             and latest_gap_window.iloc[-1] < latest_gap_window.iloc[-2]
             and (close.iloc[-1] <= close.iloc[-2] or low.iloc[-1] <= low.iloc[-2])
@@ -455,7 +478,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "WATCH"
             watch = True
             reject_reason = ""
-            rsi_state = "PULLBACK_WAIT_EMA_VALUE_ZONE"
+            rsi_state = "PULLBACK_WAIT_VALUE_BAND"
         elif momentum_reversal and price_reversal:
             state = "QUALIFIED"
             passed = True
@@ -465,10 +488,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             rsi_state = "PULLBACK_WAIT_REVERSAL"
     elif trend == "SHORT":
+        recent_gap_to_value_band = (recent_value_band_low - recent_close).clip(lower=0)
+        latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
         countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
         value_zone_approach = bool(
             len(latest_gap_window) >= 2
-            and close.iloc[-1] <= ema13.iloc[-1]
+            and close.iloc[-1] <= value_band_high.iloc[-1]
             and latest_gap_window.iloc[-1] == latest_gap_window.min()
             and latest_gap_window.iloc[-1] < latest_gap_window.iloc[-2]
             and (close.iloc[-1] >= close.iloc[-2] or high.iloc[-1] >= high.iloc[-2])
@@ -512,7 +537,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "WATCH"
             watch = True
             reject_reason = ""
-            rsi_state = "RALLY_WAIT_EMA_VALUE_ZONE"
+            rsi_state = "RALLY_WAIT_VALUE_BAND"
         elif momentum_reversal and price_reversal:
             state = "QUALIFIED"
             passed = True
@@ -540,12 +565,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     else:
         direction_label = "修正"
 
-    value_zone_label = "已进入/靠近" if value_zone_reached else "未进入"
+    value_zone_label = "已回到" if value_zone_reached else "尚未回到"
     structure_label = "完好" if structure_intact else "破坏"
     momentum_label = "成立" if momentum_reversal else "未成立"
     price_label = "成立" if price_reversal else "未成立"
     detail_prefix = (
-        f"价值区：{value_zone_label} 13EMA；"
+        f"13EMA 价值带：{value_zone_label}；"
         f"结构：{structure_label}；"
         f"动能拐头：{momentum_label}；"
         f"价格拐头：{price_label}。"
@@ -562,7 +587,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         reason = (
             f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {reversal_evidence_count}/3 项关键信号到位，继续观察。"
             if value_zone_reached
-            else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值区，继续观察。"
+            else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值带，继续观察。"
         )
 
     return {
@@ -576,6 +601,10 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "countertrend_exists": countertrend_exists,
         "entered_value_zone": entered_value_zone if trend in {"LONG", "SHORT"} else False,
         "value_zone_reached": value_zone_reached,
+        "value_band_low": round(float(value_band_low.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
+        "value_band_high": round(float(value_band_high.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
+        "value_band_padding": round(float(value_band_padding.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
+        "value_band_gap": round(float(latest_gap_window.iloc[-1]), 4) if latest_gap_window is not None and len(latest_gap_window) else None,
         "rsi_in_value_zone": rsi_in_value_zone if trend in {"LONG", "SHORT"} else False,
         "reversal_evidence_count": reversal_evidence_count,
         "structure_intact": structure_intact,

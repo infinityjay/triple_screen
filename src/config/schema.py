@@ -87,6 +87,7 @@ class DailyStrategyConfig:
     rsi_oversold: float
     rsi_overbought: float
     recovery_mode: bool
+    value_band_atr_multiplier: float
 
 
 @dataclass(frozen=True)

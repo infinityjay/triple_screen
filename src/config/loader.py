@@ -183,6 +183,7 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
                 rsi_oversold=float(daily_raw.get("rsi_oversold", 35)),
                 rsi_overbought=float(daily_raw.get("rsi_overbought", 65)),
                 recovery_mode=bool(daily_raw.get("recovery_mode", True)),
+                value_band_atr_multiplier=float(daily_raw.get("value_band_atr_multiplier", 0.75)),
             ),
             hourly=HourlyStrategyConfig(
                 trigger_mode=_validate_trigger_mode(hourly_raw.get("trigger_mode")),

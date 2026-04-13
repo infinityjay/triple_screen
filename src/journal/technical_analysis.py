@@ -66,6 +66,26 @@ def _normalize_symbol(value: str) -> str:
     return re.sub(r"[^A-Z0-9.\-]", "", str(value or "").strip().upper())
 
 
+def _daily_state_label(state: str | None) -> str:
+    labels = {
+        "NEUTRAL": "中性",
+        "NO_PULLBACK": "周线做多，但日线还没形成清晰回调",
+        "NO_RALLY": "周线做空，但日线还没形成清晰反弹",
+        "STRUCTURE_BROKEN": "结构被破坏",
+        "ACCELERATING_PULLBACK": "回调仍在加速",
+        "ACCELERATING_RALLY": "反弹仍在加速",
+        "PULLBACK_WAIT_VALUE_BAND": "回调已出现，等待回到 13EMA 价值带",
+        "RALLY_WAIT_VALUE_BAND": "反弹已出现，等待回到 13EMA 价值带",
+        "PULLBACK_WAIT_REVERSAL": "已回到 13EMA 价值带，等待转强",
+        "RALLY_WAIT_REVERSAL": "已回到 13EMA 价值带，等待转弱",
+        "PULLBACK_REVERSING": "回调到价值带后开始转强",
+        "PULLBACK_REVERSING_LATE": "回调到价值带后转强，但略偏晚",
+        "RALLY_ROLLING_OVER": "反弹到价值带后开始转弱",
+        "RALLY_ROLLING_OVER_LATE": "反弹到价值带后转弱，但略偏晚",
+    }
+    return labels.get(str(state or ""), str(state or "—"))
+
+
 def _json_safe(value: Any) -> Any:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -178,7 +198,7 @@ def _build_followup_decision(weekly: dict[str, Any], daily: dict[str, Any], dive
             "code": "WATCH",
             "label": "可以继续跟进观察",
             "tone": "info",
-            "reason": "周线方向已经基本明确，但日线仍在等待价值区或反转信号补齐。",
+            "reason": "周线方向已经基本明确，但日线仍在等待回到 13EMA 价值带或等待反转信号补齐。",
         }
 
     if weekly.get("actionable") and not weekly.get("pass"):
@@ -270,10 +290,19 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
         _metric("日线状态", daily.get("state")),
         _metric("RSI", _safe_round(daily.get("rsi"), 2)),
         _metric("前一日 RSI", _safe_round(daily.get("rsi_prev"), 2)),
-        _metric("RSI 状态", daily.get("rsi_state")),
+        _metric("日线阶段", _daily_state_label(daily.get("rsi_state"))),
         _metric("Setup 分数", _safe_round(daily.get("setup_score"), 2)),
         _metric("反转证据", f"{daily.get('reversal_evidence_count', 0)} / 3"),
         _metric("13EMA", daily_ema13),
+        _metric(
+            "13EMA 价值带",
+            (
+                f"{_safe_round(daily.get('value_band_low'))} ~ {_safe_round(daily.get('value_band_high'))}"
+                if daily.get("value_band_low") is not None and daily.get("value_band_high") is not None
+                else "—"
+            ),
+        ),
+        _metric("距价值带", _safe_round(daily.get("value_band_gap"))),
         _metric("最新收盘", latest_close),
         _metric(
             "当日区间",
@@ -282,7 +311,14 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     ]
     daily_checks = [
         _check("出现逆势修正", daily.get("countertrend_exists", False), "做多看回调，做空看反弹。"),
-        _check("进入 13EMA 价值区", daily.get("value_zone_reached", False), "检查价格是否触碰或靠近 13EMA。"),
+        _check(
+            "回到 13EMA 价值带",
+            daily.get("value_zone_reached", False),
+            (
+                "按 Elder 的回到价值思路，检查价格是否回到 13EMA 附近的 ATR 动态价值带。"
+                f"当前默认带宽为 {settings.strategy.daily.value_band_atr_multiplier:.2f} ATR。"
+            ),
+        ),
         _check("结构未被破坏", daily.get("structure_intact", False), "确认防守摆点仍可定义。"),
         _check("动能拐头", daily.get("momentum_reversal", False), "比较 RSI 与 MACD Histogram 是否同步改善。"),
         _check("价格拐头", daily.get("price_reversal", False), "检查 K 线实体、影线与收盘位置。"),
@@ -330,12 +366,13 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             "raw": weekly,
         },
         "daily": {
-            "title": "日线 / RSI + 13EMA Setup",
-            "subtitle": "沿用现有 screen_daily 逻辑，不做额外主观加减。",
+            "title": "日线 / RSI + 13EMA 回到价值带",
+            "subtitle": "按 Elder 的语境看回调/反弹是否回到 13EMA 附近的价值带，再等反转。",
             "reason": daily.get("reason"),
             "pass": daily.get("pass", False),
             "watch": daily.get("watch", False),
             "state": daily.get("state"),
+            "state_label": _daily_state_label(daily.get("rsi_state")),
             "metrics": daily_metrics,
             "checks": daily_checks,
             "raw": daily,
@@ -359,7 +396,7 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
 def _prompt_outline() -> list[str]:
     return [
         "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
-        "日线看 RSI、13EMA 价值区、动能反转、价格反转、结构是否完好。",
+        "日线看 RSI、13EMA 价值带、动能反转、价格反转、结构是否完好。",
         "补充看周线/日线背离、SafeZone 止损、摆点防守位和当前观察建议。",
         "明确写出系统建议与你的 AI 建议一致或不一致的地方。",
     ]

@@ -32,7 +32,7 @@ function renderPromptOutline(outline = []) {
     ? outline
     : [
         "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
-        "日线看 RSI、价值区、反转证据和结构。",
+        "日线看 RSI、13EMA 价值带（默认 0.75 ATR）、反转证据和结构。",
       ];
 
   $("analysisPromptOutline").innerHTML = items

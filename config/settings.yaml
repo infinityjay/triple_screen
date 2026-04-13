@@ -57,6 +57,7 @@ strategy:
     rsi_oversold: 35
     rsi_overbought: 65
     recovery_mode: true
+    value_band_atr_multiplier: 0.75
   hourly:
     trigger_mode: "trailing_bar"
     atr_period: 14
