@@ -66,6 +66,28 @@ def _normalize_symbol(value: str) -> str:
     return re.sub(r"[^A-Z0-9.\-]", "", str(value or "").strip().upper())
 
 
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    if hasattr(value, "item") and callable(value.item):
+        try:
+            return _json_safe(value.item())
+        except Exception:
+            pass
+    if hasattr(value, "isoformat") and callable(value.isoformat):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    return str(value)
+
+
 def _ai_provider_config() -> AIProviderConfig:
     return AIProviderConfig(
         base_url=(os.getenv("TECH_ANALYSIS_AI_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/"),
@@ -511,6 +533,6 @@ def analyze_symbol(symbol: str, include_ai: bool = True) -> dict[str, Any]:
     return {
         "symbol": normalized_symbol,
         "generated_at": _utc_now_iso(),
-        "system": system_analysis,
-        "ai": ai_analysis,
+        "system": _json_safe(system_analysis),
+        "ai": _json_safe(ai_analysis),
     }
