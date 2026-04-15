@@ -96,12 +96,10 @@ class TelegramNotifier:
             "ACCELERATING_RALLY": "反弹仍在加速",
             "PULLBACK_WAIT_VALUE_BAND": "等待回到 13EMA 价值带",
             "RALLY_WAIT_VALUE_BAND": "等待回到 13EMA 价值带",
-            "PULLBACK_WAIT_MOMENTUM": "已回到价值带，等待动能转强",
-            "RALLY_WAIT_MOMENTUM": "已回到价值带，等待动能转弱",
-            "PULLBACK_REVERSING": "价值带内开始转强",
-            "PULLBACK_REVERSING_LATE": "价值带内转强偏晚",
-            "RALLY_ROLLING_OVER": "价值带内开始转弱",
-            "RALLY_ROLLING_OVER_LATE": "价值带内转弱偏晚",
+            "PULLBACK_WAIT_HISTOGRAM": "已回到价值带，等待 Histogram 回升",
+            "RALLY_WAIT_HISTOGRAM": "已回到价值带，等待 Histogram 回落",
+            "PULLBACK_HISTOGRAM_TURNED": "价值带内 Histogram 已回升",
+            "RALLY_HISTOGRAM_TURNED": "价值带内 Histogram 已回落",
             "NEUTRAL": "中性",
         }
         return labels.get(state, state)
@@ -207,12 +205,11 @@ class TelegramNotifier:
             f"周线结论：{weekly['reason']}\n"
             f"{'─' * 32}\n"
             f"<b>第二重 · 日线 Elder 核心</b>\n"
-            f"日线阶段：<b>{daily_state_label}</b>  Elder核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 2)}</code>\n"
-            f"RSI：<code>{self._fmt_num(daily.get('rsi'), 2)}</code>  前一日：<code>{self._fmt_num(daily.get('rsi_prev'), 2)}</code>  变化：<code>{self._fmt_num(daily.get('momentum_rsi_delta'), 2, signed=True)}</code>\n"
+            f"日线阶段：<b>{daily_state_label}</b>  Elder核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 3)}</code>\n"
             f"Histogram：<code>{self._fmt_num(daily.get('momentum_hist_now'), 4, signed=True)}</code>  前一日：<code>{self._fmt_num(daily.get('momentum_hist_prev'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
             f"13EMA价值带：<code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  距离价值带：<code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
             f"{daily.get('correction_counter_label', '近8日修正收盘数')}：<code>{daily.get('correction_count', 0)}</code>  结构防守位：<code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
-            f"回到价值带：<b>{self._bool_text(daily.get('value_zone_reached'))}</b>  动能同步改善：<b>{self._bool_text(daily.get('momentum_reversal'))}</b>\n"
+            f"回到价值带：<b>{self._bool_text(daily.get('value_zone_reached'))}</b>  Histogram转向：<b>{self._bool_text(daily.get('histogram_reversal', daily.get('momentum_reversal')))}</b>\n"
             f"辅助K线确认：<b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  收盘相对昨收：<b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
             f"影线比例：<code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  收盘位置：<code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
             f"日线结论：{daily['reason']}\n"
@@ -295,7 +292,7 @@ class TelegramNotifier:
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} 候选 "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   {daily_state} · Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 2)} · "
+                f"   {daily_state} · Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
                 f"价值带 {self._bool_text(signal['daily'].get('value_zone_reached'))} · 财报 {earnings_status}\n"
             )
 
@@ -395,7 +392,7 @@ class TelegramNotifier:
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
                 f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
                 f"   现价 {signal['hourly']['close']:.2f} · RR {signal['exits']['reward_risk_ratio']:.2f}R · "
-                f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 2)} · "
+                f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
             )
 

@@ -76,12 +76,10 @@ def _daily_state_label(state: str | None) -> str:
         "ACCELERATING_RALLY": "反弹仍在加速",
         "PULLBACK_WAIT_VALUE_BAND": "回调已出现，等待回到 13EMA 价值带",
         "RALLY_WAIT_VALUE_BAND": "反弹已出现，等待回到 13EMA 价值带",
-        "PULLBACK_WAIT_MOMENTUM": "已回到 13EMA 价值带，等待动能转强",
-        "RALLY_WAIT_MOMENTUM": "已回到 13EMA 价值带，等待动能转弱",
-        "PULLBACK_REVERSING": "回调到价值带后开始转强",
-        "PULLBACK_REVERSING_LATE": "回调到价值带后转强，但略偏晚",
-        "RALLY_ROLLING_OVER": "反弹到价值带后开始转弱",
-        "RALLY_ROLLING_OVER_LATE": "反弹到价值带后转弱，但略偏晚",
+        "PULLBACK_WAIT_HISTOGRAM": "已回到 13EMA 价值带，等待 Histogram 回升",
+        "RALLY_WAIT_HISTOGRAM": "已回到 13EMA 价值带，等待 Histogram 回落",
+        "PULLBACK_HISTOGRAM_TURNED": "回调到价值带后，Histogram 已回升",
+        "RALLY_HISTOGRAM_TURNED": "反弹到价值带后，Histogram 已回落",
     }
     return labels.get(str(state or ""), str(state or "—"))
 
@@ -198,7 +196,7 @@ def _build_followup_decision(weekly: dict[str, Any], daily: dict[str, Any], dive
             "code": "WATCH",
             "label": "可以继续跟进观察",
             "tone": "info",
-            "reason": "周线方向已经基本明确，但日线仍在等待回到 13EMA 价值带或等待反转信号补齐。",
+            "reason": "周线方向已经基本明确，但日线仍在等待回到 13EMA 价值带或等待 Histogram 转向确认。",
         }
 
     if weekly.get("actionable") and not weekly.get("pass"):
@@ -292,14 +290,11 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
 
     daily_metrics = [
         _metric("Elder 日线结论", daily.get("state")),
-        _metric("RSI", _safe_round(daily.get("rsi"), 2)),
-        _metric("前一日 RSI", _safe_round(daily.get("rsi_prev"), 2)),
-        _metric("RSI 变化", _safe_round(daily.get("momentum_rsi_delta"), 2)),
         _metric("日线阶段", _daily_state_label(daily.get("rsi_state"))),
         _metric("Setup 分数", _safe_round(daily.get("setup_score"), 2)),
         _metric(
             "Elder 核心信号",
-            f"{daily.get('elder_core_signal_count', 0)} / {daily.get('elder_core_signal_total', 2)}",
+            f"{daily.get('elder_core_signal_count', 0)} / {daily.get('elder_core_signal_total', 3)}",
         ),
         _metric("MACD Histogram", _safe_round(daily.get("momentum_hist_now"), 6)),
         _metric("前一日 Histogram", _safe_round(daily.get("momentum_hist_prev"), 6)),
@@ -334,7 +329,7 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             daily.get("countertrend_exists", False),
             (
                 f"当前计数 {daily.get('correction_count', 0)}。"
-                " 做多时看下跌收盘数/RSI回落/价格向13EMA回撤；做空时反向。"
+                " 做多时看下跌收盘数和价格向 13EMA 回撤；做空时反向。"
             ),
         ),
         _check(
@@ -354,11 +349,11 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             ),
         ),
         _check(
-            "RSI 与 Histogram 同步改善",
-            daily.get("momentum_reversal", False),
+            "Histogram 转向",
+            daily.get("histogram_reversal", daily.get("momentum_reversal", False)),
             (
-                f"RSI 变化 {_safe_round(daily.get('momentum_rsi_delta'), 2)}；"
-                f" Histogram {_safe_round(daily.get('momentum_hist_prev'), 6)} -> {_safe_round(daily.get('momentum_hist_now'), 6)}。"
+                f"Histogram {_safe_round(daily.get('momentum_hist_prev'), 6)} -> {_safe_round(daily.get('momentum_hist_now'), 6)}。"
+                " 做多看柱线回升，做空看柱线回落。"
             ),
         ),
         _check(
@@ -415,8 +410,8 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             "raw": weekly,
         },
         "daily": {
-            "title": "日线 / RSI + 13EMA 回到价值带",
-            "subtitle": "按 Elder 的语境看回调/反弹是否回到 13EMA 附近的价值带，再等反转。",
+            "title": "日线 / 13EMA 价值带 + Histogram + 结构",
+            "subtitle": "按 Elder 核心语境，只看回到 13EMA 价值带、Histogram 是否转向、结构防守位是否完好。",
             "reason": daily.get("reason"),
             "pass": daily.get("pass", False),
             "watch": daily.get("watch", False),
@@ -445,7 +440,7 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
 def _prompt_outline() -> list[str]:
     return [
         "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
-        "日线看 RSI、13EMA 价值带、动能反转、价格反转、结构是否完好。",
+        "日线只看 13EMA 价值带、MACD Histogram 转向、结构防守位是否完好，自定义K线确认仅作辅助说明。",
         "补充看周线/日线背离、SafeZone 止损、摆点防守位和当前观察建议。",
         "明确写出系统建议与你的 AI 建议一致或不一致的地方。",
     ]

@@ -7,7 +7,6 @@ import pandas as pd
 
 from config.schema import StrategyConfig, TradePlanConfig
 
-RSI_WATCH_BUFFER = 5.0
 DAILY_REVERSAL_LOOKBACK = 3
 DAILY_CORRECTION_WINDOW_MIN = 2
 DAILY_CORRECTION_WINDOW_MAX = 8
@@ -405,7 +404,6 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     recent_ema = ema13.tail(DAILY_CORRECTION_WINDOW_MAX)
     recent_value_band_low = value_band_low.tail(DAILY_CORRECTION_WINDOW_MAX)
     recent_value_band_high = value_band_high.tail(DAILY_CORRECTION_WINDOW_MAX)
-    recent_rsi = rsi.tail(DAILY_CORRECTION_WINDOW_MAX)
     lookback_slice = slice(-DAILY_CORRECTION_WINDOW_MAX, None)
     prior_closes = close.iloc[lookback_slice]
     latest_open = float(df_day["open"].iloc[-1])
@@ -419,8 +417,6 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
 
     down_closes = int((prior_closes.diff() < 0).sum())
     up_closes = int((prior_closes.diff() > 0).sum())
-    rsi_falling = bool(recent_rsi.iloc[-1] < recent_rsi.iloc[0])
-    rsi_rising = bool(recent_rsi.iloc[-1] > recent_rsi.iloc[0])
     latest_gap_window = None
     value_zone_touch = bool(
         ((recent_low <= recent_value_band_high) & (recent_high >= recent_value_band_low))
@@ -447,7 +443,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         correction_counter_label = "近8日下跌收盘数"
         recent_gap_to_value_band = (recent_close - recent_value_band_high).clip(lower=0)
         latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
-        countertrend_exists = correction_in_window and (down_closes >= 2 or rsi_falling or bool((recent_close <= recent_ema).any()))
+        countertrend_exists = correction_in_window and (down_closes >= 2 or bool((recent_close <= recent_ema).any()))
         value_zone_approach = bool(
             len(latest_gap_window) >= 2
             and close.iloc[-1] >= value_band_low.iloc[-1]
@@ -456,7 +452,6 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             and (close.iloc[-1] <= close.iloc[-2] or low.iloc[-1] <= low.iloc[-2])
         )
         entered_value_zone = value_zone_touch or value_zone_approach
-        rsi_in_value_zone = settings.daily.rsi_oversold <= rsi_now < 50.0
         value_zone_reached = entered_value_zone
         higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
@@ -467,7 +462,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         upper_half_close = latest_close >= (latest_low + candle_range * 0.5)
         close_above_prev = bool(latest_close > close.iloc[-2])
         wick_ratio_pct = (lower_wick / candle_range) * 100
-        momentum_reversal = bool(rsi_now > rsi_prev and macd_hist_now > macd_hist_prev)
+        histogram_reversal = bool(macd_hist_now > macd_hist_prev)
         custom_close_rule_pass = close_above_prev
         custom_wick_rule_pass = bool(lower_wick >= candle_range * 0.35)
         custom_close_location_rule_pass = upper_half_close
@@ -476,15 +471,15 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         )
         accelerating_correction = bool(
             close.iloc[-1] < close.iloc[-2] < close.iloc[-3]
-            and rsi_now < rsi_prev
             and macd_hist_now < macd_hist_prev
         )
         rsi_strength = max(0.0, 45.0 - rsi_now)
         elder_core_checks = [
             value_zone_reached,
-            momentum_reversal,
+            histogram_reversal,
+            structure_intact,
         ]
-        setup_score = 1.6 + (0.9 if value_zone_reached else 0.0) + (1.6 if momentum_reversal else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
+        setup_score = 1.3 + (1.0 if value_zone_reached else 0.0) + (1.5 if histogram_reversal else 0.0) + (1.0 if structure_intact else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
         if not countertrend_exists:
             state = "REJECT"
             reject_reason = "周线做多但日线未形成可识别回调，不属于可执行 setup"
@@ -493,7 +488,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "回调结构已明显跌穿防守摆点，止损边界不可定义"
             rsi_state = "STRUCTURE_BROKEN"
-        elif accelerating_correction and not momentum_reversal:
+        elif accelerating_correction and not histogram_reversal:
             state = "REJECT"
             reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
             rsi_state = "ACCELERATING_PULLBACK"
@@ -502,20 +497,20 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             reject_reason = ""
             rsi_state = "PULLBACK_WAIT_VALUE_BAND"
-        elif momentum_reversal:
+        elif histogram_reversal:
             state = "QUALIFIED"
             passed = True
-            rsi_state = "PULLBACK_REVERSING" if rsi_in_value_zone else "PULLBACK_REVERSING_LATE"
+            rsi_state = "PULLBACK_HISTOGRAM_TURNED"
         else:
             state = "WATCH"
             watch = True
-            rsi_state = "PULLBACK_WAIT_MOMENTUM"
+            rsi_state = "PULLBACK_WAIT_HISTOGRAM"
     elif trend == "SHORT":
         correction_count = up_closes
         correction_counter_label = "近8日上涨收盘数"
         recent_gap_to_value_band = (recent_value_band_low - recent_close).clip(lower=0)
         latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
-        countertrend_exists = correction_in_window and (up_closes >= 2 or rsi_rising or bool((recent_close >= recent_ema).any()))
+        countertrend_exists = correction_in_window and (up_closes >= 2 or bool((recent_close >= recent_ema).any()))
         value_zone_approach = bool(
             len(latest_gap_window) >= 2
             and close.iloc[-1] <= value_band_high.iloc[-1]
@@ -524,7 +519,6 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             and (close.iloc[-1] >= close.iloc[-2] or high.iloc[-1] >= high.iloc[-2])
         )
         entered_value_zone = value_zone_touch or value_zone_approach
-        rsi_in_value_zone = 50.0 < rsi_now <= settings.daily.rsi_overbought
         value_zone_reached = entered_value_zone
         lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
@@ -535,7 +529,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         lower_half_close = latest_close <= (latest_high - candle_range * 0.5)
         close_below_prev = bool(latest_close < close.iloc[-2])
         wick_ratio_pct = (upper_wick / candle_range) * 100
-        momentum_reversal = bool(rsi_now < rsi_prev and macd_hist_now < macd_hist_prev)
+        histogram_reversal = bool(macd_hist_now < macd_hist_prev)
         custom_close_rule_pass = close_below_prev
         custom_wick_rule_pass = bool(upper_wick >= candle_range * 0.35)
         custom_close_location_rule_pass = lower_half_close
@@ -544,15 +538,15 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         )
         accelerating_correction = bool(
             close.iloc[-1] > close.iloc[-2] > close.iloc[-3]
-            and rsi_now > rsi_prev
             and macd_hist_now > macd_hist_prev
         )
         rsi_strength = max(0.0, rsi_now - 55.0)
         elder_core_checks = [
             value_zone_reached,
-            momentum_reversal,
+            histogram_reversal,
+            structure_intact,
         ]
-        setup_score = 1.6 + (0.9 if value_zone_reached else 0.0) + (1.6 if momentum_reversal else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
+        setup_score = 1.3 + (1.0 if value_zone_reached else 0.0) + (1.5 if histogram_reversal else 0.0) + (1.0 if structure_intact else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
         if not countertrend_exists:
             state = "REJECT"
             reject_reason = "周线做空但日线未形成可识别反弹，不属于可执行 setup"
@@ -561,7 +555,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             state = "REJECT"
             reject_reason = "反弹结构已明显突破防守摆点，止损边界不可定义"
             rsi_state = "STRUCTURE_BROKEN"
-        elif accelerating_correction and not momentum_reversal:
+        elif accelerating_correction and not histogram_reversal:
             state = "REJECT"
             reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
             rsi_state = "ACCELERATING_RALLY"
@@ -570,27 +564,26 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             watch = True
             reject_reason = ""
             rsi_state = "RALLY_WAIT_VALUE_BAND"
-        elif momentum_reversal:
+        elif histogram_reversal:
             state = "QUALIFIED"
             passed = True
-            rsi_state = "RALLY_ROLLING_OVER" if rsi_in_value_zone else "RALLY_ROLLING_OVER_LATE"
+            rsi_state = "RALLY_HISTOGRAM_TURNED"
         else:
             state = "WATCH"
             watch = True
-            rsi_state = "RALLY_WAIT_MOMENTUM"
+            rsi_state = "RALLY_WAIT_HISTOGRAM"
     else:
         countertrend_exists = False
         entered_value_zone = False
         value_zone_reached = False
-        rsi_in_value_zone = False
         structure_intact = False
-        elder_core_checks = [False, False]
+        elder_core_checks = [False, False, False]
         rsi_strength = 0.0
         setup_score = 0.0
         state = "REJECT"
         reject_reason = "周线方向不明，日线不单独提供交易资格"
         rsi_state = "NEUTRAL"
-        momentum_reversal = False
+        histogram_reversal = False
         custom_kline_confirmation = False
         close_location_pct = 0.0
         wick_ratio_pct = 0.0
@@ -621,12 +614,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         else f"最新高点 {latest_high:.2f} <= 防守位 {structure_break_level:.2f}" if trend == "SHORT" and structure_break_level is not None
         else "—"
     )
-    momentum_label = f"RSI {rsi_prev:.2f}->{rsi_now:.2f}；Histogram {macd_hist_prev:+.4f}->{macd_hist_now:+.4f}" if trend in {"LONG", "SHORT"} else "—"
+    histogram_label = f"Histogram {macd_hist_prev:+.4f}->{macd_hist_now:+.4f}" if trend in {"LONG", "SHORT"} else "—"
     detail_prefix = (
         f"{correction_counter_label} {correction_count}；"
         f"13EMA 价值带 {value_zone_label}；"
         f"{structure_label}；"
-        f"动能检查 {momentum_label}。"
+        f"Histogram 检查 {histogram_label}。"
     )
 
     if state == "REJECT":
@@ -634,11 +627,11 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     elif state == "QUALIFIED":
         reason = (
             f"{detail_prefix} 结论：{direction_label} setup 已具备执行条件，"
-            f"当前 {elder_core_signal_count}/2 项 Elder 核心信号到位，可进入候选池。"
+            f"当前 {elder_core_signal_count}/3 项 Elder 核心信号到位，可进入候选池。"
         )
     else:
         reason = (
-            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/2 项 Elder 核心信号到位，继续观察。"
+            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/3 项 Elder 核心信号到位，继续观察。"
             if value_zone_reached
             else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值带，继续观察。"
         )
@@ -660,12 +653,12 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "value_band_gap": round(float(latest_gap_window.iloc[-1]), 4) if latest_gap_window is not None and len(latest_gap_window) else None,
         "correction_count": correction_count if trend in {"LONG", "SHORT"} else 0,
         "correction_counter_label": correction_counter_label,
-        "rsi_in_value_zone": rsi_in_value_zone if trend in {"LONG", "SHORT"} else False,
         "elder_core_signal_count": elder_core_signal_count,
-        "elder_core_signal_total": 2,
+        "elder_core_signal_total": 3,
         "structure_intact": structure_intact,
         "structure_break_level": round(float(structure_break_level), 4) if structure_break_level is not None else None,
-        "momentum_reversal": momentum_reversal if trend in {"LONG", "SHORT"} else False,
+        "histogram_reversal": histogram_reversal if trend in {"LONG", "SHORT"} else False,
+        "momentum_reversal": histogram_reversal if trend in {"LONG", "SHORT"} else False,
         "momentum_rsi_delta": round(float(rsi_delta), 2) if trend in {"LONG", "SHORT"} else 0.0,
         "momentum_hist_now": round(float(macd_hist_now), 6) if trend in {"LONG", "SHORT"} else 0.0,
         "momentum_hist_prev": round(float(macd_hist_prev), 6) if trend in {"LONG", "SHORT"} else 0.0,

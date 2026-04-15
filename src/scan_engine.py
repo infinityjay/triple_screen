@@ -277,17 +277,15 @@ class TripleScreenScanner:
             daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
             if not daily["pass"]:
                 logger.info(
-                    "[%s] skipped after daily screen: %s | state=%s rsi=%.2f rsi_in_value_zone=%s entered_value_zone=%s value_zone_reached=%s "
-                    "countertrend_exists=%s momentum_reversal=%s price_reversal=%s structure_intact=%s",
+                    "[%s] skipped after daily screen: %s | state=%s entered_value_zone=%s value_zone_reached=%s "
+                    "countertrend_exists=%s histogram_reversal=%s price_reversal=%s structure_intact=%s",
                     symbol,
                     daily.get("reason"),
                     daily.get("state"),
-                    float(daily.get("rsi", 0.0)),
-                    daily.get("rsi_in_value_zone"),
                     daily.get("entered_value_zone"),
                     daily.get("value_zone_reached"),
                     daily.get("countertrend_exists"),
-                    daily.get("momentum_reversal"),
+                    daily.get("histogram_reversal", daily.get("momentum_reversal")),
                     daily.get("price_reversal"),
                     daily.get("structure_intact"),
                 )

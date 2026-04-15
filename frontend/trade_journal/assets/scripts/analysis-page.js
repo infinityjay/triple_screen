@@ -32,7 +32,7 @@ function renderPromptOutline(outline = []) {
     ? outline
     : [
         "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
-        "日线看 RSI、13EMA 价值带（默认 0.75 ATR）、动能拐头和结构，自定义K线确认仅作辅助参考。",
+        "日线只看 13EMA 价值带（默认 0.75 ATR）、MACD Histogram 转向和结构防守位，自定义K线确认仅作辅助参考。",
       ];
 
   $("analysisPromptOutline").innerHTML = items
