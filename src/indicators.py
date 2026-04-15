@@ -12,6 +12,10 @@ DAILY_CORRECTION_WINDOW_MIN = 2
 DAILY_CORRECTION_WINDOW_MAX = 8
 DAILY_EMA_PERIOD = 13
 DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER = 0.3
+CHANDELIER_LOOKBACK = 22
+CHANDELIER_ATR_MULTIPLIER = 3.0
+PARABOLIC_STEP = 0.02
+PARABOLIC_MAX_STEP = 0.2
 WEEKLY_TREND_SCORE_CAP = 4.5
 DAILY_SETUP_SCORE_CAP = 4.5
 HOURLY_TRIGGER_SCORE_CAP = 4.0
@@ -255,6 +259,200 @@ def calc_pullback_pivot_stop(df: pd.DataFrame, direction: str) -> float | None:
     if direction == "LONG":
         return float(window["low"].min())
     return float(window["high"].max())
+
+
+def calc_two_bar_stop(df: pd.DataFrame, direction: str) -> float | None:
+    if df is None or df.empty:
+        return None
+
+    window = df.tail(2)
+    if direction == "LONG":
+        return float(window["low"].min())
+    return float(window["high"].max())
+
+
+def calc_chandelier_stop(
+    df: pd.DataFrame,
+    direction: str,
+    atr_period: int,
+    lookback: int = CHANDELIER_LOOKBACK,
+    atr_multiplier: float = CHANDELIER_ATR_MULTIPLIER,
+) -> float | None:
+    if df is None or len(df) < max(atr_period, 2):
+        return None
+
+    atr = float(calc_atr(df, atr_period).iloc[-1])
+    if direction == "LONG":
+        reference = float(df["high"].astype(float).tail(lookback).max())
+        return reference - (atr * atr_multiplier)
+
+    reference = float(df["low"].astype(float).tail(lookback).min())
+    return reference + (atr * atr_multiplier)
+
+
+def calc_parabolic_stop(
+    df: pd.DataFrame,
+    direction: str,
+    step: float = PARABOLIC_STEP,
+    max_step: float = PARABOLIC_MAX_STEP,
+) -> float | None:
+    if df is None or len(df) < 2 or direction not in {"LONG", "SHORT"}:
+        return None
+
+    highs = df["high"].astype(float).tolist()
+    lows = df["low"].astype(float).tolist()
+    uptrend = direction == "LONG"
+    sar = lows[0] if uptrend else highs[0]
+    extreme_point = highs[0] if uptrend else lows[0]
+    acceleration_factor = step
+
+    for index in range(1, len(highs)):
+        sar = sar + acceleration_factor * (extreme_point - sar)
+        if uptrend:
+            prior_lows = lows[max(0, index - 2) : index]
+            if prior_lows:
+                sar = min([sar, *prior_lows])
+            if lows[index] < sar:
+                uptrend = False
+                sar = extreme_point
+                extreme_point = lows[index]
+                acceleration_factor = step
+            else:
+                if highs[index] > extreme_point:
+                    extreme_point = highs[index]
+                    acceleration_factor = min(acceleration_factor + step, max_step)
+        else:
+            prior_highs = highs[max(0, index - 2) : index]
+            if prior_highs:
+                sar = max([sar, *prior_highs])
+            if highs[index] > sar:
+                uptrend = True
+                sar = extreme_point
+                extreme_point = highs[index]
+                acceleration_factor = step
+            else:
+                if lows[index] < extreme_point:
+                    extreme_point = lows[index]
+                    acceleration_factor = min(acceleration_factor + step, max_step)
+
+    return float(sar)
+
+
+def build_stop_methods(
+    df: pd.DataFrame | None,
+    direction: str,
+    trade_plan: TradePlanConfig,
+    atr_period: int,
+    signal_bar_high: float | None = None,
+    signal_bar_low: float | None = None,
+) -> list[dict]:
+    if df is None or df.empty or direction not in {"LONG", "SHORT"}:
+        return []
+
+    latest_high = float(df["high"].iloc[-1])
+    latest_low = float(df["low"].iloc[-1])
+    safezone_stop, safezone_noise = calc_safezone_stop(df, direction, trade_plan)
+    two_bar_stop = calc_two_bar_stop(df, direction)
+    pullback_pivot_stop = calc_pullback_pivot_stop(df, direction)
+    chandelier_stop = calc_chandelier_stop(df, direction, atr_period=atr_period)
+    parabolic_stop = calc_parabolic_stop(df, direction)
+    if direction == "LONG":
+        signal_bar_stop = float(signal_bar_low) if signal_bar_low is not None else latest_low
+        signal_reference = "信号K低点" if signal_bar_low is not None else "最新日线低点"
+    else:
+        signal_bar_stop = float(signal_bar_high) if signal_bar_high is not None else latest_high
+        signal_reference = "信号K高点" if signal_bar_high is not None else "最新日线高点"
+
+    return [
+        {
+            "code": "SIGNAL_BAR",
+            "group": "initial",
+            "label": "信号K极值止损",
+            "price": round(signal_bar_stop, 4),
+            "reference": signal_reference,
+            "style": "tight",
+            "source": "Elder 入场K线保护止损语境",
+            "suitable_for": "刚入场，想把初始风险收紧时。",
+            "detail": "放在信号K极值外侧，最紧，最容易被扫。",
+        },
+        {
+            "code": "TWO_BAR",
+            "group": "initial",
+            "label": "前低/次低点止损",
+            "price": round(two_bar_stop, 4) if two_bar_stop is not None else None,
+            "reference": "最近两根K线极值",
+            "style": "tight",
+            "source": "Elder 风格的最近极值保护止损",
+            "suitable_for": "回调很浅，用最近价格结构控风险时。",
+            "detail": "盯最近两根K线极值，比摆点止损更近。",
+        },
+        {
+            "code": "PULLBACK_PIVOT",
+            "group": "initial",
+            "label": "修正摆点止损",
+            "price": round(pullback_pivot_stop, 4) if pullback_pivot_stop is not None else None,
+            "reference": f"近{DAILY_CORRECTION_WINDOW_MAX}根修正极值",
+            "style": "structure",
+            "source": "Elder 回调/反弹结构防守位",
+            "suitable_for": "按回调结构交易，愿意留正常波动空间时。",
+            "detail": "放在修正摆点外侧，结构性最强。",
+        },
+        {
+            "code": "SAFEZONE",
+            "group": "trailing",
+            "label": "SafeZone 止损",
+            "price": round(safezone_stop, 4) if safezone_stop is not None else None,
+            "reference": f"{trade_plan.safezone_lookback}根穿透均值 × {trade_plan.safezone_coefficient}",
+            "style": "adaptive",
+            "source": "Elder 官方 SafeZone",
+            "suitable_for": "趋势还在，但噪音较大时。",
+            "detail": f"按噪音自适应推止损，当前噪音 {safezone_noise:.4f}。",
+        },
+        {
+            "code": "CHANDELIER",
+            "group": "trailing",
+            "label": "Chandelier 止损",
+            "price": round(chandelier_stop, 4) if chandelier_stop is not None else None,
+            "reference": f"{CHANDELIER_LOOKBACK}根极值 ± {CHANDELIER_ATR_MULTIPLIER} ATR",
+            "style": "wide",
+            "source": "Elder 官方工具包中的 Chandelier",
+            "suitable_for": "趋势单想拿久一点时。",
+            "detail": "基于区间极值和 ATR，通常比结构止损更宽。",
+        },
+        {
+            "code": "PARABOLIC",
+            "group": "trailing",
+            "label": "Parabolic 止损",
+            "price": round(parabolic_stop, 4) if parabolic_stop is not None else None,
+            "reference": "Parabolic SAR",
+            "style": "trailing",
+            "source": "《Trading for a Living》风险控制章节",
+            "suitable_for": "已有浮盈，准备单向收紧止损时。",
+            "detail": "跟得越来越紧，震荡里容易过早出场。",
+        },
+        {
+            "code": "TRENDLINE_MANUAL",
+            "group": "trailing",
+            "label": "趋势线外侧止损",
+            "price": None,
+            "reference": "需手工画趋势线",
+            "style": "manual",
+            "source": "《Trading for a Living》图表分析语境",
+            "suitable_for": "趋势线很清楚，想沿线推进止损时。",
+            "detail": "放在趋势线外侧少许，需要人工画线。",
+        },
+        {
+            "code": "CONGESTION_MANUAL",
+            "group": "initial",
+            "label": "盘整区/假突破止损",
+            "price": None,
+            "reference": "需手工识别盘整区与突破失败点",
+            "style": "manual",
+            "source": "《Trading for a Living》图表形态与假突破语境",
+            "suitable_for": "做盘整突破或假突破反向时。",
+            "detail": "常放在盘整边界或失败极点外侧，需要人工识别。",
+        },
+    ]
 
 
 def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dict:
@@ -832,8 +1030,12 @@ def calc_exits(
         thermometer = 0.0
         thermometer_ema = 0.0
         safezone_stop = entry
+        two_bar_stop = entry
         pullback_pivot_stop = entry
         signal_bar_stop = entry
+        chandelier_stop = entry
+        parabolic_stop = entry
+        stop_methods = []
         stop_basis = "UNKNOWN"
         initial_stop_basis = "UNKNOWN"
         protective_stop_basis = "UNKNOWN"
@@ -843,7 +1045,18 @@ def calc_exits(
         latest_high = float(daily_frame["high"].iloc[-1])
         latest_low = float(daily_frame["low"].iloc[-1])
         safezone_stop, safezone_noise = calc_safezone_stop(daily_frame, direction, trade_plan)
+        two_bar_stop = calc_two_bar_stop(daily_frame, direction)
         pullback_pivot_stop = calc_pullback_pivot_stop(daily_frame, direction)
+        chandelier_stop = calc_chandelier_stop(daily_frame, direction, atr_period=14)
+        parabolic_stop = calc_parabolic_stop(daily_frame, direction)
+        stop_methods = build_stop_methods(
+            daily_frame,
+            direction,
+            trade_plan,
+            atr_period=14,
+            signal_bar_high=signal_bar_high,
+            signal_bar_low=signal_bar_low,
+        )
         temperature, average_temperature = calc_market_thermometer(daily_frame, trade_plan.thermometer_period)
         thermometer = float(temperature.iloc[-1])
         thermometer_ema = float(average_temperature.iloc[-1])
@@ -881,12 +1094,16 @@ def calc_exits(
         "stop_loss": round(stop_loss, 4),
         "initial_stop_loss": round(initial_stop_loss, 4),
         "initial_stop_signal_bar": round(signal_bar_stop, 4),
+        "initial_stop_two_bar": round(two_bar_stop, 4),
         "initial_stop_pullback_pivot": round(pullback_pivot_stop, 4),
         "initial_stop_basis": initial_stop_basis,
         "protective_stop_loss": round(protective_stop_loss, 4),
         "protective_stop_basis": protective_stop_basis,
         "stop_loss_safezone": round(safezone_stop, 4),
-        "stop_loss_two_bar": round(pullback_pivot_stop, 4),
+        "stop_loss_two_bar": round(two_bar_stop, 4),
+        "stop_loss_chandelier": round(chandelier_stop, 4),
+        "stop_loss_parabolic": round(parabolic_stop, 4),
+        "stop_methods": stop_methods,
         "stop_basis": stop_basis,
         "take_profit": round(take_profit, 4),
         "target_reference": round(target_reference, 4),

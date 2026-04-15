@@ -142,6 +142,24 @@ class TelegramNotifier:
             return "—"
         return f"{number:+.{digits}f}" if signed else f"{number:.{digits}f}"
 
+    def _format_stop_methods(self, methods: list[dict[str, Any]] | None) -> str:
+        if not methods:
+            return "暂无多止损方法明细"
+
+        initial_methods = [method for method in methods if method.get("group") == "initial"]
+        trailing_methods = [method for method in methods if method.get("group") == "trailing"]
+
+        def build_lines(title: str, items: list[dict[str, Any]]) -> list[str]:
+            if not items:
+                return [f"{title}：暂无"]
+            lines = [title]
+            for method in items[:4]:
+                price = "需手工判断" if method.get("price") is None else self._fmt_num(method.get("price"), 2)
+                lines.append(f"• {method.get('label', '止损方法')}：<code>{price}</code> {method.get('suitable_for', '')}")
+            return lines
+
+        return "\n".join(build_lines("初始止损", initial_methods) + build_lines("跟踪止损", trailing_methods))
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -224,10 +242,12 @@ class TelegramNotifier:
             f"<b>交易建议</b>\n"
             f"建议入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>\n"
             f"初始止损：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
-            f"信号K止损：<code>{self._fmt_num(exits.get('initial_stop_signal_bar'), 2)}</code>  回调摆点：<code>{self._fmt_num(exits.get('initial_stop_pullback_pivot'), 2)}</code>\n"
+            f"信号K止损：<code>{self._fmt_num(exits.get('initial_stop_signal_bar'), 2)}</code>  两根K极值：<code>{self._fmt_num(exits.get('initial_stop_two_bar'), 2)}</code>\n"
+            f"修正摆点：<code>{self._fmt_num(exits.get('initial_stop_pullback_pivot'), 2)}</code>  SafeZone：<code>{self._fmt_num(exits.get('stop_loss_safezone'), 2)}</code>\n"
+            f"Chandelier：<code>{self._fmt_num(exits.get('stop_loss_chandelier'), 2)}</code>  Parabolic：<code>{self._fmt_num(exits.get('stop_loss_parabolic'), 2)}</code>\n"
             f"后续保护止损：<code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
             f"当前激活止损：<code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
-            f"日线 SafeZone：<code>{self._fmt_num(exits.get('stop_loss_safezone'), 2)}</code>\n"
+            f"可选止损清单：\n{self._format_stop_methods(exits.get('stop_methods'))}\n"
             f"首个止盈：<code>{self._fmt_num(exits.get('take_profit'), 2)}</code>\n"
             f"日线 Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  投影基准：{self._fmt_num(exits.get('target_reference'), 2)}\n"
             f"每股风险：{self._fmt_num(exits.get('risk_per_share'), 2)}  预估盈亏比：{self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"

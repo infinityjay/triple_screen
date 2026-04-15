@@ -71,6 +71,25 @@ function renderChecks(containerId, checks = []) {
     : `<div class="empty-state">暂无检查结果。</div>`;
 }
 
+function renderStopMethods(containerId, methods = []) {
+  $(containerId).innerHTML = methods.length
+    ? methods
+        .map(
+          (item) => `
+            <div class="analysis-check-item">
+              ${getBadge(item.auto ? "可量化" : "手工判断", item.auto ? "info" : "warn")}
+              <strong>${escapeHtml(item.label || "—")}</strong>
+              <p>止损位：${escapeHtml(item.price || "—")}</p>
+              <p>适用：${escapeHtml(item.suitable_for || "—")}</p>
+              <p>参考：${escapeHtml(item.reference || "—")}</p>
+              <p>${escapeHtml(item.detail || "—")}</p>
+            </div>
+          `
+        )
+        .join("")
+    : `<div class="empty-state">暂无止损方法。</div>`;
+}
+
 function findMetric(metrics, label) {
   return (metrics || []).find((item) => item.label === label)?.value || "—";
 }
@@ -79,13 +98,19 @@ function renderSystem(system) {
   const recommendation = system?.recommendation || {};
   const weekly = system?.weekly || {};
   const daily = system?.daily || {};
+  const execution = system?.execution || {};
   const divergence = system?.divergence || {};
   const keyLevels = system?.key_levels || {};
+  const stopMethods = system?.stop_methods || {};
 
   $("summarySymbol").textContent = system?.symbol || "—";
   $("summaryClose").textContent = findMetric(keyLevels.metrics, "最新收盘");
   $("summarySystemDecision").textContent = recommendation.label || "—";
   $("summarySystemReason").textContent = recommendation.reason || "等待分析结果。";
+  $("summaryEntry").textContent = execution?.entry_price ?? "—";
+  $("summaryEntryReason").textContent = execution?.summary || "等待执行价位。";
+  $("summaryStop").textContent = execution?.stop_loss ?? "—";
+  $("summaryStopReason").textContent = execution?.summary || "等待止损价位。";
   $("systemDecisionBadge").innerHTML = getBadge(recommendation.label || "系统结论", recommendation.tone || "info");
   $("systemSummary").className = `alert ${recommendation.tone === "safe" ? "success" : recommendation.tone === "warn" ? "warn" : "info"}`;
   $("systemSummary").textContent = system?.summary || "暂无系统结论。";
@@ -112,9 +137,17 @@ function renderSystem(system) {
   renderMetrics("dailyMetrics", daily.metrics);
   renderChecks("dailyChecks", daily.checks);
 
+  $("executionTitle").textContent = execution.title || "执行计划 / 买入与止损";
+  $("executionSubtitle").textContent = "复用小时线触发与 exits 规则。";
+  $("executionReason").textContent = execution.summary || "—";
+  renderMetrics("executionMetrics", execution.metrics);
+
   $("divergenceReason").textContent = divergence.summary || "—";
   renderMetrics("divergenceMetrics", divergence.metrics);
   renderMetrics("keyLevelMetrics", keyLevels.metrics);
+  $("stopMethodsSummary").textContent = stopMethods.summary || "—";
+  renderStopMethods("initialStopMethodsList", stopMethods.initial_methods || []);
+  renderStopMethods("trailingStopMethodsList", stopMethods.trailing_methods || []);
 }
 
 function renderAi(ai) {

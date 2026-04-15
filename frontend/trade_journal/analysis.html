@@ -101,6 +101,16 @@
             <div class="summary-sub" id="summarySystemReason">等待分析结果。</div>
           </div>
           <div class="summary-card">
+            <div class="summary-label">建议入场价</div>
+            <div class="summary-value" id="summaryEntry">—</div>
+            <div class="summary-sub" id="summaryEntryReason">等待执行价位。</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">当前止损价</div>
+            <div class="summary-value" id="summaryStop">—</div>
+            <div class="summary-sub" id="summaryStopReason">等待止损价位。</div>
+          </div>
+          <div class="summary-card">
             <div class="summary-label">AI 结论</div>
             <div class="summary-value" id="summaryAiDecision">—</div>
             <div class="summary-sub" id="summaryAiReason">等待 AI 模块。</div>
@@ -167,6 +177,21 @@
               <p id="dailyReason">—</p>
             </div>
           </article>
+
+          <article class="watchlist-card analysis-detail-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Execution</div>
+                <h3 id="executionTitle">执行计划 / 买入与止损</h3>
+                <p id="executionSubtitle">等待分析结果。</p>
+              </div>
+            </div>
+            <div class="analysis-metric-grid" id="executionMetrics"></div>
+            <div class="stage-block analysis-reason-block">
+              <strong>执行说明</strong>
+              <p id="executionReason">—</p>
+            </div>
+          </article>
         </section>
 
         <section class="analysis-detail-grid analysis-bottom-grid">
@@ -195,11 +220,35 @@
             </div>
             <div class="analysis-metric-grid" id="keyLevelMetrics"></div>
           </article>
+
+          <article class="watchlist-card analysis-detail-card">
+            <div class="card-head">
+              <div>
+                <div class="eyebrow">Stops</div>
+                <h3>Elder 止损方法</h3>
+                <p>不替你决定用哪一种，把不同止损线并排展示。</p>
+              </div>
+            </div>
+            <div class="stage-block analysis-reason-block">
+              <strong>方法说明</strong>
+              <p id="stopMethodsSummary">—</p>
+            </div>
+            <div class="stage-block analysis-reason-block">
+              <strong>初始止损</strong>
+              <p>定义刚入场时的最大风险。</p>
+            </div>
+            <div class="analysis-check-list" id="initialStopMethodsList"></div>
+            <div class="stage-block analysis-reason-block">
+              <strong>跟踪止损</strong>
+              <p>适合持仓后顺着趋势逐步推进。</p>
+            </div>
+            <div class="analysis-check-list" id="trailingStopMethodsList"></div>
+          </article>
         </section>
       </div>
     </div>
   </div>
 
-  <script type="module" src="/frontend/assets/scripts/analysis-page.js?v=20260413a"></script>
+  <script type="module" src="/frontend/assets/scripts/analysis-page.js?v=20260415d"></script>
 </body>
 </html>
