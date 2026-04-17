@@ -588,6 +588,16 @@ function renderJournal() {
   renderJournalTable(list);
 }
 
+function upsertTradeInState(trade) {
+  if (!trade || !trade.id) return;
+  const index = state.trades.findIndex((item) => String(item.id) === String(trade.id));
+  if (index >= 0) {
+    state.trades[index] = trade;
+    return;
+  }
+  state.trades.unshift(trade);
+}
+
 function renderStats() {
   const month = getCurrentMonth();
   const all = getTradesForMonth(month);
@@ -959,14 +969,15 @@ async function saveTrade() {
   button.textContent = state.editingId ? "保存中…" : "创建中…";
 
   try {
+    let savedTrade = null;
     if (state.editingId) {
-      await apiRequest(`/trades/${encodeURIComponent(state.editingId)}`, { method: "PUT", body: payload });
+      savedTrade = await apiRequest(`/trades/${encodeURIComponent(state.editingId)}`, { method: "PUT", body: payload });
       showGlobalAlert("交易已更新", "success");
     } else {
-      await apiRequest("/trades", { method: "POST", body: payload });
+      savedTrade = await apiRequest("/trades", { method: "POST", body: payload });
       showGlobalAlert("交易已保存", "success");
     }
-    await loadTrades();
+    upsertTradeInState(savedTrade);
     clearCaptureForm();
     refreshAll();
     setSection("ledger");

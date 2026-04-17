@@ -60,6 +60,61 @@ class TradeStorageStopFieldTests(unittest.TestCase):
         self.assertEqual(refreshed["suggested_stop_basis"], "SAFEZONE")
         self.assertEqual(refreshed["protective_stop_basis"], "SAFEZONE")
 
+    def test_manual_edit_can_update_current_stop_even_when_suggested_stop_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            storage = SQLiteStorage(Path(tmp_dir) / "journal.db")
+            storage.init_db()
+
+            created = storage.insert_trade(
+                {
+                    "stock": "MSFT",
+                    "direction": "long",
+                    "buy_price": 108.5,
+                    "shares": 10,
+                    "stop_loss": 100.0,
+                    "initial_stop_loss": 100.0,
+                    "used_stop": 85.0,
+                    "buy_date": "2026-04-09",
+                }
+            )
+
+            storage.insert_trade_stop_updates(
+                [
+                    {
+                        "trade_id": str(created["id"]),
+                        "symbol": "MSFT",
+                        "direction": "long",
+                        "session_date": "2026-04-10",
+                        "previous_stop_loss": 100.0,
+                        "proposed_stop_loss": 103.0,
+                        "applied_stop_loss": 103.0,
+                        "stop_basis": "SAFEZONE",
+                        "changed": True,
+                        "status": "UPDATED",
+                        "note": "保护性止损已上移",
+                    }
+                ]
+            )
+
+            updated = storage.update_trade(
+                str(created["id"]),
+                {
+                    "stock": "MSFT",
+                    "direction": "long",
+                    "buy_price": 108.5,
+                    "shares": 10,
+                    "stop_loss": 105.0,
+                    "initial_stop_loss": 100.0,
+                    "used_stop": 35.0,
+                    "buy_date": "2026-04-09",
+                },
+            )
+
+        self.assertIsNotNone(updated)
+        self.assertEqual(updated["stop_loss"], 105.0)
+        self.assertEqual(updated["used_stop"], 35.0)
+        self.assertEqual(updated["suggested_stop_loss"], 103.0)
+
 
 if __name__ == "__main__":
     unittest.main()
