@@ -407,11 +407,14 @@ class TelegramNotifier:
         ]
         for index, signal in enumerate(triggered_signals, start=1):
             direction = "做多" if signal["direction"] == "LONG" else "做空"
+            entry_label = "买入价" if signal["direction"] == "LONG" else "卖出价"
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
                 f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
-                f"   现价 {signal['hourly']['close']:.2f} · RR {signal['exits']['reward_risk_ratio']:.2f}R · "
+                f"   现价 {signal['hourly']['close']:.2f} · {entry_label} {signal['exits']['entry']:.2f} · "
+                f"初始止损 {signal['exits']['initial_stop_loss']:.2f}\n"
+                f"   RR {signal['exits']['reward_risk_ratio']:.2f}R · "
                 f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
             )

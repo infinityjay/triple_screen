@@ -264,6 +264,52 @@ class SQLiteStorage:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS backtest_runs (
+                    id TEXT PRIMARY KEY,
+                    start_date TEXT NOT NULL,
+                    end_date TEXT NOT NULL,
+                    initial_capital REAL NOT NULL,
+                    risk_pct REAL NOT NULL,
+                    max_total_open_risk_pct REAL NOT NULL,
+                    max_open_positions INTEGER NOT NULL,
+                    assumptions_json TEXT NOT NULL,
+                    summary_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS backtest_trades (
+                    run_id TEXT NOT NULL,
+                    sequence INTEGER NOT NULL,
+                    symbol TEXT NOT NULL,
+                    direction TEXT NOT NULL,
+                    entry_timestamp TEXT NOT NULL,
+                    exit_timestamp TEXT NOT NULL,
+                    entry_price REAL NOT NULL,
+                    exit_price REAL NOT NULL,
+                    initial_stop REAL NOT NULL,
+                    final_stop REAL NOT NULL,
+                    shares REAL NOT NULL,
+                    pnl REAL NOT NULL,
+                    pnl_pct REAL NOT NULL,
+                    r_multiple REAL NOT NULL,
+                    exit_reason TEXT NOT NULL,
+                    position_cost REAL,
+                    entry_cash_before REAL,
+                    entry_equity_before REAL,
+                    entry_open_risk_before REAL,
+                    entry_remaining_stop_budget REAL,
+                    entry_allowed_risk REAL,
+                    trade_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (run_id, sequence)
+                )
+                """
+            )
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_bars_lookup ON price_bars(symbol, timeframe, timestamp)")
             cursor.execute(
@@ -273,6 +319,8 @@ class SQLiteStorage:
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_trade_stop_updates_session ON trade_stop_updates(session_date, created_at DESC)"
             )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_backtest_runs_created_at ON backtest_runs(created_at DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id, sequence)")
             self._ensure_column(cursor.connection, "trades", "initial_stop_loss", "REAL")
             self._ensure_column(cursor.connection, "trades", "initial_stop_basis", "TEXT")
             cursor.execute(
@@ -1015,3 +1063,86 @@ class SQLiteStorage:
                 """,
                 records,
             )
+
+    def insert_backtest_run(
+        self,
+        payload: dict,
+        trades: list[dict],
+    ) -> str:
+        run_id = str(payload.get("id") or uuid4().hex)
+        created_at = self._utc_iso()
+        row = {
+            "id": run_id,
+            "start_date": str(payload["start_date"]),
+            "end_date": str(payload["end_date"]),
+            "initial_capital": float(payload["initial_capital"]),
+            "risk_pct": float(payload["risk_pct"]),
+            "max_total_open_risk_pct": float(payload["max_total_open_risk_pct"]),
+            "max_open_positions": int(payload["max_open_positions"]),
+            "assumptions_json": json.dumps(self._json_safe(payload.get("assumptions", {})), ensure_ascii=True),
+            "summary_json": json.dumps(self._json_safe(payload.get("summary", {})), ensure_ascii=True),
+            "created_at": created_at,
+        }
+
+        trade_records = []
+        for sequence, trade in enumerate(trades, start=1):
+            trade_records.append(
+                (
+                    run_id,
+                    sequence,
+                    str(trade.get("symbol", "")),
+                    str(trade.get("direction", "")),
+                    str(trade.get("entry_timestamp", "")),
+                    str(trade.get("exit_timestamp", "")),
+                    float(trade.get("entry_price", 0.0)),
+                    float(trade.get("exit_price", 0.0)),
+                    float(trade.get("initial_stop", 0.0)),
+                    float(trade.get("final_stop", 0.0)),
+                    float(trade.get("shares", 0.0)),
+                    float(trade.get("pnl", 0.0)),
+                    float(trade.get("pnl_pct", 0.0)),
+                    float(trade.get("r_multiple", 0.0)),
+                    str(trade.get("exit_reason", "")),
+                    trade.get("position_cost"),
+                    trade.get("entry_cash_before"),
+                    trade.get("entry_equity_before"),
+                    trade.get("entry_open_risk_before"),
+                    trade.get("entry_remaining_stop_budget"),
+                    trade.get("entry_allowed_risk"),
+                    json.dumps(self._json_safe(trade), ensure_ascii=True),
+                    created_at,
+                )
+            )
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO backtest_runs (
+                    id, start_date, end_date, initial_capital, risk_pct,
+                    max_total_open_risk_pct, max_open_positions,
+                    assumptions_json, summary_json, created_at
+                )
+                VALUES (
+                    :id, :start_date, :end_date, :initial_capital, :risk_pct,
+                    :max_total_open_risk_pct, :max_open_positions,
+                    :assumptions_json, :summary_json, :created_at
+                )
+                """,
+                row,
+            )
+            connection.execute("DELETE FROM backtest_trades WHERE run_id = ?", (run_id,))
+            if trade_records:
+                connection.executemany(
+                    """
+                    INSERT INTO backtest_trades (
+                        run_id, sequence, symbol, direction, entry_timestamp, exit_timestamp,
+                        entry_price, exit_price, initial_stop, final_stop, shares, pnl, pnl_pct,
+                        r_multiple, exit_reason, position_cost, entry_cash_before,
+                        entry_equity_before, entry_open_risk_before, entry_remaining_stop_budget,
+                        entry_allowed_risk, trade_json, created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    trade_records,
+                )
+        return run_id
