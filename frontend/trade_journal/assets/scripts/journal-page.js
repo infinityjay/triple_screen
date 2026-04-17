@@ -845,7 +845,9 @@ function computeCapture() {
   }
   $("calcStopState").textContent = stopText;
   $("calcExecutionHint").textContent = recommendedShares === null
-    ? "先填写入场价、止损价和总资金"
+    ? stopStatus?.type === "breakeven" || stopStatus?.type === "locked"
+      ? "当前保护止损已到保本/盈利侧，这笔持仓新增风险占用为 0"
+      : "先填写入场价、止损价和总资金"
     : `当前规则建议 ${formatNumber(recommendedShares, 0)} 股，方向为 ${getDirectionLabel(direction)}`;
   $("fillSharesBtn").disabled = recommendedShares === null;
   $("fillSharesInlineBtn").disabled = recommendedShares === null;
@@ -916,6 +918,7 @@ function getCapturePayload() {
     shares,
     initial_stop_loss: state.captureInitialStop ?? stopLoss,
     stop_loss: stopLoss,
+    protective_stop_basis: stopLoss === null ? null : "MANUAL",
     stop_reason: $("f_stopReason").value.trim() || null,
     buy_date: $("f_buyDate").value || null,
     day_high: getNumberInputValue("f_dayHigh"),
@@ -943,7 +946,7 @@ function validateCapturePayload(payload) {
   if (payload.buy_price === null) return "请填写入场价";
   if (payload.stop_loss === null) return "请填写止损价";
   if (payload.shares === null) return "请填写股数";
-  if (getRiskPerShare(payload.buy_price, payload.stop_loss, payload.direction) === 0) return "止损价需要位于风险有效的一侧";
+  if (getRiskPerShare(payload.buy_price, payload.initial_stop_loss, payload.direction) === 0) return "初始止损价需要位于风险有效的一侧";
   if (hasPartialSellInfo(payload.sell_price, payload.sell_date)) return payload.sell_price === null ? "填写平仓日期时，也请填写平仓价" : "填写平仓价时，也请填写平仓日期";
   return "";
 }
