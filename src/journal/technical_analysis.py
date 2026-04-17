@@ -449,7 +449,9 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     ]
     stop_method_cards = [
         {
+            "code": method.get("code"),
             "label": method.get("label"),
+            "raw_price": _safe_round(method.get("price"), 4) if method.get("price") is not None else None,
             "price": "需手工判断" if method.get("price") is None else str(_safe_round(method.get("price"), 4)),
             "reference": method.get("reference"),
             "suitable_for": method.get("suitable_for"),

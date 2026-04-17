@@ -67,6 +67,8 @@ const REVIEW_TEMPLATES = {
   ].join("\n"),
 };
 
+const SUGGESTED_STOP_METHOD_CODE = "TWO_BAR";
+
 const state = {
   trades: [],
   settings: normalizeSettings(readStoredJson("tradeSettings", {})),
@@ -75,6 +77,9 @@ const state = {
   captureSuggestedStop: null,
   activeSection: "overview",
   settingsSaveTimer: null,
+  suggestedStopTimer: null,
+  suggestedStopRequestSeq: 0,
+  suggestedStopCache: {},
 };
 
 const MONTH_INPUT_IDS = ["heroMonthPicker", "journalMonthPicker", "statsMonthPicker"];
@@ -200,8 +205,8 @@ function getMonthOpenRisk(month, includeCapturePreview = false) {
   return trades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
 }
 
-function getMonthStopBudgetUsed(month, includeCapturePreview = false) {
-  return getMonthClosedRiskUsed(month, includeCapturePreview) + getMonthOpenRisk(month, includeCapturePreview);
+function getMonthClosedNetPnl(month, includeCapturePreview = false) {
+  return getClosedTradesForMonth(month, includeCapturePreview).reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
 }
 
 function getFilteredTrades() {
@@ -260,10 +265,10 @@ function getRiskNumbers(includeCapturePreview = false) {
   const settings = getSettings();
   const singleStop = settings.total * (settings.singleStop / 100);
   const monthBudget = settings.total * (settings.monthStop / 100);
-  const used = getMonthStopBudgetUsed(settings.month, includeCapturePreview);
-  const remaining = monthBudget - used;
-  const pct = monthBudget > 0 ? (used / monthBudget) * 100 : 0;
-  return { singleStop, monthBudget, used, remaining, pct };
+  const openUsed = getMonthOpenRisk(settings.month, includeCapturePreview);
+  const remaining = singleStop - openUsed;
+  const pct = singleStop > 0 ? (openUsed / singleStop) * 100 : 0;
+  return { singleStop, monthBudget, openUsed, remaining, pct };
 }
 
 function truncateText(value, length = 100) {
@@ -318,12 +323,11 @@ function renderSummary(includeCapturePreview = false) {
   const openTrades = getOpenTradesForMonth(month, includeCapturePreview);
   const closedTrades = getClosedTradesForMonth(month, includeCapturePreview);
   const wins = closedTrades.filter((trade) => (getTradeNetPnl(trade) || 0) >= 0);
-  const netClosed = closedTrades.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
+  const netClosed = getMonthClosedNetPnl(month, includeCapturePreview);
+  const closedPct = settings.total > 0 ? (netClosed / settings.total) * 100 : null;
   const completionRate = getMonthlyCompletionRate(month);
   const overdue = getOverdueIncompleteTrades();
-  const { singleStop, monthBudget, used, remaining, pct } = getRiskNumbers(includeCapturePreview);
-  const closedRiskUsed = getMonthClosedRiskUsed(month, includeCapturePreview);
-  const openRiskUsed = getMonthOpenRisk(month, includeCapturePreview);
+  const { singleStop, monthBudget, openUsed, remaining, pct } = getRiskNumbers(includeCapturePreview);
 
   $("summaryTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "未设置";
   $("summarySingleStop").textContent = settings.total ? formatCurrency(singleStop, 2) : "—";
@@ -332,11 +336,15 @@ function renderSummary(includeCapturePreview = false) {
   $("summaryClosedResult").textContent = closedTrades.length ? formatCurrency(netClosed, 2) : "—";
   $("summaryClosedResult").className = `summary-value ${netClosed >= 0 ? "accent-safe" : "accent-danger"}`;
   $("summaryClosedResultSub").textContent = closedTrades.length
-    ? `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${closedTrades.length - wins.length} 负`
+    ? `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${closedTrades.length - wins.length} 负 · 占总资金 ${
+        closedPct === null ? "—" : formatPercent(closedPct, 2)
+      }`
     : "本月暂无已结交易";
   $("summaryOpenCount").textContent = String(openTrades.length);
-  $("summaryUsedPct").textContent = formatPercent(pct, 0);
-  $("summaryUsedText").textContent = `已结亏损占用 ${formatCurrency(closedRiskUsed, 2)} + 开放风险 ${formatCurrency(openRiskUsed, 2)}`;
+  $("summaryUsedPct").textContent = closedPct === null ? "—" : formatPercent(closedPct, 2);
+  $("summaryUsedText").textContent = closedTrades.length
+    ? `本月已结净盈亏 ${formatCurrency(netClosed, 2)} / 总资金 ${formatCurrency(settings.total, 0)}`
+    : "本月暂无已结交易";
   $("summaryCompleteness").textContent = completionRate === null ? "暂无样本" : formatPercent(completionRate, 0);
   $("summaryCompletenessSub").textContent = overdue.length
     ? `${overdue.length} 笔超过 3 个月仍未补全`
@@ -345,23 +353,23 @@ function renderSummary(includeCapturePreview = false) {
     ? `${formatPercent(settings.singleStop, 1)} 规则已启用`
     : "先在设置里填总资金";
   $("summaryMonthBudgetSub").textContent = settings.total
-    ? `${formatPercent(settings.monthStop, 1)} 月度止损规则已启用`
-    : "月度预算尚未设定";
-  $("summaryRemainingSub").textContent = `已用 ${formatCurrency(used, 2)}，剩余 ${formatCurrency(remaining, 2)}`;
+    ? `${formatPercent(settings.monthStop, 1)} 月度参考上限，仅展示不参与当前剩余额度`
+    : "月度参考上限尚未设定";
+  $("summaryRemainingSub").textContent = `当前持仓占用 ${formatCurrency(openUsed, 2)}，剩余 ${formatCurrency(remaining, 2)}`;
   $("summaryOpenCountSub").textContent = openTrades.length
     ? `其中 ${openTrades.filter((trade) => normalizeDirection(trade.direction) === "short").length} 笔做空`
     : "当前没有月末持仓";
-  $("summaryRiskFill").style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  $("summaryRiskFill").style.width = `${Math.max(0, Math.min(100, Math.abs(closedPct ?? 0)))}%`;
 
   $("monthHeadline").textContent = `当前查看月份：${month}`;
-  $("monthHeadlineBody").textContent = `${closedTrades.length} 笔已结，${wins.length} 笔盈利，${openTrades.length} 笔持仓仍占用风险预算。`;
+  $("monthHeadlineBody").textContent = `${closedTrades.length} 笔已结，净结果 ${closedTrades.length ? formatCurrency(netClosed, 2) : "—"}，${openTrades.length} 笔持仓当前占用止损 ${formatCurrency(openUsed, 2)}。`;
   $("journalMonthCurrent").textContent = `当前查看月份：${month}`;
   $("statsMonthCurrent").textContent = `当前查看月份：${month}`;
 
   const notes = [];
   if (!settings.total) notes.push("先在设置里填写总资金和风险比例，系统才能给出仓位建议。");
-  if (pct >= 100) notes.push("本月风险预算已用尽，优先降低新交易频率。");
-  else if (pct >= 75) notes.push("本月风险预算接近上限，新仓要更严格筛选。");
+  if (pct >= 100) notes.push("当前持仓止损已经超过可用额度，新增仓位前先收缩风险。");
+  else if (pct >= 75) notes.push("当前持仓止损占用偏高，新仓要更严格筛选。");
   if (overdue.length) notes.push(`有 ${overdue.length} 笔旧交易还没补完整，统计结论会受影响。`);
   if (!closedTrades.length) notes.push("本月还没有已结交易，先聚焦执行质量和记录完整度。");
   $("heroNotes").innerHTML = notes.length
@@ -422,8 +430,8 @@ function renderOverview() {
   const closedTrades = getClosedTradesForMonth(month);
   const insights = [];
   const { pct, remaining } = getRiskNumbers();
-  if (pct >= 100) insights.push(["本月风险预算已满", "暂停新增仓位，优先处理现有持仓和复盘。"]);
-  else if (pct >= 75) insights.push(["本月风险预算偏高", `剩余额度只剩 ${formatCurrency(remaining, 2)}，新仓要缩量。`]);
+  if (pct >= 100) insights.push(["当前持仓止损超额", "暂停新增仓位，先把现有持仓的风险收下来。"]);
+  else if (pct >= 75) insights.push(["当前止损占用偏高", `剩余额度只剩 ${formatCurrency(remaining, 2)}，新仓要缩量。`]);
   if (openTrades.length) insights.push(["先盯住仍在持仓的仓位", `当前有 ${openTrades.length} 笔持仓，优先保证止损和跟踪记录及时更新。`]);
   if (!closedTrades.length) insights.push(["本月样本偏少", "已结交易太少时，不要过度解读胜率和净结果。"]);
   if (!insights.length) insights.push(["节奏正常", "风险、样本数和记录完整度都在可接受范围内。"]);
@@ -585,13 +593,14 @@ function renderStats() {
   const all = getTradesForMonth(month);
   const closed = getClosedTradesForMonth(month);
   const open = getOpenTradesForMonth(month);
-  const net = closed.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0);
+  const net = getMonthClosedNetPnl(month);
   const wins = closed.filter((trade) => (getTradeNetPnl(trade) || 0) >= 0);
   const losses = closed.filter((trade) => (getTradeNetPnl(trade) || 0) < 0);
   const avgWin = wins.length ? wins.reduce((sum, trade) => sum + (getTradeNetPnl(trade) || 0), 0) / wins.length : null;
   const avgLoss = losses.length ? losses.reduce((sum, trade) => sum + Math.abs(getTradeNetPnl(trade) || 0), 0) / losses.length : null;
   const completionRate = getMonthlyCompletionRate(month);
   const risk = getRiskNumbers();
+  const netPct = getSettings().total > 0 ? (net / getSettings().total) * 100 : null;
 
   let leadTitle = "本月结论";
   let leadBody = "继续保持记录质量，先看风险，再看结果。";
@@ -602,8 +611,8 @@ function renderStats() {
     leadTitle = "净结果偏弱，先收紧风险";
     leadBody = "本月已结交易净结果为负，优先复盘亏损交易的执行偏差，而不是急着扩大样本。";
   } else if (risk.pct >= 75) {
-    leadTitle = "结果尚可，但风险已偏高";
-    leadBody = "月度预算使用率偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
+    leadTitle = "结果尚可，但当前持仓风险偏高";
+    leadBody = "当前持仓止损占用偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
   } else if ((completionRate || 0) < 70) {
     leadTitle = "结果先放一边，先补数据";
     leadBody = "记录完整度偏低会直接影响统计质量，先把旧交易补全。";
@@ -620,11 +629,12 @@ function renderStats() {
 
   $("statsGrid").innerHTML = [
     ["净结果", closed.length ? formatCurrency(net, 2) : "—"],
+    ["占总资金", netPct === null ? "—" : formatPercent(netPct, 2)],
     ["胜率", closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"],
     ["平均盈利", avgWin === null ? "—" : formatCurrency(avgWin, 2)],
     ["平均亏损", avgLoss === null ? "—" : formatCurrency(avgLoss, 2)],
-    ["月度风险已用", formatPercent(risk.pct, 0)],
-    ["开放风险", formatCurrency(getMonthOpenRisk(month), 2)],
+    ["当前止损占用", formatPercent(risk.pct, 0)],
+    ["当前持仓止损", formatCurrency(risk.openUsed, 2)],
     ["已记录交易", String(all.length)],
     ["完整记录", completionRate === null ? "—" : formatPercent(completionRate, 0)],
   ]
@@ -639,7 +649,7 @@ function renderStats() {
     .join("");
 
   const suggestions = [];
-  if (risk.pct >= 100) suggestions.push(["暂停新仓", "本月预算已经耗尽，优先处理当前持仓和复盘。"]);
+  if (risk.pct >= 100) suggestions.push(["暂停新仓", "当前持仓止损额度已经超出上限，优先处理现有持仓和复盘。"]);
   if (losses.length > wins.length && closed.length >= 4) suggestions.push(["复盘亏损共性", "检查是否总在同一类 setup 或同一执行环节上出错。"]);
   if ((completionRate || 0) < 70) suggestions.push(["补齐旧记录", "先把未填写的计划、平仓原因和复盘补完，再看统计。"]);
   if (!suggestions.length) suggestions.push(["延续当前流程", "继续按照现在的节奏维护交易日志，并关注持仓止损更新。"]);
@@ -672,6 +682,7 @@ function clearCaptureForm() {
   state.editingId = null;
   state.captureInitialStop = null;
   state.captureSuggestedStop = null;
+  clearTimeout(state.suggestedStopTimer);
   updateCaptureHeader();
   computeCapture();
   showAlert("captureAlert", "");
@@ -706,12 +717,65 @@ function populateCaptureForm(trade) {
   $("f_review").value = trade.review || "";
   updateCaptureHeader();
   computeCapture();
+  scheduleSuggestedStopLookup(true);
   setSection("capture");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function getNumberInputValue(id) {
   return parseNumberValue($(id)?.value);
+}
+
+function extractSuggestedStopFromAnalysis(payload) {
+  const methods = payload?.system?.stop_methods?.methods || [];
+  const target = methods.find((method) => method?.code === SUGGESTED_STOP_METHOD_CODE);
+  if (!target) return null;
+  return parseNumberValue(target.raw_price ?? target.price);
+}
+
+async function requestSuggestedStop(stock, direction) {
+  const key = `${stock}:${direction}`;
+  if (Object.prototype.hasOwnProperty.call(state.suggestedStopCache, key)) {
+    state.captureSuggestedStop = state.suggestedStopCache[key];
+    computeCapture();
+    return;
+  }
+
+  const requestSeq = ++state.suggestedStopRequestSeq;
+  try {
+    const payload = await apiRequest("/technical-analysis", {
+      method: "POST",
+      body: { symbol: stock, include_ai: false },
+    });
+    if (requestSeq !== state.suggestedStopRequestSeq) return;
+    const suggestedStop = extractSuggestedStopFromAnalysis(payload);
+    state.suggestedStopCache[key] = suggestedStop;
+    state.captureSuggestedStop = suggestedStop;
+    computeCapture();
+  } catch (_) {
+    if (requestSeq !== state.suggestedStopRequestSeq) return;
+    state.captureSuggestedStop = null;
+    computeCapture();
+  }
+}
+
+function scheduleSuggestedStopLookup(immediate = false) {
+  clearTimeout(state.suggestedStopTimer);
+
+  const stock = $("f_stock")?.value?.trim()?.toUpperCase() || "";
+  const direction = normalizeDirection($("f_direction")?.value);
+  if (!stock) {
+    state.captureSuggestedStop = null;
+    computeCapture();
+    return;
+  }
+
+  const runLookup = () => requestSuggestedStop(stock, direction);
+  if (immediate) {
+    runLookup();
+    return;
+  }
+  state.suggestedStopTimer = setTimeout(runLookup, 350);
 }
 
 function computeCapture() {
@@ -776,10 +840,10 @@ function computeCapture() {
   $("fillSharesBtn").disabled = recommendedShares === null;
   $("fillSharesInlineBtn").disabled = recommendedShares === null;
 
-  if (previewRisk.monthBudget > 0 && previewRisk.remaining < 0 && getCapturePreviewTrade()) {
+  if (previewRisk.singleStop > 0 && previewRisk.remaining < 0 && getCapturePreviewTrade()) {
     showAlert(
       "captureAlert",
-      `这笔交易会超出本月剩余止损额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`,
+      `这笔交易会让当前持仓止损超出剩余额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`,
       "danger"
     );
   } else {
@@ -883,9 +947,9 @@ async function saveTrade() {
   }
 
   const previewRisk = getRiskNumbers(true);
-  if (previewRisk.monthBudget > 0 && previewRisk.remaining < 0) {
+  if (previewRisk.singleStop > 0 && previewRisk.remaining < 0) {
     const confirmed = window.confirm(
-      `这笔交易会超出本月剩余止损额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。仍然继续保存吗？`
+      `这笔交易会让当前持仓止损超出剩余额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。仍然继续保存吗？`
     );
     if (!confirmed) return;
   }
@@ -1081,6 +1145,8 @@ function bindEvents() {
     if (!input) return;
     input.addEventListener("input", computeCapture);
   });
+  $("f_stock").addEventListener("input", () => scheduleSuggestedStopLookup());
+  $("f_direction").addEventListener("change", () => scheduleSuggestedStopLookup(true));
 
   $("fillSharesBtn").addEventListener("click", applyRecommendedShares);
   $("fillSharesInlineBtn").addEventListener("click", applyRecommendedShares);

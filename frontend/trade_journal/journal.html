@@ -95,12 +95,12 @@
           <div class="summary-card">
             <div class="summary-label">月度止损上限</div>
             <div class="summary-value accent-danger" id="summaryMonthBudget">—</div>
-            <div class="summary-sub" id="summaryMonthBudgetSub">已实现亏损和月末持仓风险会一起占用。</div>
+            <div class="summary-sub" id="summaryMonthBudgetSub">仅做月度参考，不参与当前剩余额度。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">剩余额度</div>
+            <div class="summary-label">当前剩余止损额度</div>
             <div class="summary-value accent-safe" id="summaryRemaining">—</div>
-            <div class="summary-sub" id="summaryRemainingSub">风险预算仍可用。</div>
+            <div class="summary-sub" id="summaryRemainingSub">只按当前持仓止损占用计算。</div>
           </div>
           <div class="summary-card">
             <div class="summary-label">本月已结净结果</div>
@@ -113,9 +113,9 @@
             <div class="summary-sub" id="summaryOpenCountSub">月末仍在场内的仓位数量。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">月度预算使用率</div>
+            <div class="summary-label">本月已结盈亏占比</div>
             <div class="summary-value" id="summaryUsedPct">0%</div>
-            <div class="summary-sub" id="summaryUsedText">已实现亏损 + 开放风险。</div>
+            <div class="summary-sub" id="summaryUsedText">只统计当月已结交易净盈亏。</div>
             <div class="risk-track" style="margin-top:14px"><div class="risk-fill" id="summaryRiskFill"></div></div>
           </div>
           <div class="summary-card">
@@ -505,6 +505,6 @@
     </div>
   </div>
 
-  <script type="module" src="/frontend/assets/scripts/journal-page.js?v=20260410b"></script>
+  <script type="module" src="/frontend/assets/scripts/journal-page.js?v=20260416a"></script>
 </body>
 </html>
