@@ -116,7 +116,9 @@ class QualificationConfig:
 @dataclass(frozen=True)
 class TradePlanConfig:
     safezone_lookback: int
-    safezone_coefficient: float
+    safezone_ema_period: int
+    safezone_long_coefficient: float
+    safezone_short_coefficient: float
     thermometer_period: int
     thermometer_target_multiplier: float
 

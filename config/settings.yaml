@@ -71,7 +71,9 @@ strategy:
 
 trade_plan:
   safezone_lookback: 10
-  safezone_coefficient: 2.0
+  safezone_ema_period: 22
+  safezone_long_coefficient: 2.0
+  safezone_short_coefficient: 3.0
   thermometer_period: 22
   thermometer_target_multiplier: 1.0
 

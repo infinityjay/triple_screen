@@ -118,8 +118,12 @@ class TelegramNotifier:
     @staticmethod
     def _stop_basis_label(stop_basis: str) -> str:
         labels = {
-            "SAFEZONE": "日线 SafeZone 止损",
+            "SAFEZONE": "SafeZone 初始止损",
             "SIGNAL_BAR": "小时信号K止损",
+            "NICK": "尼克止损法",
+            "ATR_1X": "ATR 移动止损 1x",
+            "ATR_2X": "ATR 移动止损 2x",
+            "CHOICE_REQUIRED": "待手动选择",
             "PULLBACK_PIVOT": "日线回调摆点止损",
             "MANUAL": "手动录入止损",
             "UNKNOWN": "保护止损",
@@ -180,7 +184,7 @@ class TelegramNotifier:
         hourly_status_label = self._hourly_status_label(hourly["status"])
         stop_basis_label = self._stop_basis_label(exits.get("stop_basis", "UNKNOWN"))
         initial_stop_basis_label = self._stop_basis_label(exits.get("initial_stop_basis", exits.get("stop_basis", "UNKNOWN")))
-        protective_stop_basis_label = self._stop_basis_label(exits.get("protective_stop_basis", "SAFEZONE"))
+        protective_stop_basis_label = self._stop_basis_label(exits.get("protective_stop_basis", "ATR_1X"))
         breakout_bar = self._bar(hourly.get("breakout_strength", 0), 1.0, length=8)
 
         if direction == "LONG":
@@ -242,15 +246,15 @@ class TelegramNotifier:
             f"<b>交易建议</b>\n"
             f"建议入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>\n"
             f"初始止损：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
-            f"信号K止损：<code>{self._fmt_num(exits.get('initial_stop_signal_bar'), 2)}</code>  两根K极值：<code>{self._fmt_num(exits.get('initial_stop_two_bar'), 2)}</code>\n"
-            f"修正摆点：<code>{self._fmt_num(exits.get('initial_stop_pullback_pivot'), 2)}</code>  SafeZone：<code>{self._fmt_num(exits.get('stop_loss_safezone'), 2)}</code>\n"
-            f"Chandelier：<code>{self._fmt_num(exits.get('stop_loss_chandelier'), 2)}</code>  Parabolic：<code>{self._fmt_num(exits.get('stop_loss_parabolic'), 2)}</code>\n"
+            f"SafeZone 初始止损：<code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  尼克止损：<code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
+            f"ATR 移动止损 1x：<code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x：<code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
             f"后续保护止损：<code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
             f"当前激活止损：<code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
             f"可选止损清单：\n{self._format_stop_methods(exits.get('stop_methods'))}\n"
             f"首个止盈：<code>{self._fmt_num(exits.get('take_profit'), 2)}</code>\n"
-            f"日线 Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  投影基准：{self._fmt_num(exits.get('target_reference'), 2)}\n"
+            f"日线 ATR：<code>{self._fmt_num(exits.get('daily_atr'), 2)}</code>  Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  投影基准：{self._fmt_num(exits.get('target_reference'), 2)}\n"
             f"每股风险：{self._fmt_num(exits.get('risk_per_share'), 2)}  预估盈亏比：{self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"
+            f"内部模型风险：{self._fmt_num(exits.get('risk_per_share_model'), 2)}  内部模型 RR：{self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R\n"
             f"{'─' * 32}\n"
             f"<b>候选池标签</b>\n"
             f"候选日期：<code>{signal.get('source_session_date', 'UNKNOWN')}</code>\n"
@@ -335,22 +339,26 @@ class TelegramNotifier:
             f"持仓 {total_positions} 笔 · 更新 {updated_count} 笔 · 未变 {unchanged_count} 笔 · 失败 {error_count} 笔\n",
         ]
 
-        display_items = [item for item in updates if item.get("status") == "UPDATED"][:8]
+        display_items = [item for item in updates if item.get("status") in {"UPDATED", "WARNING"}][:8]
         if not display_items and total_positions == 0:
             lines.append("当前没有未平仓交易需要更新。\n")
             return "".join(lines)
         if not display_items and total_positions > 0:
-            lines.append("本轮没有需要上调/下移的保护性止损。\n")
+            lines.append("本轮没有变化的 ATR 移动止损建议。\n")
             return "".join(lines)
 
         for index, item in enumerate(display_items, start=1):
             previous_stop = item.get("previous_stop_loss")
             applied_stop = item.get("applied_stop_loss")
+            open_profit = item.get("open_profit")
+            capture_pct = item.get("profit_capture_pct_atr_1x")
+            warning_triggered = bool(item.get("warning_triggered"))
             stop_basis = item.get("stop_basis", "UNKNOWN")
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
                 f"{previous_stop if previous_stop is not None else '—'} → {applied_stop if applied_stop is not None else '—'} "
-                f"({stop_basis})\n"
+                f"({stop_basis}) · 浮盈 {self._fmt_num(open_profit, 2)} · 锁盈 {self._fmt_num(capture_pct, 2)}%"
+                f"{' · WARNING' if warning_triggered else ''}\n"
             )
         return "".join(lines)
 
@@ -409,12 +417,22 @@ class TelegramNotifier:
             direction = "做多" if signal["direction"] == "LONG" else "做空"
             entry_label = "买入价" if signal["direction"] == "LONG" else "卖出价"
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
+            exits = signal["exits"]
+            safezone_stop = self._fmt_num(exits.get("initial_stop_safezone"), 2)
+            nick_stop = self._fmt_num(exits.get("initial_stop_nick"), 2)
+            if safezone_stop == "—" and nick_stop == "—" and exits.get("initial_stop_loss") is not None:
+                initial_stop_line = f"初始止损 {exits['initial_stop_loss']:.2f}"
+            else:
+                initial_stop_line = f"初始止损待你选择（SafeZone {safezone_stop} / 尼克 {nick_stop}）"
+            rr_value = exits.get("reward_risk_ratio_model")
+            if rr_value is None:
+                rr_value = exits.get("reward_risk_ratio")
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
                 f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
                 f"   现价 {signal['hourly']['close']:.2f} · {entry_label} {signal['exits']['entry']:.2f} · "
-                f"初始止损 {signal['exits']['initial_stop_loss']:.2f}\n"
-                f"   RR {signal['exits']['reward_risk_ratio']:.2f}R · "
+                f"{initial_stop_line}\n"
+                f"   模型 RR {self._fmt_num(rr_value, 2)}R · "
                 f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
             )

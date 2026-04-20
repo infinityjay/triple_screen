@@ -16,7 +16,14 @@ import indicators
 from clients.alpaca import AlpacaClient
 from config.loader import load_settings
 from config.schema import AppConfig
-from journal import apply_monotonic_stop, compute_used_stop
+from journal import (
+    apply_monotonic_stop,
+    compute_open_profit,
+    compute_profit_capture_pct,
+    compute_stop_locked_profit,
+    compute_used_stop,
+    should_block_stop_relaxation,
+)
 from storage.sqlite import SQLiteStorage
 
 
@@ -741,7 +748,10 @@ def run_backtest(
                         signal_bar_high=hourly.get("signal_bar_high"),
                         signal_bar_low=hourly.get("signal_bar_low"),
                     )
-                    if float(exits.get("reward_risk_ratio", 0.0) or 0.0) < settings.qualification.intraday_minimum_reward_risk:
+                    if (
+                        float(exits.get("reward_risk_ratio_model", 0.0) or 0.0)
+                        < settings.qualification.intraday_minimum_reward_risk
+                    ):
                         skipped_rr += 1
                         continue
 
@@ -770,7 +780,7 @@ def run_backtest(
                         skipped_open_risk_cap += 1
                         continue
 
-                    risk_per_share = float(trigger.exits.get("risk_per_share", 0.0) or 0.0)
+                    risk_per_share = float(trigger.exits.get("risk_per_share_model", 0.0) or 0.0)
                     sizing = compute_position_size(
                         account_equity=account_equity,
                         cash_available=cash,
@@ -793,8 +803,8 @@ def run_backtest(
                         entry_session_date=session_date.isoformat(),
                         entry_timestamp=trigger.timestamp.isoformat(),
                         entry_price=float(trigger.exits["entry"]),
-                        initial_stop=float(trigger.exits["initial_stop_loss"]),
-                        active_stop=float(trigger.exits["initial_stop_loss"]),
+                        initial_stop=float(trigger.exits["initial_stop_model_loss"]),
+                        active_stop=float(trigger.exits["initial_stop_model_loss"]),
                         risk_per_share=risk_per_share,
                         shares=sizing.shares,
                         take_profit=float(trigger.exits["take_profit"]),
@@ -837,10 +847,21 @@ def run_backtest(
                 daily_frame = slice_to_session(histories[symbol].daily, session_date)
                 if daily_frame.empty:
                     continue
-                proposed_stop, _ = indicators.calc_safezone_stop(daily_frame, position.direction, settings.trade_plan)
-                next_stop = apply_monotonic_stop(position.active_stop, proposed_stop, position.direction)
-                if next_stop is not None:
-                    position.active_stop = float(next_stop)
+                atr_stops, _ = indicators.calc_atr_stops(daily_frame, position.direction, atr_period=14)
+                proposed_stop = atr_stops.get(1.0)
+                latest_close = float(daily_frame["close"].iloc[-1])
+                open_profit = compute_open_profit(position.entry_price, latest_close, position.shares, position.direction)
+                locked_profit = compute_stop_locked_profit(position.entry_price, proposed_stop, position.shares, position.direction)
+                capture_pct = compute_profit_capture_pct(open_profit, locked_profit)
+                warning_triggered = should_block_stop_relaxation(
+                    position.active_stop,
+                    proposed_stop,
+                    position.direction,
+                    open_profit,
+                    capture_pct,
+                )
+                if proposed_stop is not None and not warning_triggered:
+                    position.active_stop = float(proposed_stop)
 
                 session_frame = session_frames.get(symbol)
                 if session_frame is not None and not session_frame.empty:
@@ -913,7 +934,7 @@ def run_backtest(
         "historical_earnings_filter_included": False,
         "data_source": "sqlite-first with Alpaca backfill; fetched bars are persisted to price_bars",
         "position_sizing": "whole shares only; each entry is constrained by remaining stop budget, per-trade 2% risk logic, and available buying power",
-        "exit_model": "initial stop at entry, daily SafeZone monotonic trailing stop updated after each close, mark remaining positions to market at end",
+        "exit_model": "initial stop at entry from SafeZone/Nick, daily ATR 1x stop refreshed after each close without monotonic filter, mark remaining positions to market at end",
         "same_bar_rule": "conservative; if trigger and stop both fit inside the same hour bar, exit at stop on that bar",
     }
     summary = {

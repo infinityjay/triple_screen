@@ -380,11 +380,11 @@ class TripleScreenScanner:
                 signal_bar_high=hourly.get("signal_bar_high"),
                 signal_bar_low=hourly.get("signal_bar_low"),
             )
-            if exits["reward_risk_ratio"] < self.settings.qualification.intraday_minimum_reward_risk:
+            if float(exits.get("reward_risk_ratio_model", 0.0) or 0.0) < self.settings.qualification.intraday_minimum_reward_risk:
                 logger.info(
                     "[%s] skipped intraday because reward/risk %.2f < %.2f",
                     symbol,
-                    exits["reward_risk_ratio"],
+                    float(exits.get("reward_risk_ratio_model", 0.0) or 0.0),
                     self.settings.qualification.intraday_minimum_reward_risk,
                 )
                 return None
@@ -399,7 +399,9 @@ class TripleScreenScanner:
                 exits,
             )
             opportunity["signal_score"] = opportunity["execution_score"]
-            opportunity["reward_risk_score"] = indicators.calc_reward_risk_score(exits["reward_risk_ratio"])
+            opportunity["reward_risk_score"] = indicators.calc_reward_risk_score(
+                float(exits.get("reward_risk_ratio_model", 0.0) or 0.0)
+            )
             opportunity["opportunity_status"] = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
             opportunity["cooldown_active"] = (not self.dry_run) and hourly["pass"] and self._is_recently_alerted(symbol, direction)
             opportunity["summary"] = (
@@ -605,7 +607,7 @@ class TripleScreenScanner:
                 opportunity["symbol"],
                 "做多" if opportunity["direction"] == "LONG" else "做空",
                 opportunity.get("execution_score", opportunity.get("signal_score", 0.0)),
-                opportunity["exits"]["reward_risk_ratio"],
+                float(opportunity["exits"].get("reward_risk_ratio_model", 0.0) or 0.0),
                 opportunity.get("strong_divergence"),
                 opportunity["summary"],
             )

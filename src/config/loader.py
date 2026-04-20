@@ -202,7 +202,11 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
         ),
         trade_plan=TradePlanConfig(
             safezone_lookback=int(trade_plan_raw.get("safezone_lookback", 10)),
-            safezone_coefficient=float(trade_plan_raw.get("safezone_coefficient", 2.0)),
+            safezone_ema_period=int(trade_plan_raw.get("safezone_ema_period", 22)),
+            safezone_long_coefficient=float(
+                trade_plan_raw.get("safezone_long_coefficient", trade_plan_raw.get("safezone_coefficient", 2.0))
+            ),
+            safezone_short_coefficient=float(trade_plan_raw.get("safezone_short_coefficient", 3.0)),
             thermometer_period=int(trade_plan_raw.get("thermometer_period", 22)),
             thermometer_target_multiplier=float(trade_plan_raw.get("thermometer_target_multiplier", 1.0)),
         ),

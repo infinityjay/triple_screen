@@ -16,6 +16,7 @@ CHANDELIER_LOOKBACK = 22
 CHANDELIER_ATR_MULTIPLIER = 3.0
 PARABOLIC_STEP = 0.02
 PARABOLIC_MAX_STEP = 0.2
+NICK_STOP_OFFSET = 0.01
 WEEKLY_TREND_SCORE_CAP = 4.5
 DAILY_SETUP_SCORE_CAP = 4.5
 HOURLY_TRIGGER_SCORE_CAP = 4.0
@@ -26,6 +27,10 @@ PIVOT_ORDER = 2
 
 def calc_ema(series: pd.Series, period: int) -> pd.Series:
     return series.ewm(span=period, adjust=False).mean()
+
+
+def _safezone_coefficient(plan: TradePlanConfig, direction: str) -> float:
+    return plan.safezone_short_coefficient if direction == "SHORT" else plan.safezone_long_coefficient
 
 
 def calc_macd(df: pd.DataFrame, settings: StrategyConfig) -> tuple[pd.Series, pd.Series, pd.Series]:
@@ -236,17 +241,28 @@ def calc_safezone_stop(df: pd.DataFrame, direction: str, plan: TradePlanConfig) 
     if df is None or len(df) < 2:
         return None, 0.0
 
+    direction = str(direction).upper()
+    if direction not in {"LONG", "SHORT"}:
+        return None, 0.0
+
     lookback = max(plan.safezone_lookback, 1)
+    ema_period = max(plan.safezone_ema_period, 1)
+    ema_series = calc_ema(df["close"].astype(float), ema_period)
+    reference_price = float(ema_series.iloc[-1])
+    coefficient = _safezone_coefficient(plan, direction)
+    window = df.tail(lookback).copy()
+    ema_window = ema_series.tail(lookback)
+
     if direction == "LONG":
-        penetrations = (df["low"].shift(1) - df["low"]).clip(lower=0).dropna()
-        reference_price = float(df["low"].iloc[-1])
-        average_penetration = float(penetrations.tail(lookback).mean()) if not penetrations.empty else 0.0
-        stop = reference_price - (average_penetration * plan.safezone_coefficient)
+        penetrations = (ema_window - window["low"].astype(float)).clip(lower=0)
+        positive_penetrations = penetrations[penetrations > 0]
+        average_penetration = float(positive_penetrations.mean()) if not positive_penetrations.empty else 0.0
+        stop = reference_price - (average_penetration * coefficient)
     else:
-        penetrations = (df["high"] - df["high"].shift(1)).clip(lower=0).dropna()
-        reference_price = float(df["high"].iloc[-1])
-        average_penetration = float(penetrations.tail(lookback).mean()) if not penetrations.empty else 0.0
-        stop = reference_price + (average_penetration * plan.safezone_coefficient)
+        penetrations = (window["high"].astype(float) - ema_window).clip(lower=0)
+        positive_penetrations = penetrations[penetrations > 0]
+        average_penetration = float(positive_penetrations.mean()) if not positive_penetrations.empty else 0.0
+        stop = reference_price + (average_penetration * coefficient)
 
     return stop, average_penetration
 
@@ -269,6 +285,61 @@ def calc_two_bar_stop(df: pd.DataFrame, direction: str) -> float | None:
     if direction == "LONG":
         return float(window["low"].min())
     return float(window["high"].max())
+
+
+def calc_nick_stop(df: pd.DataFrame, direction: str, offset: float = NICK_STOP_OFFSET) -> float | None:
+    if df is None or len(df) < 2:
+        return None
+
+    direction = str(direction).upper()
+    if direction not in {"LONG", "SHORT"}:
+        return None
+
+    boundary_series = df["high"].astype(float) if direction == "LONG" else df["low"].astype(float)
+    boundary_mode = "high" if direction == "LONG" else "low"
+    boundary_pivots = _find_pivots(boundary_series, boundary_mode)
+    start_index = next((index for index in reversed(boundary_pivots) if index < len(df) - 1), 0)
+    structure_window = df.iloc[start_index:]
+
+    if direction == "LONG":
+        probe_prices = structure_window["low"].astype(float).nsmallest(min(2, len(structure_window)))
+        if probe_prices.empty:
+            return None
+        reference_price = float(probe_prices.iloc[1] if len(probe_prices) > 1 else probe_prices.iloc[0])
+        return reference_price - offset
+
+    probe_prices = structure_window["high"].astype(float).nlargest(min(2, len(structure_window)))
+    if probe_prices.empty:
+        return None
+    reference_price = float(probe_prices.iloc[1] if len(probe_prices) > 1 else probe_prices.iloc[0])
+    return reference_price + offset
+
+
+def calc_atr_stops(
+    df: pd.DataFrame,
+    direction: str,
+    atr_period: int,
+    multipliers: tuple[float, ...] = (1.0, 2.0),
+) -> tuple[dict[float, float | None], float]:
+    if df is None or len(df) < 2:
+        return {multiplier: None for multiplier in multipliers}, 0.0
+
+    direction = str(direction).upper()
+    if direction not in {"LONG", "SHORT"}:
+        return {multiplier: None for multiplier in multipliers}, 0.0
+
+    atr_value = float(calc_atr(df, atr_period).iloc[-1])
+    latest_high = float(df["high"].iloc[-1])
+    latest_low = float(df["low"].iloc[-1])
+    stops: dict[float, float | None] = {}
+
+    for multiplier in multipliers:
+        if direction == "LONG":
+            stops[multiplier] = latest_low - (atr_value * multiplier)
+        else:
+            stops[multiplier] = latest_high + (atr_value * multiplier)
+
+    return stops, atr_value
 
 
 def calc_chandelier_stop(
@@ -349,108 +420,59 @@ def build_stop_methods(
     if df is None or df.empty or direction not in {"LONG", "SHORT"}:
         return []
 
-    latest_high = float(df["high"].iloc[-1])
-    latest_low = float(df["low"].iloc[-1])
     safezone_stop, safezone_noise = calc_safezone_stop(df, direction, trade_plan)
-    two_bar_stop = calc_two_bar_stop(df, direction)
-    pullback_pivot_stop = calc_pullback_pivot_stop(df, direction)
-    chandelier_stop = calc_chandelier_stop(df, direction, atr_period=atr_period)
-    parabolic_stop = calc_parabolic_stop(df, direction)
-    if direction == "LONG":
-        signal_bar_stop = float(signal_bar_low) if signal_bar_low is not None else latest_low
-        signal_reference = "信号K低点" if signal_bar_low is not None else "最新日线低点"
-    else:
-        signal_bar_stop = float(signal_bar_high) if signal_bar_high is not None else latest_high
-        signal_reference = "信号K高点" if signal_bar_high is not None else "最新日线高点"
+    nick_stop = calc_nick_stop(df, direction)
+    atr_stops, atr_value = calc_atr_stops(df, direction, atr_period=atr_period)
+    atr_stop_1x = atr_stops.get(1.0)
+    atr_stop_2x = atr_stops.get(2.0)
 
     return [
         {
-            "code": "SIGNAL_BAR",
+            "code": "NICK",
             "group": "initial",
-            "label": "信号K极值止损",
-            "price": round(signal_bar_stop, 4),
-            "reference": signal_reference,
-            "style": "tight",
-            "source": "Elder 入场K线保护止损语境",
-            "suitable_for": "刚入场，想把初始风险收紧时。",
-            "detail": "放在信号K极值外侧，最紧，最容易被扫。",
-        },
-        {
-            "code": "TWO_BAR",
-            "group": "initial",
-            "label": "前低/次低点止损",
-            "price": round(two_bar_stop, 4) if two_bar_stop is not None else None,
-            "reference": "最近两根K线极值",
-            "style": "tight",
-            "source": "Elder 风格的最近极值保护止损",
-            "suitable_for": "回调很浅，用最近价格结构控风险时。",
-            "detail": "盯最近两根K线极值，比摆点止损更近。",
-        },
-        {
-            "code": "PULLBACK_PIVOT",
-            "group": "initial",
-            "label": "修正摆点止损",
-            "price": round(pullback_pivot_stop, 4) if pullback_pivot_stop is not None else None,
-            "reference": f"近{DAILY_CORRECTION_WINDOW_MAX}根修正极值",
+            "label": "尼克止损法",
+            "price": round(nick_stop, 4) if nick_stop is not None else None,
+            "reference": "当前 V/W 结构次低点(次高点)外 0.01",
             "style": "structure",
-            "source": "Elder 回调/反弹结构防守位",
-            "suitable_for": "按回调结构交易，愿意留正常波动空间时。",
-            "detail": "放在修正摆点外侧，结构性最强。",
+            "source": "前低/次低点结构止损思路",
+            "suitable_for": "底部/顶部结构较清晰，想给极端低点留一点噪音空间时。",
+            "detail": "从最近一个反向摆点起，取当前结构里第二低(高)点，再向外留一美分。",
         },
         {
             "code": "SAFEZONE",
-            "group": "trailing",
-            "label": "SafeZone 止损",
+            "group": "initial",
+            "label": "SafeZone 初始止损",
             "price": round(safezone_stop, 4) if safezone_stop is not None else None,
-            "reference": f"{trade_plan.safezone_lookback}根穿透均值 × {trade_plan.safezone_coefficient}",
+            "reference": (
+                f"EMA{trade_plan.safezone_ema_period} 近{trade_plan.safezone_lookback}根穿透均值 × "
+                f"{_safezone_coefficient(trade_plan, direction)}"
+            ),
             "style": "adaptive",
             "source": "Elder 官方 SafeZone",
-            "suitable_for": "趋势还在，但噪音较大时。",
-            "detail": f"按噪音自适应推止损，当前噪音 {safezone_noise:.4f}。",
+            "suitable_for": "入场时希望按趋势噪音给结构留空间时。",
+            "detail": f"按 EMA 穿透噪音估算初始防守位，当前平均穿透 {safezone_noise:.4f}。",
         },
         {
-            "code": "CHANDELIER",
+            "code": "ATR_1X",
             "group": "trailing",
-            "label": "Chandelier 止损",
-            "price": round(chandelier_stop, 4) if chandelier_stop is not None else None,
-            "reference": f"{CHANDELIER_LOOKBACK}根极值 ± {CHANDELIER_ATR_MULTIPLIER} ATR",
-            "style": "wide",
-            "source": "Elder 官方工具包中的 Chandelier",
-            "suitable_for": "趋势单想拿久一点时。",
-            "detail": "基于区间极值和 ATR，通常比结构止损更宽。",
+            "label": "ATR 移动止损 1x",
+            "price": round(atr_stop_1x, 4) if atr_stop_1x is not None else None,
+            "reference": f"最新日线极值 ± 1.0 ATR（当前 ATR {atr_value:.4f}）",
+            "style": "adaptive",
+            "source": "ATR 移动止损",
+            "suitable_for": "想把移动止损跟得更紧一些时。",
+            "detail": "按最新日线柱极值外侧 1 倍 ATR 放置。",
         },
         {
-            "code": "PARABOLIC",
+            "code": "ATR_2X",
             "group": "trailing",
-            "label": "Parabolic 止损",
-            "price": round(parabolic_stop, 4) if parabolic_stop is not None else None,
-            "reference": "Parabolic SAR",
-            "style": "trailing",
-            "source": "《Trading for a Living》风险控制章节",
-            "suitable_for": "已有浮盈，准备单向收紧止损时。",
-            "detail": "跟得越来越紧，震荡里容易过早出场。",
-        },
-        {
-            "code": "TRENDLINE_MANUAL",
-            "group": "trailing",
-            "label": "趋势线外侧止损",
-            "price": None,
-            "reference": "需手工画趋势线",
-            "style": "manual",
-            "source": "《Trading for a Living》图表分析语境",
-            "suitable_for": "趋势线很清楚，想沿线推进止损时。",
-            "detail": "放在趋势线外侧少许，需要人工画线。",
-        },
-        {
-            "code": "CONGESTION_MANUAL",
-            "group": "initial",
-            "label": "盘整区/假突破止损",
-            "price": None,
-            "reference": "需手工识别盘整区与突破失败点",
-            "style": "manual",
-            "source": "《Trading for a Living》图表形态与假突破语境",
-            "suitable_for": "做盘整突破或假突破反向时。",
-            "detail": "常放在盘整边界或失败极点外侧，需要人工识别。",
+            "label": "ATR 移动止损 2x",
+            "price": round(atr_stop_2x, 4) if atr_stop_2x is not None else None,
+            "reference": f"最新日线极值 ± 2.0 ATR（当前 ATR {atr_value:.4f}）",
+            "style": "adaptive",
+            "source": "ATR 移动止损",
+            "suitable_for": "想给持仓留更宽波动空间时。",
+            "detail": "按最新日线柱极值外侧 2 倍 ATR 放置，作为更宽的移动止损。",
         },
     ]
 
@@ -1023,32 +1045,33 @@ def calc_exits(
     signal_bar_low: float | None = None,
 ) -> dict:
     if daily_frame is None or daily_frame.empty:
-        stop_loss = entry
-        initial_stop_loss = entry
+        stop_loss = None
+        initial_stop_loss = None
         protective_stop_loss = entry
         take_profit = entry
         thermometer = 0.0
         thermometer_ema = 0.0
         safezone_stop = entry
-        two_bar_stop = entry
-        pullback_pivot_stop = entry
-        signal_bar_stop = entry
-        chandelier_stop = entry
-        parabolic_stop = entry
+        nick_stop = entry
+        atr_stop_1x = entry
+        atr_stop_2x = entry
+        daily_atr = 0.0
         stop_methods = []
-        stop_basis = "UNKNOWN"
-        initial_stop_basis = "UNKNOWN"
+        stop_basis = "CHOICE_REQUIRED"
+        initial_stop_basis = "CHOICE_REQUIRED"
         protective_stop_basis = "UNKNOWN"
         target_reference = entry
         safezone_noise = 0.0
+        model_initial_stop_loss = entry
+        model_initial_stop_basis = "UNKNOWN"
     else:
         latest_high = float(daily_frame["high"].iloc[-1])
         latest_low = float(daily_frame["low"].iloc[-1])
         safezone_stop, safezone_noise = calc_safezone_stop(daily_frame, direction, trade_plan)
-        two_bar_stop = calc_two_bar_stop(daily_frame, direction)
-        pullback_pivot_stop = calc_pullback_pivot_stop(daily_frame, direction)
-        chandelier_stop = calc_chandelier_stop(daily_frame, direction, atr_period=14)
-        parabolic_stop = calc_parabolic_stop(daily_frame, direction)
+        nick_stop = calc_nick_stop(daily_frame, direction)
+        atr_stops, daily_atr = calc_atr_stops(daily_frame, direction, atr_period=14)
+        atr_stop_1x = atr_stops.get(1.0)
+        atr_stop_2x = atr_stops.get(2.0)
         stop_methods = build_stop_methods(
             daily_frame,
             direction,
@@ -1062,57 +1085,77 @@ def calc_exits(
         thermometer_ema = float(average_temperature.iloc[-1])
         projected_move = thermometer_ema * trade_plan.thermometer_target_multiplier
 
+        # 暂时停用旧的 SIGNAL_BAR / TWO_BAR / PULLBACK_PIVOT / CHANDELIER / PARABOLIC，
+        # 初始止损只保留 SafeZone 与尼克止损法，移动止损只保留 ATR 1x / 2x。
         if direction == "LONG":
-            signal_bar_stop = float(signal_bar_low) if signal_bar_low is not None else latest_low
-            pullback_pivot_stop = pullback_pivot_stop if pullback_pivot_stop is not None else signal_bar_stop
-            initial_stop_loss = min(signal_bar_stop, pullback_pivot_stop)
-            initial_stop_basis = "PULLBACK_PIVOT" if pullback_pivot_stop < signal_bar_stop else "SIGNAL_BAR"
-            protective_stop_loss = safezone_stop if safezone_stop is not None else initial_stop_loss
-            protective_stop_basis = "SAFEZONE" if safezone_stop is not None else initial_stop_basis
-            stop_loss = initial_stop_loss
-            stop_basis = initial_stop_basis
+            initial_candidates = [("SAFEZONE", safezone_stop), ("NICK", nick_stop)]
+            valid_initial_candidates = [(code, float(value)) for code, value in initial_candidates if value is not None]
+            if valid_initial_candidates:
+                model_initial_stop_basis, model_initial_stop_loss = min(valid_initial_candidates, key=lambda item: item[1])
+            else:
+                model_initial_stop_basis, model_initial_stop_loss = "UNKNOWN", entry
+            initial_stop_basis = "CHOICE_REQUIRED"
+            initial_stop_loss = None
+            protective_stop_loss = atr_stop_1x if atr_stop_1x is not None else model_initial_stop_loss
+            protective_stop_basis = "ATR_1X" if atr_stop_1x is not None else model_initial_stop_basis
+            stop_loss = None
+            stop_basis = "CHOICE_REQUIRED"
             target_reference = max(entry, latest_high)
             take_profit = target_reference + projected_move
         else:
-            signal_bar_stop = float(signal_bar_high) if signal_bar_high is not None else latest_high
-            pullback_pivot_stop = pullback_pivot_stop if pullback_pivot_stop is not None else signal_bar_stop
-            initial_stop_loss = max(signal_bar_stop, pullback_pivot_stop)
-            initial_stop_basis = "PULLBACK_PIVOT" if pullback_pivot_stop > signal_bar_stop else "SIGNAL_BAR"
-            protective_stop_loss = safezone_stop if safezone_stop is not None else initial_stop_loss
-            protective_stop_basis = "SAFEZONE" if safezone_stop is not None else initial_stop_basis
-            stop_loss = initial_stop_loss
-            stop_basis = initial_stop_basis
+            initial_candidates = [("SAFEZONE", safezone_stop), ("NICK", nick_stop)]
+            valid_initial_candidates = [(code, float(value)) for code, value in initial_candidates if value is not None]
+            if valid_initial_candidates:
+                model_initial_stop_basis, model_initial_stop_loss = max(valid_initial_candidates, key=lambda item: item[1])
+            else:
+                model_initial_stop_basis, model_initial_stop_loss = "UNKNOWN", entry
+            initial_stop_basis = "CHOICE_REQUIRED"
+            initial_stop_loss = None
+            protective_stop_loss = atr_stop_1x if atr_stop_1x is not None else model_initial_stop_loss
+            protective_stop_basis = "ATR_1X" if atr_stop_1x is not None else model_initial_stop_basis
+            stop_loss = None
+            stop_basis = "CHOICE_REQUIRED"
             target_reference = min(entry, latest_low)
             take_profit = target_reference - projected_move
 
-    risk_per_share = abs(entry - initial_stop_loss)
+    model_risk_per_share = abs(entry - model_initial_stop_loss) if model_initial_stop_loss is not None else 0.0
     reward_per_share = abs(take_profit - entry)
-    reward_risk = (reward_per_share / risk_per_share) if risk_per_share > 0 else 0.0
+    model_reward_risk = (reward_per_share / model_risk_per_share) if model_risk_per_share > 0 else 0.0
 
     return {
         "entry": round(entry, 4),
-        "stop_loss": round(stop_loss, 4),
-        "initial_stop_loss": round(initial_stop_loss, 4),
-        "initial_stop_signal_bar": round(signal_bar_stop, 4),
-        "initial_stop_two_bar": round(two_bar_stop, 4),
-        "initial_stop_pullback_pivot": round(pullback_pivot_stop, 4),
+        "stop_loss": round(stop_loss, 4) if stop_loss is not None else None,
+        "initial_stop_loss": round(initial_stop_loss, 4) if initial_stop_loss is not None else None,
+        "initial_stop_signal_bar": None,
+        "initial_stop_two_bar": None,
+        "initial_stop_safezone": round(safezone_stop, 4) if safezone_stop is not None else None,
+        "initial_stop_nick": round(nick_stop, 4) if nick_stop is not None else None,
+        "initial_stop_pullback_pivot": None,
         "initial_stop_basis": initial_stop_basis,
+        "initial_stop_model_loss": round(model_initial_stop_loss, 4) if model_initial_stop_loss is not None else None,
+        "initial_stop_model_basis": model_initial_stop_basis,
         "protective_stop_loss": round(protective_stop_loss, 4),
         "protective_stop_basis": protective_stop_basis,
         "stop_loss_safezone": round(safezone_stop, 4) if safezone_stop is not None else None,
-        "stop_loss_two_bar": round(two_bar_stop, 4) if two_bar_stop is not None else None,
-        "stop_loss_chandelier": round(chandelier_stop, 4) if chandelier_stop is not None else None,
-        "stop_loss_parabolic": round(parabolic_stop, 4) if parabolic_stop is not None else None,
+        "stop_loss_two_bar": None,
+        "stop_loss_nick": round(nick_stop, 4) if nick_stop is not None else None,
+        "stop_loss_atr_1x": round(atr_stop_1x, 4) if atr_stop_1x is not None else None,
+        "stop_loss_atr_2x": round(atr_stop_2x, 4) if atr_stop_2x is not None else None,
+        "stop_loss_chandelier": None,
+        "stop_loss_parabolic": None,
         "stop_methods": stop_methods,
         "stop_basis": stop_basis,
         "take_profit": round(take_profit, 4),
         "target_reference": round(target_reference, 4),
         "thermometer": round(thermometer, 4),
         "thermometer_ema": round(thermometer_ema, 4),
+        "daily_atr": round(daily_atr, 4),
         "safezone_noise": round(safezone_noise, 4),
-        "risk_per_share": round(risk_per_share, 4),
+        "risk_per_share": None,
+        "risk_per_share_model": round(model_risk_per_share, 4),
         "reward_per_share": round(reward_per_share, 4),
-        "reward_risk_ratio": round(reward_risk, 2),
+        "reward_risk_ratio": None,
+        "reward_risk_ratio_model": round(model_reward_risk, 2),
         "atr": round(atr, 4),
         "exit_timeframe": "DAY",
     }
@@ -1137,7 +1180,7 @@ def calc_execution_score(weekly_result: dict, daily_result: dict, hourly_result:
     score += min(weekly_result.get("trend_score", 0), WEEKLY_TREND_SCORE_CAP) / WEEKLY_TREND_SCORE_CAP * 2.4
     score += min(daily_result.get("setup_score", 0), DAILY_SETUP_SCORE_CAP) / DAILY_SETUP_SCORE_CAP * 2.4
     score += min(hourly_result.get("trigger_score", 0), HOURLY_TRIGGER_SCORE_CAP) / HOURLY_TRIGGER_SCORE_CAP * 1.8
-    score += calc_reward_risk_score(float(exits.get("reward_risk_ratio", 0.0)))
+    score += calc_reward_risk_score(float(exits.get("reward_risk_ratio_model", exits.get("reward_risk_ratio", 0.0)) or 0.0))
 
     if weekly_result.get("pass"):
         score += 0.4

@@ -232,7 +232,10 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
 
     safezone_stop = None
     safezone_noise = None
-    pullback_pivot_stop = None
+    nick_stop = None
+    atr_stop_1x = None
+    atr_stop_2x = None
+    daily_atr = None
     stop_methods: list[dict[str, Any]] = []
     latest_temperature = None
     average_temperature = None
@@ -259,7 +262,13 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
         daily_ema13 = _safe_round(daily_ema_series.iloc[-1])
         if weekly_trend in {"LONG", "SHORT"}:
             safezone_stop, safezone_noise = indicators.calc_safezone_stop(daily_frame, weekly_trend, settings.trade_plan)
-            pullback_pivot_stop = indicators.calc_pullback_pivot_stop(daily_frame, weekly_trend)
+            nick_stop = indicators.calc_nick_stop(daily_frame, weekly_trend)
+            atr_stops, daily_atr_value = indicators.calc_atr_stops(
+                daily_frame, weekly_trend, atr_period=settings.strategy.hourly.atr_period
+            )
+            atr_stop_1x = atr_stops.get(1.0)
+            atr_stop_2x = atr_stops.get(2.0)
+            daily_atr = _safe_round(daily_atr_value, 4)
             stop_methods = indicators.build_stop_methods(
                 daily_frame,
                 weekly_trend,
@@ -290,23 +299,27 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
                 signal_bar_low=execution_hourly.get("signal_bar_low"),
             )
             suggested_entry = _safe_round(execution_exits.get("entry"))
-            suggested_stop = _safe_round(execution_exits.get("stop_loss"))
+            suggested_stop = _safe_round(execution_exits.get("protective_stop_loss"))
             suggested_target = _safe_round(execution_exits.get("take_profit"))
             execution_summary = (
                 f"当前执行口径：建议关注触发价 {suggested_entry if suggested_entry is not None else '—'}，"
-                f"当前激活止损 {suggested_stop if suggested_stop is not None else '—'}。"
+                f"初始止损需在 SafeZone / 尼克止损法之间手动选择；"
+                f"ATR 1x 移动止损参考位 {suggested_stop if suggested_stop is not None else '—'}。"
                 f" {execution_hourly.get('reason', '')}"
             )
             execution_metrics = [
                 _metric("建议入场价", suggested_entry, "accent"),
-                _metric("当前保护止损", suggested_stop, "warn"),
+                _metric("SafeZone 初始止损", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
+                _metric("尼克止损", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
+                _metric("ATR 1x 移动止损", suggested_stop, "warn"),
+                _metric("ATR 2x 移动止损", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
                 _metric("首个目标位", suggested_target),
                 _metric("小时线状态", execution_hourly.get("status")),
                 _metric("当前价", _safe_round(execution_hourly.get("close"))),
                 _metric("信号K高点", _safe_round(execution_hourly.get("signal_bar_high"))),
                 _metric("信号K低点", _safe_round(execution_hourly.get("signal_bar_low"))),
                 _metric("ATR", _safe_round(execution_hourly.get("atr"), 4)),
-                _metric("预估盈亏比", _safe_round(execution_exits.get("reward_risk_ratio"), 2)),
+                _metric("内部模型盈亏比", _safe_round(execution_exits.get("reward_risk_ratio_model"), 2)),
             ]
         else:
             execution_summary = execution_hourly.get("reason") or "当前无法生成执行价位。"
@@ -441,9 +454,12 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     key_levels = [
         _metric("最新日线日期", latest_bar_at),
         _metric("最新收盘", latest_close),
-        _metric("SafeZone 止损", _safe_round(safezone_stop)),
+        _metric("SafeZone 初始止损", _safe_round(safezone_stop)),
+        _metric("尼克止损", _safe_round(nick_stop)),
+        _metric("ATR 移动止损 1x", _safe_round(atr_stop_1x)),
+        _metric("ATR 移动止损 2x", _safe_round(atr_stop_2x)),
+        _metric("日线 ATR", daily_atr),
         _metric("SafeZone 噪音", _safe_round(safezone_noise)),
-        _metric("摆点防守位", _safe_round(pullback_pivot_stop)),
         _metric("市场温度", latest_temperature),
         _metric("平均温度", average_temperature),
     ]
@@ -539,7 +555,7 @@ def _prompt_outline() -> list[str]:
         "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
         "日线只看 13EMA 价值带、MACD Histogram 转向、结构防守位是否完好，自定义K线确认仅作辅助说明。",
         "给出系统当前执行价位：建议买入价、当前保护止损、首个目标位，并说明这是按小时线执行规则推导。",
-        "补充看周线/日线背离，以及多种 Elder 止损方法：信号K极值、前低/次低点、修正摆点、SafeZone、Chandelier、Parabolic。",
+        "补充看周线/日线背离；当前止损口径先收敛为 SafeZone、尼克止损法，以及日线 ATR 1x/2x 移动止损。",
         "明确写出系统建议与你的 AI 建议一致或不一致的地方。",
     ]
 
