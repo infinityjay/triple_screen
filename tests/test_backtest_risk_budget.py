@@ -6,6 +6,7 @@ from pathlib import Path
 
 from backtest_triple_screen import (
     Position,
+    compute_account_equity,
     compute_position_open_risk,
     compute_position_size,
     compute_remaining_stop_budget,
@@ -92,6 +93,33 @@ class BacktestRiskBudgetTests(unittest.TestCase):
         self.assertEqual(compute_position_open_risk(open_positions["AAPL"]), 80.0)
         self.assertEqual(compute_position_open_risk(open_positions["MSFT"]), 60.0)
         self.assertEqual(compute_remaining_stop_budget(10_000.0, 6.0, open_positions), 460.0)
+
+    def test_account_equity_supports_margin_buying_power(self) -> None:
+        open_positions = {
+            "AAPL": Position(
+                symbol="AAPL",
+                direction="LONG",
+                entry_session_date="2026-04-10",
+                entry_timestamp="2026-04-10T14:30:00+00:00",
+                entry_price=100.0,
+                initial_stop=95.0,
+                active_stop=96.0,
+                risk_per_share=5.0,
+                shares=50,
+                take_profit=115.0,
+                source_session_date="2026-04-09",
+                bars_held=1,
+                position_cost=5000.0,
+                last_price=110.0,
+                entry_cash_before=20_000.0,
+                entry_equity_before=10_000.0,
+                entry_open_risk_before=0.0,
+                entry_remaining_stop_budget=600.0,
+                entry_allowed_risk=200.0,
+            )
+        }
+
+        self.assertEqual(compute_account_equity(15_000.0, open_positions, margin_debt=10_000.0), 10_500.0)
 
     def test_backtest_results_can_be_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

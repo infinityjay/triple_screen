@@ -140,6 +140,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum concurrent open positions allowed by the stop-budget model.",
     )
     parser.add_argument("--initial-capital", type=float, default=DEFAULT_INITIAL_CAPITAL, help="Starting account equity.")
+    parser.add_argument(
+        "--initial-buying-power",
+        type=float,
+        default=0.0,
+        help="Optional starting tradable capital. When greater than initial capital, the backtest allows financing/margin.",
+    )
     parser.add_argument("--max-symbols", type=int, default=0, help="Optional universe cap for faster experiments.")
     parser.add_argument("--output", type=str, default="", help="Optional JSON output path.")
     return parser
@@ -471,8 +477,17 @@ def compute_total_open_risk(open_positions: dict[str, Position]) -> float:
     return sum(compute_position_open_risk(position) for position in open_positions.values())
 
 
-def compute_account_equity(cash: float, open_positions: dict[str, Position]) -> float:
-    return round(cash + sum(position.last_price * position.shares for position in open_positions.values()), 4)
+def compute_position_equity_component(position: Position) -> float:
+    unrealized_pnl_per_share = (
+        position.last_price - position.entry_price
+        if position.direction == "LONG"
+        else position.entry_price - position.last_price
+    )
+    return round(position.position_cost + unrealized_pnl_per_share * position.shares, 4)
+
+
+def compute_account_equity(cash: float, open_positions: dict[str, Position], margin_debt: float = 0.0) -> float:
+    return round(cash + sum(compute_position_equity_component(position) for position in open_positions.values()) - margin_debt, 4)
 
 
 def compute_remaining_stop_budget(
@@ -572,10 +587,11 @@ def mark_exit(
 def update_equity_stats(
     cash: float,
     open_positions: dict[str, Position],
+    margin_debt: float,
     max_equity: float,
     max_drawdown_pct: float,
 ) -> tuple[float, float]:
-    equity = compute_account_equity(cash, open_positions)
+    equity = compute_account_equity(cash, open_positions, margin_debt=margin_debt)
     next_max_equity = max(max_equity, equity)
     drawdown = 0.0 if next_max_equity <= 0 else (next_max_equity - equity) / next_max_equity * 100
     return next_max_equity, max(max_drawdown_pct, drawdown)
@@ -598,8 +614,12 @@ def run_backtest(
     max_total_open_risk_pct: float,
     max_open_positions: int,
     initial_capital: float,
+    initial_buying_power: float,
     max_symbols: int,
 ) -> dict[str, Any]:
+    if initial_buying_power > 0 and initial_buying_power < initial_capital:
+        raise ValueError("Initial buying power cannot be lower than initial capital.")
+
     storage = SQLiteStorage(settings.storage.database_path)
     storage.init_db()
 
@@ -618,7 +638,9 @@ def run_backtest(
     qualified_sessions: dict[str, list[CandidateRecord]] = {}
     open_positions: dict[str, Position] = {}
     closed_trades: list[TradeResult] = []
-    cash = initial_capital
+    buying_power = initial_buying_power if initial_buying_power > 0 else initial_capital
+    margin_debt = max(0.0, buying_power - initial_capital)
+    cash = buying_power
     max_equity = initial_capital
     max_drawdown_pct = 0.0
     triggered_candidates = 0
@@ -737,7 +759,7 @@ def run_backtest(
                         skipped_position_cap += 1
                         continue
 
-                    account_equity = compute_account_equity(cash, open_positions)
+                    account_equity = compute_account_equity(cash, open_positions, margin_debt=margin_debt)
                     open_risk_before = compute_total_open_risk(open_positions)
                     remaining_stop_budget = compute_remaining_stop_budget(
                         account_equity=account_equity,
@@ -803,7 +825,13 @@ def run_backtest(
                     else:
                         open_positions[trigger.candidate.symbol] = position
 
-                max_equity, max_drawdown_pct = update_equity_stats(cash, open_positions, max_equity, max_drawdown_pct)
+                max_equity, max_drawdown_pct = update_equity_stats(
+                    cash,
+                    open_positions,
+                    margin_debt,
+                    max_equity,
+                    max_drawdown_pct,
+                )
 
             for symbol, position in list(open_positions.items()):
                 daily_frame = slice_to_session(histories[symbol].daily, session_date)
@@ -819,7 +847,13 @@ def run_backtest(
                     position.last_price = float(session_frame["close"].iloc[-1])
                 open_positions[symbol] = position
 
-            max_equity, max_drawdown_pct = update_equity_stats(cash, open_positions, max_equity, max_drawdown_pct)
+            max_equity, max_drawdown_pct = update_equity_stats(
+                cash,
+                open_positions,
+                margin_debt,
+                max_equity,
+                max_drawdown_pct,
+            )
 
         market_trend = compute_market_trend(benchmark_history, settings, session_date)
         today_candidates: list[CandidateRecord] = []
@@ -847,14 +881,20 @@ def run_backtest(
         closed_trades.append(trade)
         del open_positions[symbol]
 
-    max_equity, max_drawdown_pct = update_equity_stats(cash, open_positions, max_equity, max_drawdown_pct)
+    max_equity, max_drawdown_pct = update_equity_stats(
+        cash,
+        open_positions,
+        margin_debt,
+        max_equity,
+        max_drawdown_pct,
+    )
 
     closed_trades.sort(key=lambda item: item.entry_timestamp)
     wins = [trade for trade in closed_trades if trade.pnl > 0]
     losses = [trade for trade in closed_trades if trade.pnl < 0]
     total_pnl = sum(trade.pnl for trade in closed_trades)
     total_r = sum(trade.r_multiple for trade in closed_trades)
-    ending_equity = compute_account_equity(cash, open_positions)
+    ending_equity = compute_account_equity(cash, open_positions, margin_debt=margin_debt)
     total_return_pct = ((ending_equity - initial_capital) / initial_capital * 100) if initial_capital else 0.0
     avg_trade_pct = (sum(trade.pnl_pct for trade in closed_trades) / len(closed_trades)) if closed_trades else 0.0
     avg_r = (total_r / len(closed_trades)) if closed_trades else 0.0
@@ -863,6 +903,8 @@ def run_backtest(
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "initial_capital": round(initial_capital, 2),
+        "initial_buying_power": round(buying_power, 2),
+        "initial_margin_debt": round(margin_debt, 2),
         "risk_pct_per_trade": round(risk_pct, 4),
         "max_total_open_risk_pct": round(max_total_open_risk_pct, 4),
         "max_open_positions": max_open_positions,
@@ -870,7 +912,7 @@ def run_backtest(
         "watchlist_session_limit": WATCHLIST_SESSION_LIMIT,
         "historical_earnings_filter_included": False,
         "data_source": "sqlite-first with Alpaca backfill; fetched bars are persisted to price_bars",
-        "position_sizing": "whole shares only; each entry is constrained by remaining stop budget, per-trade 2% risk logic, and available cash",
+        "position_sizing": "whole shares only; each entry is constrained by remaining stop budget, per-trade 2% risk logic, and available buying power",
         "exit_model": "initial stop at entry, daily SafeZone monotonic trailing stop updated after each close, mark remaining positions to market at end",
         "same_bar_rule": "conservative; if trigger and stop both fit inside the same hour bar, exit at stop on that bar",
     }
@@ -887,6 +929,8 @@ def run_backtest(
         "avg_r_multiple": round(avg_r, 4),
         "total_r_multiple": round(total_r, 4),
         "total_pnl": round(total_pnl, 2),
+        "ending_buying_power_cash": round(cash, 2),
+        "margin_debt": round(margin_debt, 2),
         "ending_cash": round(cash, 2),
         "ending_equity": round(ending_equity, 2),
         "total_return_pct": round(total_return_pct, 4),
@@ -936,6 +980,7 @@ def main() -> int:
         max_total_open_risk_pct=args.max_total_open_risk_pct,
         max_open_positions=args.max_open_positions,
         initial_capital=args.initial_capital,
+        initial_buying_power=args.initial_buying_power,
         max_symbols=args.max_symbols,
     )
 
