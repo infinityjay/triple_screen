@@ -235,6 +235,60 @@ class TripleScreenScanner:
             "items": reminder_items,
         }
 
+    def _build_open_position_exit_alert_summary(self, session_date: date) -> dict:
+        open_trades = self.storage.list_open_trades()
+        items: list[dict] = []
+
+        for trade in open_trades:
+            symbol = str(trade.get("stock", "")).strip().upper()
+            direction = "SHORT" if str(trade.get("direction", "")).lower() == "short" else "LONG"
+            if not symbol:
+                continue
+            try:
+                weekly_frame = self.market_data.get_weekly_bars(symbol)
+                daily_frame = self.market_data.get_daily_bars(symbol)
+                weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
+                daily_impulse = indicators.calc_impulse_system(daily_frame, self.settings.strategy)
+                weekly_color = weekly.get("impulse_color")
+                daily_color = daily_impulse.get("color")
+                weekly_opposes = (direction == "LONG" and weekly_color == "RED") or (
+                    direction == "SHORT" and weekly_color == "GREEN"
+                )
+                daily_opposes = (direction == "LONG" and daily_color == "RED") or (
+                    direction == "SHORT" and daily_color == "GREEN"
+                )
+                if weekly_opposes or daily_opposes:
+                    items.append(
+                        {
+                            "trade_id": str(trade.get("id", "")),
+                            "symbol": symbol,
+                            "direction": str(trade.get("direction", "long")),
+                            "weekly_impulse_color": weekly_color,
+                            "weekly_trend": weekly.get("trend"),
+                            "daily_impulse_color": daily_color,
+                            "daily_ema_slope": daily_impulse.get("ema_slope"),
+                            "daily_macd_slope": daily_impulse.get("macd_slope"),
+                            "reason": "周线或日线动力系统已与持仓方向相反，按规则需要检查平仓。",
+                        }
+                    )
+            except Exception as exc:
+                items.append(
+                    {
+                        "trade_id": str(trade.get("id", "")),
+                        "symbol": symbol,
+                        "direction": str(trade.get("direction", "long")),
+                        "status": "ERROR",
+                        "reason": f"持仓动力系统检查失败：{exc}",
+                    }
+                )
+
+        return {
+            "session_date": session_date.isoformat(),
+            "total_positions": len(open_trades),
+            "alert_count": len(items),
+            "items": items,
+        }
+
     def _build_candidate(
         self,
         symbol: str,
@@ -275,7 +329,7 @@ class TripleScreenScanner:
 
             daily_frame = self.market_data.get_daily_bars(symbol)
             daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
-            if not daily["pass"]:
+            if not daily["pass"] and not daily.get("watch"):
                 logger.info(
                     "[%s] skipped after daily screen: %s | state=%s entered_value_zone=%s value_zone_reached=%s "
                     "countertrend_exists=%s histogram_reversal=%s price_reversal=%s structure_intact=%s",
@@ -318,7 +372,7 @@ class TripleScreenScanner:
                 "symbol": symbol,
                 "direction": direction,
                 "source_session_date": session_date.isoformat(),
-                "opportunity_status": "WATCHLIST",
+                "opportunity_status": "WATCHLIST" if daily.get("pass") else "MONITOR",
                 "candidate_score": candidate_score,
                 "execution_score": None,
                 "signal_score": candidate_score,
@@ -331,6 +385,7 @@ class TripleScreenScanner:
                 },
                 "exits": {
                     "reward_risk_ratio": 0.0,
+                    "weekly_value_target": weekly.get("weekly_value_target"),
                 },
                 "earnings": earnings,
                 "divergence": divergence,
@@ -355,11 +410,61 @@ class TripleScreenScanner:
         symbol = candidate["symbol"]
         direction = candidate["direction"]
         try:
+            if not candidate.get("daily", {}).get("pass"):
+                return None
+
+            weekly_frame = self.market_data.get_weekly_bars(symbol)
             daily_frame = self.market_data.get_daily_bars(symbol)
+            daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
+            if not daily.get("pass"):
+                return None
+
             hourly_frame = self.market_data.get_hourly_bars(symbol)
             hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy, as_of=_utc_now())
             if "close" not in hourly:
                 return None
+
+            entry_plan = daily.get("entry_plan") or {}
+            primary_entry = entry_plan.get("ema_penetration_entry")
+            breakout_entry = entry_plan.get("breakout_entry")
+            current_high = float(hourly.get("current_high", hourly.get("close", 0.0)) or 0.0)
+            current_low = float(hourly.get("current_low", hourly.get("close", 0.0)) or 0.0)
+            primary_touched = False
+            breakout_touched = False
+            selected_entry = primary_entry
+            trigger_source = "EMA_PENETRATION"
+            if direction == "LONG":
+                primary_touched = primary_entry is not None and current_low <= float(primary_entry)
+                breakout_touched = breakout_entry is not None and current_high >= float(breakout_entry)
+            else:
+                primary_touched = primary_entry is not None and current_high >= float(primary_entry)
+                breakout_touched = breakout_entry is not None and current_low <= float(breakout_entry)
+
+            if primary_touched and primary_entry is not None:
+                selected_entry = primary_entry
+                trigger_source = "EMA_PENETRATION"
+            elif breakout_touched and breakout_entry is not None:
+                selected_entry = breakout_entry
+                trigger_source = "PREVIOUS_DAY_BREAK"
+            elif selected_entry is None:
+                selected_entry = hourly["entry_price"]
+                trigger_source = "HOURLY_BREAK"
+
+            plan_triggered = primary_touched or breakout_touched
+            hourly["entry_plan"] = entry_plan
+            hourly["ema_penetration_entry"] = primary_entry
+            hourly["previous_day_break_entry"] = breakout_entry
+            hourly["primary_entry_touched"] = primary_touched
+            hourly["breakout_entry_touched"] = breakout_touched
+            hourly["trigger_source"] = trigger_source
+            hourly["pass"] = bool(plan_triggered)
+            hourly["status"] = "TRIGGERED" if plan_triggered else "WAITING_ENTRY_PRICE"
+            hourly["entry_price"] = round(float(selected_entry), 4)
+            hourly["reason"] = (
+                f"价格已触及{entry_plan.get('trigger_label', '交易')}参考价（{trigger_source}）"
+                if plan_triggered
+                else entry_plan.get("reason", hourly.get("reason", "等待价格触发"))
+            )
 
             self.storage.upsert_hourly(
                 symbol,
@@ -379,6 +484,7 @@ class TripleScreenScanner:
                 self.settings.trade_plan,
                 signal_bar_high=hourly.get("signal_bar_high"),
                 signal_bar_low=hourly.get("signal_bar_low"),
+                weekly_frame=weekly_frame,
             )
             if float(exits.get("reward_risk_ratio_model", 0.0) or 0.0) < self.settings.qualification.intraday_minimum_reward_risk:
                 logger.info(
@@ -391,6 +497,7 @@ class TripleScreenScanner:
 
             opportunity = dict(candidate)
             opportunity["hourly"] = hourly
+            opportunity["daily"] = daily
             opportunity["exits"] = exits
             opportunity["execution_score"] = indicators.calc_execution_score(
                 candidate["weekly"],
@@ -460,7 +567,7 @@ class TripleScreenScanner:
             refreshed["signal_score"] = refreshed["candidate_score"]
             refreshed["execution_score"] = None
             refreshed["reward_risk_score"] = 0.0
-            refreshed["opportunity_status"] = "WATCHLIST"
+            refreshed["opportunity_status"] = "WATCHLIST" if daily.get("pass") else "MONITOR"
             refreshed["summary"] = f"{weekly['reason']} | {daily['reason']}"
             refreshed["tracking_session_date"] = session_date.isoformat()
             return refreshed
@@ -503,6 +610,7 @@ class TripleScreenScanner:
         else:
             stop_update_summary = self.journal_manager.update_open_position_stops(session_date=session_date)
         open_position_earnings_summary = self._build_open_position_earnings_summary(session_date)
+        open_position_exit_alert_summary = self._build_open_position_exit_alert_summary(session_date)
 
         display_limit = max(self.settings.alerts.qualified_display_limit, 0)
         displayed_candidates = candidates[:display_limit] if display_limit else []
@@ -536,6 +644,7 @@ class TripleScreenScanner:
                     "updates": stop_update_summary.updates,
                 },
                 open_position_earnings_summary=open_position_earnings_summary,
+                open_position_exit_alert_summary=open_position_exit_alert_summary,
             )
 
         logger.info(
@@ -614,8 +723,9 @@ class TripleScreenScanner:
 
         elapsed = time.time() - started_at
         if not self.dry_run:
-            self.notifier.send_trigger_summary(top_triggered, tracking_label or "UNKNOWN", len(candidates), elapsed)
-            time.sleep(1)
+            if top_triggered:
+                self.notifier.send_trigger_summary(top_triggered, tracking_label or "UNKNOWN", len(candidates), elapsed)
+                time.sleep(1)
             for index, opportunity in enumerate(top_triggered, start=1):
                 if opportunity.get("cooldown_active"):
                     continue

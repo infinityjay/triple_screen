@@ -65,7 +65,7 @@ strategy:
     minimum_reward_risk: 0.0
     intraday_minimum_reward_risk: 1.2
     strong_divergence_exhaustion_multiplier: 2.0
-    earnings_block_days_before: 2
+    earnings_block_days_before: 3
     earnings_block_days_after: 1
     earnings_warn_days_before: 5
 

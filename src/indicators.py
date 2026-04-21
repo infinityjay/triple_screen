@@ -11,12 +11,18 @@ DAILY_REVERSAL_LOOKBACK = 3
 DAILY_CORRECTION_WINDOW_MIN = 2
 DAILY_CORRECTION_WINDOW_MAX = 8
 DAILY_EMA_PERIOD = 13
+ENTRY_PENETRATION_LOOKBACK = 10
+FORCE_INDEX_EMA_PERIOD = 2
+FORCE_INDEX_NEW_EXTREME_LOOKBACK = 15
 DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER = 0.3
 CHANDELIER_LOOKBACK = 22
 CHANDELIER_ATR_MULTIPLIER = 3.0
 PARABOLIC_STEP = 0.02
 PARABOLIC_MAX_STEP = 0.2
 NICK_STOP_OFFSET = 0.01
+MIN_TICK = 0.01
+WEEKLY_VALUE_FAST_EMA = 13
+WEEKLY_VALUE_SLOW_EMA = 26
 WEEKLY_TREND_SCORE_CAP = 4.5
 DAILY_SETUP_SCORE_CAP = 4.5
 HOURLY_TRIGGER_SCORE_CAP = 4.0
@@ -39,6 +45,67 @@ def calc_macd(df: pd.DataFrame, settings: StrategyConfig) -> tuple[pd.Series, pd
     signal = calc_ema(macd, settings.weekly.macd_signal)
     histogram = macd - signal
     return macd, signal, histogram
+
+
+def calc_force_index_ema(df: pd.DataFrame, period: int = FORCE_INDEX_EMA_PERIOD) -> pd.Series:
+    close = df["close"].astype(float)
+    volume = df["volume"].astype(float) if "volume" in df else pd.Series(0.0, index=df.index)
+    force = close.diff() * volume
+    return calc_ema(force.fillna(0.0), period)
+
+
+def calc_impulse_system(df: pd.DataFrame, settings: StrategyConfig, ema_period: int = DAILY_EMA_PERIOD) -> dict:
+    if df is None or len(df) < max(settings.weekly.macd_slow + settings.weekly.macd_signal + 2, ema_period + 2):
+        return {
+            "color": "BLUE",
+            "direction": "NEUTRAL",
+            "ema": None,
+            "ema_prev": None,
+            "ema_slope": 0.0,
+            "macd": None,
+            "macd_prev": None,
+            "macd_slope": 0.0,
+            "histogram": None,
+            "histogram_prev": None,
+            "histogram_delta": 0.0,
+        }
+
+    macd, signal, histogram = calc_macd(df, settings)
+    ema = calc_ema(df["close"].astype(float), ema_period)
+    ema_now = float(ema.iloc[-1])
+    ema_prev = float(ema.iloc[-2])
+    macd_now = float(macd.iloc[-1])
+    macd_prev = float(macd.iloc[-2])
+    hist_now = float(histogram.iloc[-1])
+    hist_prev = float(histogram.iloc[-2])
+    ema_slope = ema_now - ema_prev
+    macd_slope = macd_now - macd_prev
+    hist_delta = hist_now - hist_prev
+
+    if ema_slope > 0 and macd_slope > 0:
+        color = "GREEN"
+        direction = "LONG"
+    elif ema_slope < 0 and macd_slope < 0:
+        color = "RED"
+        direction = "SHORT"
+    else:
+        color = "BLUE"
+        direction = "NEUTRAL"
+
+    return {
+        "color": color,
+        "direction": direction,
+        "ema": round(ema_now, 6),
+        "ema_prev": round(ema_prev, 6),
+        "ema_slope": round(ema_slope, 6),
+        "macd": round(macd_now, 6),
+        "macd_prev": round(macd_prev, 6),
+        "macd_slope": round(macd_slope, 6),
+        "macd_signal": round(float(signal.iloc[-1]), 6),
+        "histogram": round(hist_now, 6),
+        "histogram_prev": round(hist_prev, 6),
+        "histogram_delta": round(hist_delta, 6),
+    }
 
 
 def calc_rsi(df: pd.DataFrame, period: int) -> pd.Series:
@@ -288,6 +355,11 @@ def calc_two_bar_stop(df: pd.DataFrame, direction: str) -> float | None:
 
 
 def calc_nick_stop(df: pd.DataFrame, direction: str, offset: float = NICK_STOP_OFFSET) -> float | None:
+    detail = calc_nick_stop_detail(df, direction, offset=offset)
+    return detail["stop"] if detail else None
+
+
+def calc_nick_stop_detail(df: pd.DataFrame, direction: str, offset: float = NICK_STOP_OFFSET) -> dict | None:
     if df is None or len(df) < 2:
         return None
 
@@ -305,14 +377,126 @@ def calc_nick_stop(df: pd.DataFrame, direction: str, offset: float = NICK_STOP_O
         probe_prices = structure_window["low"].astype(float).nsmallest(min(2, len(structure_window)))
         if probe_prices.empty:
             return None
-        reference_price = float(probe_prices.iloc[1] if len(probe_prices) > 1 else probe_prices.iloc[0])
-        return reference_price - offset
+        reference_position = 1 if len(probe_prices) > 1 else 0
+        reference_price = float(probe_prices.iloc[reference_position])
+        reference_at = probe_prices.index[reference_position]
+        stop = reference_price - offset
+        return {
+            "stop": stop,
+            "reference_price": reference_price,
+            "reference_date": str(pd.Timestamp(reference_at).date()),
+            "reference_at": str(reference_at),
+            "reference_rank": "second_low" if reference_position == 1 else "lowest",
+        }
 
     probe_prices = structure_window["high"].astype(float).nlargest(min(2, len(structure_window)))
     if probe_prices.empty:
         return None
-    reference_price = float(probe_prices.iloc[1] if len(probe_prices) > 1 else probe_prices.iloc[0])
-    return reference_price + offset
+    reference_position = 1 if len(probe_prices) > 1 else 0
+    reference_price = float(probe_prices.iloc[reference_position])
+    reference_at = probe_prices.index[reference_position]
+    stop = reference_price + offset
+    return {
+        "stop": stop,
+        "reference_price": reference_price,
+        "reference_date": str(pd.Timestamp(reference_at).date()),
+        "reference_at": str(reference_at),
+        "reference_rank": "second_high" if reference_position == 1 else "highest",
+    }
+
+
+def calc_ema_penetration_entry_plan(
+    df: pd.DataFrame | None,
+    direction: str,
+    ema_period: int = DAILY_EMA_PERIOD,
+    lookback: int = ENTRY_PENETRATION_LOOKBACK,
+    min_tick: float = MIN_TICK,
+) -> dict:
+    if df is None or len(df) < max(ema_period + 2, 3) or direction not in {"LONG", "SHORT"}:
+        return {"available": False, "reason": "日线数据不足，无法计算 EMA 穿透入场价"}
+
+    frame = df.copy()
+    close = frame["close"].astype(float)
+    high = frame["high"].astype(float)
+    low = frame["low"].astype(float)
+    ema = calc_ema(close, ema_period)
+    ema_now = float(ema.iloc[-1])
+    ema_prev = float(ema.iloc[-2])
+    ema_slope = ema_now - ema_prev
+    projected_ema = ema_now + ema_slope
+    window = frame.tail(max(lookback, 1))
+    ema_window = ema.tail(max(lookback, 1))
+
+    if direction == "LONG":
+        penetrations = (ema_window - window["low"].astype(float)).clip(lower=0)
+        positive = penetrations[penetrations > 0]
+        average_penetration = float(positive.mean()) if not positive.empty else 0.0
+        ema_penetration_entry = projected_ema - average_penetration
+        breakout_entry = float(high.iloc[-1]) + min_tick
+        trigger_label = "买入"
+        reason = (
+            f"明日 EMA{ema_period} 估算 {projected_ema:.2f}，减近{lookback}日平均下跌穿透 "
+            f"{average_penetration:.2f}，参考买入限价 {ema_penetration_entry:.2f}；"
+            f"替代 buy-stop 为前一日高点上方 {breakout_entry:.2f}。"
+        )
+    else:
+        penetrations = (window["high"].astype(float) - ema_window).clip(lower=0)
+        positive = penetrations[penetrations > 0]
+        average_penetration = float(positive.mean()) if not positive.empty else 0.0
+        ema_penetration_entry = projected_ema + average_penetration
+        breakout_entry = float(low.iloc[-1]) - min_tick
+        trigger_label = "卖空"
+        reason = (
+            f"明日 EMA{ema_period} 估算 {projected_ema:.2f}，加近{lookback}日平均上穿透 "
+            f"{average_penetration:.2f}，参考卖空限价 {ema_penetration_entry:.2f}；"
+            f"替代 sell-stop 为前一日低点下方 {breakout_entry:.2f}。"
+        )
+
+    return {
+        "available": True,
+        "direction": direction,
+        "ema_period": ema_period,
+        "lookback": lookback,
+        "min_tick": min_tick,
+        "latest_ema": round(ema_now, 4),
+        "ema_prev": round(ema_prev, 4),
+        "ema_slope": round(ema_slope, 4),
+        "projected_next_ema": round(projected_ema, 4),
+        "average_penetration": round(average_penetration, 4),
+        "ema_penetration_entry": round(ema_penetration_entry, 4),
+        "breakout_entry": round(breakout_entry, 4),
+        "previous_high": round(float(high.iloc[-1]), 4),
+        "previous_low": round(float(low.iloc[-1]), 4),
+        "trigger_label": trigger_label,
+        "reason": reason,
+    }
+
+
+def calc_weekly_value_target(df_week: pd.DataFrame | None, direction: str) -> dict:
+    if df_week is None or len(df_week) < WEEKLY_VALUE_SLOW_EMA + 2 or direction not in {"LONG", "SHORT"}:
+        return {"available": False, "target_price": None, "reason": "周线数据不足，无法计算周线价值区间目标"}
+
+    close = df_week["close"].astype(float)
+    fast = calc_ema(close, WEEKLY_VALUE_FAST_EMA)
+    slow = calc_ema(close, WEEKLY_VALUE_SLOW_EMA)
+    lower = min(float(fast.iloc[-1]), float(slow.iloc[-1]))
+    upper = max(float(fast.iloc[-1]), float(slow.iloc[-1]))
+    target = upper if direction == "LONG" else lower
+    return {
+        "available": True,
+        "fast_ema_period": WEEKLY_VALUE_FAST_EMA,
+        "slow_ema_period": WEEKLY_VALUE_SLOW_EMA,
+        "fast_ema": round(float(fast.iloc[-1]), 4),
+        "slow_ema": round(float(slow.iloc[-1]), 4),
+        "value_zone_low": round(lower, 4),
+        "value_zone_high": round(upper, 4),
+        "target_price": round(target, 4),
+        "reason": (
+            f"周线价值区间 EMA{WEEKLY_VALUE_FAST_EMA}/{WEEKLY_VALUE_SLOW_EMA}: "
+            f"{lower:.2f}~{upper:.2f}，{'做多' if direction == 'LONG' else '做空'}首个盈利目标取 "
+            f"{target:.2f}。"
+        ),
+    }
 
 
 def calc_atr_stops(
@@ -421,7 +605,8 @@ def build_stop_methods(
         return []
 
     safezone_stop, safezone_noise = calc_safezone_stop(df, direction, trade_plan)
-    nick_stop = calc_nick_stop(df, direction)
+    nick_detail = calc_nick_stop_detail(df, direction)
+    nick_stop = nick_detail["stop"] if nick_detail else None
     atr_stops, atr_value = calc_atr_stops(df, direction, atr_period=atr_period)
     atr_stop_1x = atr_stops.get(1.0)
     atr_stop_2x = atr_stops.get(2.0)
@@ -432,7 +617,14 @@ def build_stop_methods(
             "group": "initial",
             "label": "尼克止损法",
             "price": round(nick_stop, 4) if nick_stop is not None else None,
-            "reference": "当前 V/W 结构次低点(次高点)外 0.01",
+            "reference": (
+                f"{nick_detail.get('reference_date')} "
+                f"{nick_detail.get('reference_price'):.2f} 外 0.01"
+                if nick_detail
+                else "当前 V/W 结构次低点(次高点)外 0.01"
+            ),
+            "reference_date": nick_detail.get("reference_date") if nick_detail else None,
+            "reference_price": round(float(nick_detail["reference_price"]), 4) if nick_detail else None,
             "style": "structure",
             "source": "前低/次低点结构止损思路",
             "suitable_for": "底部/顶部结构较清晰，想给极端低点留一点噪音空间时。",
@@ -483,103 +675,114 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
         return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "周线数据不足"}
 
     macd, signal, histogram = calc_macd(df_week, settings)
-    close = df_week["close"].astype(float)
-    ema13 = calc_ema(df_week["close"].astype(float), DAILY_EMA_PERIOD)
-    hist_now = histogram.iloc[-1]
-    hist_prev = histogram.iloc[-2]
+    impulse = calc_impulse_system(df_week, settings)
+    macd_now = float(macd.iloc[-1])
+    macd_prev = float(macd.iloc[-2])
+    macd_slope = macd_now - macd_prev
+    hist_now = float(histogram.iloc[-1])
+    hist_prev = float(histogram.iloc[-2])
     hist_delta = hist_now - hist_prev
-    close_now = float(close.iloc[-1])
-    ema_now = float(ema13.iloc[-1])
-    ema_prev = float(ema13.iloc[-2])
-    ema_delta = ema_now - ema_prev
-    histogram_deltas = histogram.diff().dropna()
+    macd_deltas = macd.diff().dropna()
 
     confirmed = 0
-    for value in reversed(histogram_deltas.values):
-        if (hist_delta > 0 and value > 0) or (hist_delta < 0 and value < 0):
+    for value in reversed(macd_deltas.values):
+        if (macd_slope > 0 and value > 0) or (macd_slope < 0 and value < 0):
             confirmed += 1
         else:
             break
 
-    if hist_delta > 0:
+    if macd_slope > 0:
         trend = "LONG"
-    elif hist_delta < 0:
+    elif macd_slope < 0:
         trend = "SHORT"
     else:
         trend = "NEUTRAL"
 
-    impulse = "RISING" if hist_delta > 0 else "FALLING" if hist_delta < 0 else "FLAT"
+    impulse_color = impulse["color"]
+    impulse_direction = impulse["direction"]
+    impulse_state = "RISING" if macd_slope > 0 else "FALLING" if macd_slope < 0 else "FLAT"
     actionable = trend != "NEUTRAL"
     confirmed_pass = confirmed >= settings.weekly.confirm_bars
-    impulse_aligned = (
-        (trend == "LONG" and ema_delta > 0 and hist_delta > 0)
-        or (trend == "SHORT" and ema_delta < 0 and hist_delta < 0)
-        or (trend == "NEUTRAL")
+    allows_long = impulse_color != "RED"
+    allows_short = impulse_color != "GREEN"
+    impulse_allows_direction = (
+        (trend == "LONG" and allows_long)
+        or (trend == "SHORT" and allows_short)
+        or trend == "NEUTRAL"
     )
-    close_on_trend_side = (
-        (trend == "LONG" and close_now > ema_now)
-        or (trend == "SHORT" and close_now < ema_now)
-        or (trend == "NEUTRAL")
-    )
+    impulse_aligned = impulse_direction == trend
+    close_on_trend_side = True
     trend_score = 0.0
     if actionable:
-        trend_score += min(abs(float(hist_delta)) * 40, 2.5)
+        trend_score += min(abs(float(macd_slope)) * 40, 2.5)
         trend_score += min(confirmed, 4) * 0.35
         if impulse_aligned:
-            trend_score += 0.5
+            trend_score += 0.8
+        elif impulse_allows_direction:
+            trend_score += 0.35
         if (trend == "LONG" and hist_now < 0) or (trend == "SHORT" and hist_now > 0):
             trend_score += 0.8
 
     if trend == "LONG":
-        setup_state = "BULLISH_SLOPE"
+        setup_state = "BULLISH_MACD_SLOPE"
         reason = (
-            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（回升）；"
-            f"13EMA 斜率 {ema_delta:+.4f}（{'上行' if ema_delta > 0 else '未上行'}）；"
-            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"周线 MACD 斜率 {macd_slope:+.4f}（向上）；"
+            f"动力系统 {impulse_color}（EMA斜率 {impulse['ema_slope']:+.4f}，MACD斜率 {impulse['macd_slope']:+.4f}）；"
+            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}，允许做多={allows_long}。"
         )
     elif trend == "SHORT":
-        setup_state = "BEARISH_SLOPE"
+        setup_state = "BEARISH_MACD_SLOPE"
         reason = (
-            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（回落）；"
-            f"13EMA 斜率 {ema_delta:+.4f}（{'下行' if ema_delta < 0 else '未下行'}）；"
-            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"周线 MACD 斜率 {macd_slope:+.4f}（向下）；"
+            f"动力系统 {impulse_color}（EMA斜率 {impulse['ema_slope']:+.4f}，MACD斜率 {impulse['macd_slope']:+.4f}）；"
+            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}，允许做空={allows_short}。"
         )
     else:
         setup_state = "NEUTRAL"
         reason = (
-            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（方向不清晰）；"
-            f"13EMA 斜率 {ema_delta:+.4f}；确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"周线 MACD 斜率 {macd_slope:+.4f}（方向不清晰）；"
+            f"动力系统 {impulse_color}；确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
         )
+
+    value_target = calc_weekly_value_target(df_week, trend)
 
     return {
         "trend": trend,
-        "impulse": impulse,
+        "impulse": impulse_state,
+        "impulse_color": impulse_color,
+        "impulse_direction": impulse_direction,
+        "allows_long": allows_long,
+        "allows_short": allows_short,
         "setup_state": setup_state,
         "histogram": round(float(hist_now), 6),
         "histogram_prev": round(float(hist_prev), 6),
         "histogram_delta": round(float(hist_delta), 6),
         "histogram_strength": abs(float(hist_now)),
         "histogram_growing": hist_delta > 0,
-        "macd": round(float(macd.iloc[-1]), 6),
+        "macd": round(float(macd_now), 6),
+        "macd_prev": round(float(macd_prev), 6),
+        "macd_slope": round(float(macd_slope), 6),
         "macd_signal": round(float(signal.iloc[-1]), 6),
-        "ema13": round(ema_now, 6),
-        "ema13_prev": round(ema_prev, 6),
-        "ema13_slope": round(float(ema_delta), 6),
+        "ema13": impulse["ema"],
+        "ema13_prev": impulse["ema_prev"],
+        "ema13_slope": impulse["ema_slope"],
         "confirmed_bars": confirmed,
         "impulse_aligned": impulse_aligned,
+        "impulse_allows_direction": impulse_allows_direction,
         "close_on_trend_side": close_on_trend_side,
+        "weekly_value_target": value_target,
         "trend_score": round(min(trend_score, WEEKLY_TREND_SCORE_CAP), 2),
         "actionable": actionable,
         "pass_checks": {
             "actionable": actionable,
             "confirmed_bars": confirmed_pass,
-            "impulse_aligned": impulse_aligned or not settings.weekly.require_impulse_alignment,
+            "impulse_aligned": impulse_allows_direction if settings.weekly.require_impulse_alignment else True,
             "close_on_trend_side": close_on_trend_side,
         },
         "pass": (
             actionable
             and confirmed_pass
-            and (impulse_aligned or not settings.weekly.require_impulse_alignment)
+            and (impulse_allows_direction or not settings.weekly.require_impulse_alignment)
             and close_on_trend_side
         ),
         "reason": reason,
@@ -608,6 +811,10 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     close = df_day["close"].astype(float)
     high = df_day["high"].astype(float)
     low = df_day["low"].astype(float)
+    latest_open = float(df_day["open"].iloc[-1])
+    latest_close = float(close.iloc[-1])
+    latest_high = float(high.iloc[-1])
+    latest_low = float(low.iloc[-1])
     ema13 = calc_ema(close, DAILY_EMA_PERIOD)
     atr_series = calc_atr(df_day, settings.hourly.atr_period)
     value_band_low, value_band_high, value_band_padding = calc_value_zone_bounds(
@@ -616,205 +823,134 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         settings.daily.value_band_atr_multiplier,
     )
     _, _, macd_hist = calc_macd(df_day, settings)
-
-    recent = df_day.tail(DAILY_CORRECTION_WINDOW_MAX).copy()
-    recent_close = recent["close"].astype(float)
-    recent_high = recent["high"].astype(float)
-    recent_low = recent["low"].astype(float)
-    recent_ema = ema13.tail(DAILY_CORRECTION_WINDOW_MAX)
-    recent_value_band_low = value_band_low.tail(DAILY_CORRECTION_WINDOW_MAX)
-    recent_value_band_high = value_band_high.tail(DAILY_CORRECTION_WINDOW_MAX)
-    lookback_slice = slice(-DAILY_CORRECTION_WINDOW_MAX, None)
-    prior_closes = close.iloc[lookback_slice]
-    latest_open = float(df_day["open"].iloc[-1])
-    latest_close = float(close.iloc[-1])
-    latest_high = float(high.iloc[-1])
-    latest_low = float(low.iloc[-1])
     macd_hist_now = float(macd_hist.iloc[-1])
     macd_hist_prev = float(macd_hist.iloc[-2])
     rsi_delta = rsi_now - rsi_prev
     macd_hist_delta = macd_hist_now - macd_hist_prev
-
+    force_ema = calc_force_index_ema(df_day, FORCE_INDEX_EMA_PERIOD)
+    force_now = float(force_ema.iloc[-1])
+    force_prev = float(force_ema.iloc[-2])
+    force_delta = force_now - force_prev
+    impulse = calc_impulse_system(df_day, settings)
+    impulse_color = impulse["color"]
+    entry_plan = calc_ema_penetration_entry_plan(df_day, trend)
+    prior_closes = close.iloc[-DAILY_CORRECTION_WINDOW_MAX:]
     down_closes = int((prior_closes.diff() < 0).sum())
     up_closes = int((prior_closes.diff() > 0).sum())
-    latest_gap_window = None
-    value_zone_touch = bool(
-        ((recent_low <= recent_value_band_high) & (recent_high >= recent_value_band_low))
-        .tail(DAILY_REVERSAL_LOOKBACK)
-        .any()
+    candle_range = max(float(latest_high - latest_low), 1e-9)
+    close_location_pct = ((latest_close - latest_low) / candle_range) * 100
+    close_above_prev = bool(latest_close > close.iloc[-2])
+    close_below_prev = bool(latest_close < close.iloc[-2])
+    custom_close_rule_pass = close_above_prev if trend == "LONG" else close_below_prev if trend == "SHORT" else False
+    custom_wick_rule_pass = False
+    custom_close_location_rule_pass = (
+        latest_close >= (latest_low + candle_range * 0.5)
+        if trend == "LONG"
+        else latest_close <= (latest_high - candle_range * 0.5)
+        if trend == "SHORT"
+        else False
+    )
+    if trend == "LONG":
+        wick_ratio_pct = (float(min(latest_close, latest_open) - latest_low) / candle_range) * 100
+        custom_wick_rule_pass = bool(wick_ratio_pct >= 35.0)
+    elif trend == "SHORT":
+        wick_ratio_pct = (float(latest_high - max(latest_close, latest_open)) / candle_range) * 100
+        custom_wick_rule_pass = bool(wick_ratio_pct >= 35.0)
+    else:
+        wick_ratio_pct = 0.0
+    custom_kline_confirmation = bool(
+        custom_close_rule_pass and custom_wick_rule_pass and custom_close_location_rule_pass
     )
 
-    correction_bar_count = min(len(recent_close), DAILY_CORRECTION_WINDOW_MAX)
-    correction_in_window = correction_bar_count >= DAILY_CORRECTION_WINDOW_MIN
-    rsi_state = "NEUTRAL"
-    state = "WATCH"
-    reject_reason = ""
-    passed = False
+    force_high_window = force_ema.shift(1).tail(FORCE_INDEX_NEW_EXTREME_LOOKBACK)
+    force_not_new_high = bool(force_high_window.empty or force_now < float(force_high_window.max()))
+    entered_value_zone = bool(latest_low <= float(value_band_high.iloc[-1]) and latest_high >= float(value_band_low.iloc[-1]))
+    value_zone_reached = entered_value_zone
+    structure_break_level = None
+    structure_intact = False
+    countertrend_exists = False
+    force_signal = False
+    same_impulse_or_trend = False
     watch = False
+    passed = False
+    reject_reason = ""
+    state = "REJECT"
+    rsi_state = "NEUTRAL"
     correction_count = 0
     correction_counter_label = "近8日修正收盘数"
-    structure_break_level = None
-    custom_close_rule_pass = False
-    custom_wick_rule_pass = False
-    custom_close_location_rule_pass = False
+    histogram_reversal = False
+    rsi_strength = 0.0
 
     if trend == "LONG":
         correction_count = down_closes
         correction_counter_label = "近8日下跌收盘数"
-        recent_gap_to_value_band = (recent_close - recent_value_band_high).clip(lower=0)
-        latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
-        countertrend_exists = correction_in_window and (down_closes >= 2 or bool((recent_close <= recent_ema).any()))
-        value_zone_approach = bool(
-            len(latest_gap_window) >= 2
-            and close.iloc[-1] >= value_band_low.iloc[-1]
-            and latest_gap_window.iloc[-1] == latest_gap_window.min()
-            and latest_gap_window.iloc[-1] < latest_gap_window.iloc[-2]
-            and (close.iloc[-1] <= close.iloc[-2] or low.iloc[-1] <= low.iloc[-2])
-        )
-        entered_value_zone = value_zone_touch or value_zone_approach
-        value_zone_reached = entered_value_zone
+        countertrend_exists = bool(force_now < 0 or down_closes >= 1 or latest_low <= float(ema13.iloc[-1]))
+        force_signal = force_now < 0
+        same_impulse_or_trend = impulse_color in {"GREEN", "BLUE"}
         higher_low_ref = float(low.tail(DAILY_CORRECTION_WINDOW_MAX).min())
         structure_break_level = higher_low_ref - (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
-        structure_intact = bool(low.iloc[-1] >= structure_break_level)
-        lower_wick = float(min(latest_close, latest_open) - latest_low)
-        candle_range = max(float(latest_high - latest_low), 1e-9)
-        close_location_pct = ((latest_close - latest_low) / candle_range) * 100
-        upper_half_close = latest_close >= (latest_low + candle_range * 0.5)
-        close_above_prev = bool(latest_close > close.iloc[-2])
-        wick_ratio_pct = (lower_wick / candle_range) * 100
+        structure_intact = bool(latest_low >= structure_break_level)
         histogram_reversal = bool(macd_hist_now > macd_hist_prev)
-        custom_close_rule_pass = close_above_prev
-        custom_wick_rule_pass = bool(lower_wick >= candle_range * 0.35)
-        custom_close_location_rule_pass = upper_half_close
-        custom_kline_confirmation = bool(
-            custom_close_rule_pass and custom_wick_rule_pass and custom_close_location_rule_pass
-        )
-        accelerating_correction = bool(
-            close.iloc[-1] < close.iloc[-2] < close.iloc[-3]
-            and macd_hist_now < macd_hist_prev
-        )
-        rsi_strength = max(0.0, 45.0 - rsi_now)
-        elder_core_checks = [
-            value_zone_reached,
-            histogram_reversal,
-            structure_intact,
-        ]
-        setup_score = 1.3 + (1.0 if value_zone_reached else 0.0) + (1.5 if histogram_reversal else 0.0) + (1.0 if structure_intact else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
-        if not countertrend_exists:
+        rsi_strength = max(0.0, 50.0 - rsi_now)
+        if not force_signal:
             state = "REJECT"
-            reject_reason = "周线做多但日线未形成可识别回调，不属于可执行 setup"
-            rsi_state = "NO_PULLBACK"
-        elif not structure_intact:
-            state = "REJECT"
-            reject_reason = "回调结构已明显跌穿防守摆点，止损边界不可定义"
-            rsi_state = "STRUCTURE_BROKEN"
-        elif accelerating_correction and not histogram_reversal:
-            state = "REJECT"
-            reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
-            rsi_state = "ACCELERATING_PULLBACK"
-        elif not entered_value_zone:
+            reject_reason = "周线允许做多，但 2 日 Force Index EMA 尚未降到 0 以下"
+            rsi_state = "PULLBACK_WAIT_FORCE_BELOW_ZERO"
+        elif not same_impulse_or_trend:
             state = "WATCH"
             watch = True
-            reject_reason = ""
-            rsi_state = "PULLBACK_WAIT_VALUE_BAND"
-        elif histogram_reversal:
+            reject_reason = "日线动力系统仍为红色，先观察，不把它当成立即交易信号"
+            rsi_state = "PULLBACK_FORCE_READY_WAIT_IMPULSE"
+        elif not structure_intact:
+            state = "WATCH"
+            watch = True
+            reject_reason = "Force 信号已出现，但日线低点已破坏短期结构，谨慎观察"
+            rsi_state = "STRUCTURE_BROKEN"
+        else:
             state = "QUALIFIED"
             passed = True
-            rsi_state = "PULLBACK_HISTOGRAM_TURNED"
-        else:
-            state = "WATCH"
-            watch = True
-            rsi_state = "PULLBACK_WAIT_HISTOGRAM"
+            rsi_state = "PULLBACK_FORCE_BELOW_ZERO"
     elif trend == "SHORT":
         correction_count = up_closes
         correction_counter_label = "近8日上涨收盘数"
-        recent_gap_to_value_band = (recent_value_band_low - recent_close).clip(lower=0)
-        latest_gap_window = recent_gap_to_value_band.tail(DAILY_REVERSAL_LOOKBACK)
-        countertrend_exists = correction_in_window and (up_closes >= 2 or bool((recent_close >= recent_ema).any()))
-        value_zone_approach = bool(
-            len(latest_gap_window) >= 2
-            and close.iloc[-1] <= value_band_high.iloc[-1]
-            and latest_gap_window.iloc[-1] == latest_gap_window.min()
-            and latest_gap_window.iloc[-1] < latest_gap_window.iloc[-2]
-            and (close.iloc[-1] >= close.iloc[-2] or high.iloc[-1] >= high.iloc[-2])
-        )
-        entered_value_zone = value_zone_touch or value_zone_approach
-        value_zone_reached = entered_value_zone
+        countertrend_exists = bool(force_now > 0 or up_closes >= 1 or latest_high >= float(ema13.iloc[-1]))
+        force_signal = force_now > 0 and force_not_new_high
+        same_impulse_or_trend = impulse_color in {"RED", "BLUE"}
         lower_high_ref = float(high.tail(DAILY_CORRECTION_WINDOW_MAX).max())
         structure_break_level = lower_high_ref + (float(atr_series.iloc[-1]) * DAILY_STRUCTURE_BREACH_ATR_MULTIPLIER)
-        structure_intact = bool(high.iloc[-1] <= structure_break_level)
-        upper_wick = float(latest_high - max(latest_close, latest_open))
-        candle_range = max(float(latest_high - latest_low), 1e-9)
-        close_location_pct = ((latest_close - latest_low) / candle_range) * 100
-        lower_half_close = latest_close <= (latest_high - candle_range * 0.5)
-        close_below_prev = bool(latest_close < close.iloc[-2])
-        wick_ratio_pct = (upper_wick / candle_range) * 100
+        structure_intact = bool(latest_high <= structure_break_level)
         histogram_reversal = bool(macd_hist_now < macd_hist_prev)
-        custom_close_rule_pass = close_below_prev
-        custom_wick_rule_pass = bool(upper_wick >= candle_range * 0.35)
-        custom_close_location_rule_pass = lower_half_close
-        custom_kline_confirmation = bool(
-            custom_close_rule_pass and custom_wick_rule_pass and custom_close_location_rule_pass
-        )
-        accelerating_correction = bool(
-            close.iloc[-1] > close.iloc[-2] > close.iloc[-3]
-            and macd_hist_now > macd_hist_prev
-        )
-        rsi_strength = max(0.0, rsi_now - 55.0)
-        elder_core_checks = [
-            value_zone_reached,
-            histogram_reversal,
-            structure_intact,
-        ]
-        setup_score = 1.3 + (1.0 if value_zone_reached else 0.0) + (1.5 if histogram_reversal else 0.0) + (1.0 if structure_intact else 0.0) + (0.2 if custom_kline_confirmation else 0.0)
-        if not countertrend_exists:
+        rsi_strength = max(0.0, rsi_now - 50.0)
+        if not force_signal:
             state = "REJECT"
-            reject_reason = "周线做空但日线未形成可识别反弹，不属于可执行 setup"
-            rsi_state = "NO_RALLY"
-        elif not structure_intact:
-            state = "REJECT"
-            reject_reason = "反弹结构已明显突破防守摆点，止损边界不可定义"
-            rsi_state = "STRUCTURE_BROKEN"
-        elif accelerating_correction and not histogram_reversal:
-            state = "REJECT"
-            reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
-            rsi_state = "ACCELERATING_RALLY"
-        elif not entered_value_zone:
+            reject_reason = "周线允许做空，但 2 日 Force Index EMA 尚未升到 0 以上，或已经创数周新高"
+            rsi_state = "RALLY_WAIT_FORCE_ABOVE_ZERO"
+        elif not same_impulse_or_trend:
             state = "WATCH"
             watch = True
-            reject_reason = ""
-            rsi_state = "RALLY_WAIT_VALUE_BAND"
-        elif histogram_reversal:
+            reject_reason = "日线动力系统仍为绿色，先观察，不把它当成立即交易信号"
+            rsi_state = "RALLY_FORCE_READY_WAIT_IMPULSE"
+        elif not structure_intact:
+            state = "WATCH"
+            watch = True
+            reject_reason = "Force 信号已出现，但日线高点已破坏短期结构，谨慎观察"
+            rsi_state = "STRUCTURE_BROKEN"
+        else:
             state = "QUALIFIED"
             passed = True
-            rsi_state = "RALLY_HISTOGRAM_TURNED"
-        else:
-            state = "WATCH"
-            watch = True
-            rsi_state = "RALLY_WAIT_HISTOGRAM"
+            rsi_state = "RALLY_FORCE_ABOVE_ZERO"
     else:
-        countertrend_exists = False
-        entered_value_zone = False
-        value_zone_reached = False
-        structure_intact = False
-        elder_core_checks = [False, False, False]
-        rsi_strength = 0.0
-        setup_score = 0.0
-        state = "REJECT"
         reject_reason = "周线方向不明，日线不单独提供交易资格"
-        rsi_state = "NEUTRAL"
-        histogram_reversal = False
-        custom_kline_confirmation = False
-        close_location_pct = 0.0
-        wick_ratio_pct = 0.0
-        close_above_prev = False
-        close_below_prev = False
-        latest_open = 0.0
-        latest_close = 0.0
-        latest_high = 0.0
-        latest_low = 0.0
-        macd_hist_now = 0.0
-        macd_hist_prev = 0.0
+
+    elder_core_checks = [force_signal, same_impulse_or_trend, structure_intact]
+    setup_score = (
+        1.0
+        + (1.7 if force_signal else 0.0)
+        + (1.2 if same_impulse_or_trend else 0.0)
+        + (0.8 if structure_intact else 0.0)
+        + (0.4 if entered_value_zone else 0.0)
+        + (0.2 if custom_kline_confirmation else 0.0)
+    )
 
     elder_core_signal_count = int(sum(elder_core_checks))
     if trend == "LONG":
@@ -835,11 +971,19 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         else "—"
     )
     histogram_label = f"Histogram {macd_hist_prev:+.4f}->{macd_hist_now:+.4f}" if trend in {"LONG", "SHORT"} else "—"
+    if trend == "LONG":
+        value_band_gap = max(latest_close - float(value_band_high.iloc[-1]), 0.0)
+    elif trend == "SHORT":
+        value_band_gap = max(float(value_band_low.iloc[-1]) - latest_close, 0.0)
+    else:
+        value_band_gap = None
     detail_prefix = (
         f"{correction_counter_label} {correction_count}；"
+        f"2日Force EMA {force_prev:+.0f}->{force_now:+.0f}；"
+        f"日线动力系统 {impulse_color}；"
         f"13EMA 价值带 {value_zone_label}；"
         f"{structure_label}；"
-        f"Histogram 检查 {histogram_label}。"
+        f"辅助 {histogram_label}。"
     )
 
     if state == "REJECT":
@@ -847,13 +991,11 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     elif state == "QUALIFIED":
         reason = (
             f"{detail_prefix} 结论：{direction_label} setup 已具备执行条件，"
-            f"当前 {elder_core_signal_count}/3 项 Elder 核心信号到位，可进入候选池。"
+            f"当前 {elder_core_signal_count}/3 项三重滤网核心信号到位，可进入候选池并等待价格触发。"
         )
     else:
         reason = (
-            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/3 项 Elder 核心信号到位，继续观察。"
-            if value_zone_reached
-            else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值带，继续观察。"
+            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/3 项核心信号到位，继续观察。"
         )
 
     return {
@@ -870,7 +1012,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "value_band_low": round(float(value_band_low.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
         "value_band_high": round(float(value_band_high.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
         "value_band_padding": round(float(value_band_padding.iloc[-1]), 4) if trend in {"LONG", "SHORT"} else None,
-        "value_band_gap": round(float(latest_gap_window.iloc[-1]), 4) if latest_gap_window is not None and len(latest_gap_window) else None,
+        "value_band_gap": round(float(value_band_gap), 4) if value_band_gap is not None else None,
         "correction_count": correction_count if trend in {"LONG", "SHORT"} else 0,
         "correction_counter_label": correction_counter_label,
         "elder_core_signal_count": elder_core_signal_count,
@@ -883,6 +1025,17 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         "momentum_hist_now": round(float(macd_hist_now), 6) if trend in {"LONG", "SHORT"} else 0.0,
         "momentum_hist_prev": round(float(macd_hist_prev), 6) if trend in {"LONG", "SHORT"} else 0.0,
         "momentum_hist_delta": round(float(macd_hist_delta), 6) if trend in {"LONG", "SHORT"} else 0.0,
+        "force_index_ema2": round(float(force_now), 4) if trend in {"LONG", "SHORT"} else 0.0,
+        "force_index_ema2_prev": round(float(force_prev), 4) if trend in {"LONG", "SHORT"} else 0.0,
+        "force_index_delta": round(float(force_delta), 4) if trend in {"LONG", "SHORT"} else 0.0,
+        "force_signal": force_signal if trend in {"LONG", "SHORT"} else False,
+        "force_not_new_high": force_not_new_high if trend == "SHORT" else None,
+        "impulse_color": impulse_color,
+        "impulse_direction": impulse.get("direction"),
+        "impulse_ema_slope": impulse.get("ema_slope"),
+        "impulse_macd_slope": impulse.get("macd_slope"),
+        "same_impulse_or_trend": same_impulse_or_trend,
+        "entry_plan": entry_plan,
         "price_reversal": custom_kline_confirmation if trend in {"LONG", "SHORT"} else False,
         "custom_kline_confirmation": custom_kline_confirmation if trend in {"LONG", "SHORT"} else False,
         "custom_close_vs_prev": close_above_prev if trend == "LONG" else close_below_prev if trend == "SHORT" else False,
@@ -1043,7 +1196,9 @@ def calc_exits(
     trade_plan: TradePlanConfig,
     signal_bar_high: float | None = None,
     signal_bar_low: float | None = None,
+    weekly_frame: pd.DataFrame | None = None,
 ) -> dict:
+    weekly_target = calc_weekly_value_target(weekly_frame, direction)
     if daily_frame is None or daily_frame.empty:
         stop_loss = None
         initial_stop_loss = None
@@ -1064,11 +1219,13 @@ def calc_exits(
         safezone_noise = 0.0
         model_initial_stop_loss = entry
         model_initial_stop_basis = "UNKNOWN"
+        nick_detail = None
     else:
         latest_high = float(daily_frame["high"].iloc[-1])
         latest_low = float(daily_frame["low"].iloc[-1])
         safezone_stop, safezone_noise = calc_safezone_stop(daily_frame, direction, trade_plan)
-        nick_stop = calc_nick_stop(daily_frame, direction)
+        nick_detail = calc_nick_stop_detail(daily_frame, direction)
+        nick_stop = nick_detail["stop"] if nick_detail else None
         atr_stops, daily_atr = calc_atr_stops(daily_frame, direction, atr_period=14)
         atr_stop_1x = atr_stops.get(1.0)
         atr_stop_2x = atr_stops.get(2.0)
@@ -1101,7 +1258,16 @@ def calc_exits(
             stop_loss = None
             stop_basis = "CHOICE_REQUIRED"
             target_reference = max(entry, latest_high)
-            take_profit = target_reference + projected_move
+            weekly_target_price = (
+                float(weekly_target["target_price"])
+                if weekly_target.get("available") and weekly_target.get("target_price") is not None
+                else None
+            )
+            take_profit = (
+                weekly_target_price
+                if weekly_target_price is not None and weekly_target_price > entry
+                else target_reference + projected_move
+            )
         else:
             initial_candidates = [("SAFEZONE", safezone_stop), ("NICK", nick_stop)]
             valid_initial_candidates = [(code, float(value)) for code, value in initial_candidates if value is not None]
@@ -1116,7 +1282,16 @@ def calc_exits(
             stop_loss = None
             stop_basis = "CHOICE_REQUIRED"
             target_reference = min(entry, latest_low)
-            take_profit = target_reference - projected_move
+            weekly_target_price = (
+                float(weekly_target["target_price"])
+                if weekly_target.get("available") and weekly_target.get("target_price") is not None
+                else None
+            )
+            take_profit = (
+                weekly_target_price
+                if weekly_target_price is not None and weekly_target_price < entry
+                else target_reference - projected_move
+            )
 
     model_risk_per_share = abs(entry - model_initial_stop_loss) if model_initial_stop_loss is not None else 0.0
     reward_per_share = abs(take_profit - entry)
@@ -1130,6 +1305,10 @@ def calc_exits(
         "initial_stop_two_bar": None,
         "initial_stop_safezone": round(safezone_stop, 4) if safezone_stop is not None else None,
         "initial_stop_nick": round(nick_stop, 4) if nick_stop is not None else None,
+        "initial_stop_nick_reference_date": nick_detail.get("reference_date") if nick_detail else None,
+        "initial_stop_nick_reference_price": (
+            round(float(nick_detail["reference_price"]), 4) if nick_detail else None
+        ),
         "initial_stop_pullback_pivot": None,
         "initial_stop_basis": initial_stop_basis,
         "initial_stop_model_loss": round(model_initial_stop_loss, 4) if model_initial_stop_loss is not None else None,
@@ -1147,6 +1326,7 @@ def calc_exits(
         "stop_basis": stop_basis,
         "take_profit": round(take_profit, 4),
         "target_reference": round(target_reference, 4),
+        "weekly_value_target": weekly_target,
         "thermometer": round(thermometer, 4),
         "thermometer_ema": round(thermometer_ema, 4),
         "daily_atr": round(daily_atr, 4),

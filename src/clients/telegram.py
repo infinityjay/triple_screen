@@ -74,6 +74,8 @@ class TelegramNotifier:
     def _status_label(signal: dict) -> str:
         if signal.get("opportunity_status") == "TRIGGERED":
             return "已触发"
+        if signal.get("opportunity_status") == "MONITOR":
+            return "监测中"
         return "观察中"
 
     @staticmethod
@@ -101,6 +103,12 @@ class TelegramNotifier:
             "PULLBACK_HISTOGRAM_TURNED": "价值带内 Histogram 已回升",
             "RALLY_HISTOGRAM_TURNED": "价值带内 Histogram 已回落",
             "NEUTRAL": "中性",
+            "PULLBACK_WAIT_FORCE_BELOW_ZERO": "等待 Force 跌破 0",
+            "PULLBACK_FORCE_READY_WAIT_IMPULSE": "Force 到位，等待日线动力",
+            "PULLBACK_FORCE_BELOW_ZERO": "Force 跌破 0",
+            "RALLY_WAIT_FORCE_ABOVE_ZERO": "等待 Force 升破 0",
+            "RALLY_FORCE_READY_WAIT_IMPULSE": "Force 到位，等待日线动力",
+            "RALLY_FORCE_ABOVE_ZERO": "Force 升破 0",
         }
         return labels.get(state, state)
 
@@ -110,6 +118,7 @@ class TelegramNotifier:
             "TRIGGERED": "已触发",
             "WAITING_BREAKOUT": "等待向上突破",
             "WAITING_BREAKDOWN": "等待向下跌破",
+            "WAITING_ENTRY_PRICE": "等待参考价触发",
             "WAITING_NEXT_BAR": "等待下一根小时K开始跟踪",
             "NEUTRAL": "中性",
         }
@@ -159,7 +168,10 @@ class TelegramNotifier:
             lines = [title]
             for method in items[:4]:
                 price = "需手工判断" if method.get("price") is None else self._fmt_num(method.get("price"), 2)
-                lines.append(f"• {method.get('label', '止损方法')}：<code>{price}</code> {method.get('suitable_for', '')}")
+                reference = f"；参考 {method.get('reference')}" if method.get("reference") else ""
+                lines.append(
+                    f"• {method.get('label', '止损方法')}：<code>{price}</code>{reference} {method.get('suitable_for', '')}"
+                )
             return lines
 
         return "\n".join(build_lines("初始止损", initial_methods) + build_lines("跟踪止损", trailing_methods))
@@ -177,6 +189,8 @@ class TelegramNotifier:
         exits = signal["exits"]
         earnings = signal.get("earnings", {})
         divergence = signal.get("divergence", {})
+        entry_plan = hourly.get("entry_plan") or daily.get("entry_plan") or {}
+        weekly_target = exits.get("weekly_value_target") or weekly.get("weekly_value_target") or {}
 
         dir_emoji = "🚀" if direction == "LONG" else "🔻"
         dir_label = "做多" if direction == "LONG" else "做空"
@@ -218,25 +232,30 @@ class TelegramNotifier:
             f"状态：<b>{self._status_label(signal)}</b>\n"
             f"综合评分：{self._score_stars(score)} <code>{score:.1f}/10</code>\n"
             f"{'─' * 32}\n"
-            f"<b>第一重 · 周线 MACD</b>\n"
+            f"<b>第一重 · 周线动力系统</b>\n"
             f"方向：<b>{weekly['trend']}</b>\n"
+            f"动力颜色：<b>{weekly.get('impulse_color', '—')}</b>  MACD斜率：<code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
             f"MACD：<code>{self._fmt_num(weekly.get('macd'), 4)}</code>  Signal：<code>{self._fmt_num(weekly.get('macd_signal'), 4)}</code>\n"
             f"Histogram：<code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
             f"13EMA：<code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  斜率：<code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
-            f"连续同向 bars：<code>{weekly.get('confirmed_bars', '—')}</code> / 收盘位于趋势侧：<b>{self._bool_text(weekly.get('close_on_trend_side'))}</b>\n"
+            f"连续同向 bars：<code>{weekly.get('confirmed_bars', '—')}</code> / 禁止规则通过：<b>{self._bool_text(weekly.get('impulse_allows_direction'))}</b>\n"
             f"周线结论：{weekly['reason']}\n"
             f"{'─' * 32}\n"
-            f"<b>第二重 · 日线 Elder 核心</b>\n"
-            f"日线阶段：<b>{daily_state_label}</b>  Elder核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 3)}</code>\n"
-            f"Histogram：<code>{self._fmt_num(daily.get('momentum_hist_now'), 4, signed=True)}</code>  前一日：<code>{self._fmt_num(daily.get('momentum_hist_prev'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
+            f"<b>第二重 · 日线 Force Index</b>\n"
+            f"日线阶段：<b>{daily_state_label}</b>  核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 3)}</code>\n"
+            f"2日Force EMA：<code>{self._fmt_num(daily.get('force_index_ema2_prev'), 0, signed=True)}</code> → <code>{self._fmt_num(daily.get('force_index_ema2'), 0, signed=True)}</code>\n"
+            f"日线动力颜色：<b>{daily.get('impulse_color', '—')}</b>  同向/不反向：<b>{self._bool_text(daily.get('same_impulse_or_trend'))}</b>\n"
+            f"辅助RSI：<code>{self._fmt_num(daily.get('rsi'), 2)}</code>  Histogram变化：<code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
             f"13EMA价值带：<code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  距离价值带：<code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
             f"{daily.get('correction_counter_label', '近8日修正收盘数')}：<code>{daily.get('correction_count', 0)}</code>  结构防守位：<code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
-            f"回到价值带：<b>{self._bool_text(daily.get('value_zone_reached'))}</b>  Histogram转向：<b>{self._bool_text(daily.get('histogram_reversal', daily.get('momentum_reversal')))}</b>\n"
+            f"Force信号：<b>{self._bool_text(daily.get('force_signal'))}</b>  结构完整：<b>{self._bool_text(daily.get('structure_intact'))}</b>\n"
             f"辅助K线确认：<b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  收盘相对昨收：<b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
             f"影线比例：<code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  收盘位置：<code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
             f"日线结论：{daily['reason']}\n"
             f"{'─' * 32}\n"
-            f"<b>第三重 · 1小时突破</b>\n"
+            f"<b>第三重 · 触发价监测</b>\n"
+            f"EMA穿透参考价：<code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  前日突破参考价：<code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
+            f"明日EMA估算：<code>{self._fmt_num(entry_plan.get('projected_next_ema'), 2)}</code>  平均穿透：<code>{self._fmt_num(entry_plan.get('average_penetration'), 2)}</code>\n"
             f"{breakout_line}\n"
             f"突破强度：[{breakout_bar}] {hourly.get('breakout_strength', 0):.2f}xATR\n"
             f"ATR：<code>{hourly['atr']:.4f}</code>\n"
@@ -251,7 +270,7 @@ class TelegramNotifier:
             f"后续保护止损：<code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
             f"当前激活止损：<code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
             f"可选止损清单：\n{self._format_stop_methods(exits.get('stop_methods'))}\n"
-            f"首个止盈：<code>{self._fmt_num(exits.get('take_profit'), 2)}</code>\n"
+            f"首个止盈：<code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  周线价值区间：<code>{self._fmt_num(weekly_target.get('value_zone_low'), 2)}</code> ~ <code>{self._fmt_num(weekly_target.get('value_zone_high'), 2)}</code>\n"
             f"日线 ATR：<code>{self._fmt_num(exits.get('daily_atr'), 2)}</code>  Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  投影基准：{self._fmt_num(exits.get('target_reference'), 2)}\n"
             f"每股风险：{self._fmt_num(exits.get('risk_per_share'), 2)}  预估盈亏比：{self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"
             f"内部模型风险：{self._fmt_num(exits.get('risk_per_share_model'), 2)}  内部模型 RR：{self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R\n"
@@ -277,6 +296,7 @@ class TelegramNotifier:
         scan_time_sec: float,
         stop_update_summary: dict[str, Any] | None = None,
         open_position_earnings_summary: dict[str, Any] | None = None,
+        open_position_exit_alert_summary: dict[str, Any] | None = None,
     ) -> str:
         if total_candidates <= 0:
             message = (
@@ -287,6 +307,8 @@ class TelegramNotifier:
                 message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
             if open_position_earnings_summary:
                 message = f"{message}\n\n{self.format_open_position_earnings_section(open_position_earnings_summary)}"
+            if open_position_exit_alert_summary:
+                message = f"{message}\n\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}"
             return message
         if not qualified_signals:
             message = (
@@ -298,6 +320,8 @@ class TelegramNotifier:
                 message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
             if open_position_earnings_summary:
                 message = f"{message}\n\n{self.format_open_position_earnings_section(open_position_earnings_summary)}"
+            if open_position_exit_alert_summary:
+                message = f"{message}\n\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}"
             return message
 
         strong_divergence_count = sum(1 for signal in qualified_signals if signal.get("strong_divergence"))
@@ -313,10 +337,13 @@ class TelegramNotifier:
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             earnings_status = signal.get("earnings", {}).get("status", "UNKNOWN")
+            entry_plan = signal.get("daily", {}).get("entry_plan", {})
+            status_label = self._status_label(signal)
             lines.append(
-                f"{index}. <b>{signal['symbol']}</b> {direction} 候选 "
+                f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   {daily_state} · Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
+                f"   {daily_state} · Force {self._fmt_num(signal['daily'].get('force_index_ema2'), 0, signed=True)} · "
+                f"参考价 {self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)} / {self._fmt_num(entry_plan.get('breakout_entry'), 2)} · "
                 f"价值带 {self._bool_text(signal['daily'].get('value_zone_reached'))} · 财报 {earnings_status}\n"
             )
 
@@ -324,6 +351,8 @@ class TelegramNotifier:
             lines.append(f"\n{self.format_stop_update_section(stop_update_summary)}")
         if open_position_earnings_summary:
             lines.append(f"\n{self.format_open_position_earnings_section(open_position_earnings_summary)}")
+        if open_position_exit_alert_summary:
+            lines.append(f"\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}")
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
@@ -389,6 +418,28 @@ class TelegramNotifier:
             )
         return "".join(lines)
 
+    def format_open_position_exit_alert_section(self, exit_summary: dict[str, Any]) -> str:
+        total_positions = int(exit_summary.get("total_positions", 0) or 0)
+        alert_count = int(exit_summary.get("alert_count", 0) or 0)
+        items = list(exit_summary.get("items", []))
+        lines = [
+            "🚨 <b>持仓动力系统平仓警报</b>\n",
+            f"持仓 {total_positions} 笔 · 需要检查 {alert_count} 笔\n",
+        ]
+        if total_positions == 0:
+            lines.append("当前没有未平仓交易。\n")
+            return "".join(lines)
+        if not items:
+            lines.append("当前持仓未发现周线/日线动力系统反向。\n")
+            return "".join(lines)
+        for index, item in enumerate(items[:8], start=1):
+            lines.append(
+                f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
+                f"周线 {item.get('weekly_impulse_color', '—')} / 日线 {item.get('daily_impulse_color', '—')}\n"
+                f"   {item.get('reason', '需要检查是否平仓')}\n"
+            )
+        return "".join(lines)
+
     @staticmethod
     def get_direction_text(value: str | None) -> str:
         return "做空" if str(value or "").strip().lower() == "short" else "做多"
@@ -448,6 +499,7 @@ class TelegramNotifier:
         scan_time_sec: float,
         stop_update_summary: dict[str, Any] | None = None,
         open_position_earnings_summary: dict[str, Any] | None = None,
+        open_position_exit_alert_summary: dict[str, Any] | None = None,
     ) -> bool:
         return self._send(
             self.format_candidate_summary_message(
@@ -457,6 +509,7 @@ class TelegramNotifier:
                 scan_time_sec,
                 stop_update_summary=stop_update_summary,
                 open_position_earnings_summary=open_position_earnings_summary,
+                open_position_exit_alert_summary=open_position_exit_alert_summary,
             )
         )
 
