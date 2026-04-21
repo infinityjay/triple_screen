@@ -32,8 +32,15 @@ function getReasonBlock(label, score, reason) {
 
 function getStatusBadge(status) {
   const normalized = String(status || "").toUpperCase();
-  const tone = normalized === "TRIGGERED" ? "safe" : normalized === "WATCHLIST" ? "info" : "warn";
-  const label = normalized === "TRIGGERED" ? "已触发" : normalized === "WATCHLIST" ? "观察中" : normalized || "未知";
+  const tone = normalized === "TRIGGERED" ? "safe" : normalized === "WATCHLIST" ? "info" : normalized === "MONITOR" ? "warn" : "warn";
+  const label =
+    normalized === "TRIGGERED"
+      ? "已触发"
+      : normalized === "WATCHLIST"
+        ? "待触发"
+        : normalized === "MONITOR"
+          ? "监测中"
+          : normalized || "未知";
   return `<span class="badge badge-${tone}">${escapeHtml(label)}</span>`;
 }
 
@@ -82,29 +89,42 @@ function setupHorizontalScrollbar(scrollContainerId, scrollbarId) {
 function buildExecutionPlan(item) {
   const hourly = item.hourly || {};
   const exits = item.exits || {};
-  if (hourly.entry_price !== undefined) {
+  const entryPlan = hourly.entry_plan || item.daily?.entry_plan || {};
+  const emaEntry = entryPlan.ema_penetration_entry;
+  const breakoutEntry = entryPlan.breakout_entry;
+  const target = exits.take_profit ?? exits.weekly_value_target?.target_price;
+  if ((emaEntry !== undefined && emaEntry !== null) || (breakoutEntry !== undefined && breakoutEntry !== null)) {
     return [
-      `触发价 ${formatCurrency(hourly.entry_price, 3)}`,
-      exits.stop_loss !== undefined ? `止损 ${formatCurrency(exits.stop_loss, 3)}` : "",
-      exits.take_profit !== undefined ? `目标 ${formatCurrency(exits.take_profit, 3)}` : "",
-      exits.reward_risk_ratio !== undefined ? `RR ${formatNumber(exits.reward_risk_ratio, 2)}` : "",
+      emaEntry !== undefined && emaEntry !== null ? `EMA穿透 ${formatCurrency(emaEntry, 3)}` : "",
+      breakoutEntry !== undefined && breakoutEntry !== null ? `前日突破 ${formatCurrency(breakoutEntry, 3)}` : "",
+      exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null ? `尼克 ${formatCurrency(exits.initial_stop_nick, 3)}` : "",
+      target !== undefined && target !== null ? `目标 ${formatCurrency(target, 3)}` : "",
     ]
       .filter(Boolean)
       .join(" · ");
   }
   return normalizeSignalDirection(item.direction) === "SHORT"
-    ? "等待下一根小时线确认下破，盘中沿上一根已收盘 K 线低点跟踪卖出止损。"
-    : "等待下一根小时线确认上破，盘中沿上一根已收盘 K 线高点跟踪买入止损。";
+    ? "等待日线 Force 与动力系统到位，再用 EMA 上穿透价或前日低点下方一跳监测。"
+    : "等待日线 Force 与动力系统到位，再用 EMA 下穿透价或前日高点上方一跳监测。";
 }
 
 function buildExecutionInline(item) {
   const hourly = item.hourly || {};
   const exits = item.exits || {};
-  const entry = hourly.entry_price !== undefined ? formatCurrency(hourly.entry_price, 3) : "等待确认";
-  const stop = exits.stop_loss !== undefined ? formatCurrency(exits.stop_loss, 3) : "—";
-  const target = exits.take_profit !== undefined ? formatCurrency(exits.take_profit, 3) : "—";
-  const rr = exits.reward_risk_ratio !== undefined ? `${formatNumber(exits.reward_risk_ratio, 2)}R` : "—";
-  return `入场 ${entry} | 止损 ${stop} | 目标 ${target} / ${rr}`;
+  const entryPlan = hourly.entry_plan || item.daily?.entry_plan || {};
+  const emaEntry = entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? formatCurrency(entryPlan.ema_penetration_entry, 3) : "—";
+  const breakoutEntry = entryPlan.breakout_entry !== undefined && entryPlan.breakout_entry !== null ? formatCurrency(entryPlan.breakout_entry, 3) : "—";
+  const stop = exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
+    ? `尼克 ${formatCurrency(exits.initial_stop_nick, 3)}`
+    : exits.initial_stop_safezone !== undefined && exits.initial_stop_safezone !== null
+      ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
+      : "待选择";
+  const target = exits.take_profit !== undefined && exits.take_profit !== null
+    ? formatCurrency(exits.take_profit, 3)
+    : exits.weekly_value_target?.target_price !== undefined && exits.weekly_value_target?.target_price !== null
+      ? formatCurrency(exits.weekly_value_target.target_price, 3)
+      : "—";
+  return `EMA穿透 ${emaEntry} | 前日突破 ${breakoutEntry} | ${stop} | 周线目标 ${target}`;
 }
 
 function getFilteredItems() {
@@ -122,6 +142,9 @@ function getFilteredItems() {
       item.weekly?.reason,
       item.daily?.reason,
       item.hourly?.reason,
+      item.daily?.force_index_ema2,
+      item.daily?.impulse_color,
+      item.weekly?.impulse_color,
       item.earnings?.reason,
       item.hourly?.status,
     ]
@@ -129,6 +152,7 @@ function getFilteredItems() {
       .toLowerCase();
 
     if (statusFilter === "watchlist" && status !== "WATCHLIST") return false;
+    if (statusFilter === "monitor" && status !== "MONITOR") return false;
     if (statusFilter === "triggered" && status !== "TRIGGERED") return false;
     if (directionFilter !== "all" && direction !== directionFilter) return false;
     if (query && !searchText.includes(query)) return false;
@@ -149,7 +173,7 @@ function renderSummary() {
   $("watchlistDivergence").textContent = String(divergenceCount);
   $("sessionHeadline").textContent = `扫描会话：${state.payload?.session_date || "—"}`;
   $("sessionHeadlineBody").textContent = items.length
-    ? `当前会话共 ${items.length} 个候选，其中 ${triggered.length} 个已经有小时线触发。`
+    ? `当前会话共 ${items.length} 个候选，其中 ${triggered.length} 个已经触及参考价。`
     : "当前会话没有合格候选。";
 }
 
@@ -192,13 +216,13 @@ function renderInsights() {
   if (pending.length) {
     insights.push([
       "盘后候选默认先看周 / 日",
-      `当前有 ${pending.length} 个标的还在等待小时线触发。第二天盘中优先盯住它们的上一根已收盘 K 线高低点。`,
+      `当前有 ${pending.length} 个标的还未触及参考价。第二天盘中优先盯 EMA 穿透价和前日高/低点外一跳。`,
     ]);
   }
   if (triggered.length) {
     insights.push([
-      "已有小时线确认",
-      `当前有 ${triggered.length} 个标的已经触发，可以直接对照入场价、止损和 RR 评估执行优先级。`,
+      "已有参考价触发",
+      `当前有 ${triggered.length} 个标的已经触及参考价，可以直接对照入场价、止损和周线目标评估执行优先级。`,
     ]);
   }
   if (items.some((item) => item.earnings?.warning || item.earnings?.blocked)) {
@@ -237,10 +261,12 @@ function renderRail() {
       const daily = item.daily || {};
       const hourly = item.hourly || {};
       const earnings = item.earnings || {};
+      const entryPlan = hourly.entry_plan || daily.entry_plan || {};
       const tags = [
         item.strong_divergence ? "强背离" : "",
         earnings.warning ? "财报临近" : "",
         String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "已触发" : "",
+        String(item.opportunity_status || "").toUpperCase() === "MONITOR" ? "监测中" : "",
       ].filter(Boolean);
 
       return `
@@ -260,16 +286,16 @@ function renderRail() {
             </div>
             <div class="watchlist-rail-split">
               <div>
-                <span>周线</span>
-                <strong>${escapeHtml(truncateText(weekly.reason, 42))}</strong>
+                <span>周线动力</span>
+                <strong>${escapeHtml(weekly.impulse_color || "—")} · ${escapeHtml(weekly.trend || "—")}</strong>
               </div>
               <div>
-                <span>日线</span>
-                <strong>${escapeHtml(truncateText(daily.reason, 42))}</strong>
+                <span>日线 Force</span>
+                <strong>${escapeHtml(formatNumber(daily.force_index_ema2 ?? 0, 0))} · ${escapeHtml(daily.impulse_color || "—")}</strong>
               </div>
             </div>
             <div class="watchlist-rail-footer">
-              <span>${escapeHtml(buildExecutionPlan(item))}</span>
+              <span>${escapeHtml(entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? `EMA穿透 ${formatCurrency(entryPlan.ema_penetration_entry, 3)}` : buildExecutionPlan(item))}</span>
               <span>${earnings.report_date ? `财报 ${escapeHtml(formatDateLabel(earnings.report_date))}` : "财报未知"}</span>
             </div>
           </div>
@@ -321,13 +347,13 @@ function renderTable() {
             <div style="margin-top:8px">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join(" ") : `<span class="tag">常规候选</span>`}</div>
           </td>
           <td class="reason-cell">
-            ${getReasonBlock("周线", weekly.trend_score, weekly.reason)}
+            ${getReasonBlock(`周线动力 ${weekly.impulse_color || "—"}`, weekly.trend_score, weekly.reason)}
           </td>
           <td class="reason-cell">
-            ${getReasonBlock("日线", daily.setup_score, daily.reason)}
+            ${getReasonBlock(`日线 Force ${formatNumber(daily.force_index_ema2 ?? 0, 0)}`, daily.setup_score, daily.reason)}
           </td>
           <td class="reason-cell">
-            ${getReasonBlock("小时线", hourly.trigger_score, hourly.reason)}
+            ${getReasonBlock("触发价监测", hourly.trigger_score, hourly.reason || buildExecutionPlan(item))}
           </td>
           <td class="reason-cell">
             <strong>${earnings.report_date ? `财报 ${escapeHtml(formatDateLabel(earnings.report_date))}` : "财报未知"}</strong>
@@ -358,8 +384,8 @@ function renderTable() {
             <th>标的</th>
             <th>状态 / 标签</th>
             <th>周线过滤</th>
-            <th>日线 Setup</th>
-            <th>小时线执行</th>
+            <th>日线 Force</th>
+            <th>触发价监测</th>
             <th>财报风险</th>
             <th>背离提醒</th>
             <th>执行参数</th>

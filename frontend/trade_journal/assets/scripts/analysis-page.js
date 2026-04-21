@@ -31,8 +31,9 @@ function renderPromptOutline(outline = []) {
   const items = outline.length
     ? outline
     : [
-        "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
-        "日线只看 13EMA 价值带（默认 0.75 ATR）、MACD Histogram 转向和结构防守位，自定义K线确认仅作辅助参考。",
+        "周线看动力系统颜色、MACD 斜率、EMA 斜率和确认 bars；动力系统只负责禁止交易方向。",
+        "日线核心看 2日 Force Index EMA，RSI、Histogram、K线形态只作为辅助信息。",
+        "执行区展示 EMA 穿透参考价、前日高/低点外一跳的替代触发价、止损和周线价值区间目标。",
       ];
 
   $("analysisPromptOutline").innerHTML = items
@@ -138,7 +139,7 @@ function renderSystem(system) {
   renderChecks("dailyChecks", daily.checks);
 
   $("executionTitle").textContent = execution.title || "执行计划 / 买入与止损";
-  $("executionSubtitle").textContent = "复用小时线触发与 exits 规则。";
+  $("executionSubtitle").textContent = "展示 EMA 穿透参考价、前日突破参考价、止损与周线价值区间目标。";
   $("executionReason").textContent = execution.summary || "—";
   renderMetrics("executionMetrics", execution.metrics);
 

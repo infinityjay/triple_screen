@@ -8,14 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260413a">
+  <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260421a">
 </head>
 <body>
   <div id="bootScreen" class="gate-screen">
     <div class="gate-card">
       <div class="eyebrow">Technical Analysis Boot</div>
       <h1>正在加载单票技术分析工作台</h1>
-      <p id="bootMessage">检查本地 API，并准备周线 / 日线分析与 AI 对照模块。</p>
+      <p id="bootMessage">检查本地 API，并准备动力系统 / Force Index 分析与 AI 对照模块。</p>
     </div>
   </div>
 
@@ -42,7 +42,7 @@
           <div class="brand-mark">∿</div>
           <div class="brand-copy">
             <strong>Triple Screen Atlas</strong>
-            <span>单票周线 / 日线分析与 AI 对照</span>
+            <span>单票动力系统 / Force Index 分析与 AI 对照</span>
           </div>
         </div>
         <nav class="topbar-nav">
@@ -65,7 +65,7 @@
             <div class="page-head">
               <div class="eyebrow">Single Symbol Analysis</div>
               <h1>输入股票代码，一次看完系统技术面与 AI 技术面建议</h1>
-              <p>这页只看周线和日线，不做筛选池过滤。左边保留系统原始规则口径，右边给出 AI 的独立解读和投资建议，你可以直接比较二者差异。</p>
+              <p>这页只看系统当前监测所需的周线动力系统、日线 Force Index、触发价和止损目标。左边保留系统规则口径，右边给出 AI 的独立解读。</p>
               <form class="analysis-form" id="analysisForm">
                 <input class="input mono analysis-symbol-input" id="symbolInput" type="text" placeholder="例如 AAPL / MSFT / NVDA" autocomplete="off" spellcheck="false">
                 <label class="checkbox-row">
@@ -78,7 +78,7 @@
             <div class="side-card analysis-focus-card">
               <div class="eyebrow">Compare Lens</div>
               <h3 id="analysisHeadline">等待输入股票代码</h3>
-              <p id="analysisHeadlineBody">系统模块会复用现有周线 / 日线函数；AI 模块会用固定模板阅读同一批指标，再给出独立结论。</p>
+              <p id="analysisHeadlineBody">系统模块会复用扫描器同一套动力系统与 Force Index 函数；AI 模块会用固定模板阅读同一批指标，再给出独立结论。</p>
               <div class="insight-list" id="analysisPromptOutline"></div>
             </div>
           </div>
@@ -101,7 +101,7 @@
             <div class="summary-sub" id="summarySystemReason">等待分析结果。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">建议入场价</div>
+            <div class="summary-label">参考入场价</div>
             <div class="summary-value" id="summaryEntry">—</div>
             <div class="summary-sub" id="summaryEntryReason">等待执行价位。</div>
           </div>
@@ -123,7 +123,7 @@
               <div>
                 <div class="eyebrow">System Engine</div>
                 <h3>后端系统分析</h3>
-                <p>完全复用现有规则函数，保证和观察列表、扫描器口径一致。</p>
+                <p>完全复用扫描器规则函数，保证和观察列表、Telegram 口径一致。</p>
               </div>
               <div id="systemDecisionBadge"></div>
             </div>
@@ -136,7 +136,7 @@
               <div>
                 <div class="eyebrow">AI View</div>
                 <h3>AI 模型分析</h3>
-                <p>用固定提示模板读取同样的周线 / 日线指标，再给出独立意见。</p>
+                <p>用固定提示模板读取同样的动力系统、Force Index 和价位指标，再给出独立意见。</p>
               </div>
               <div id="aiStatusBadge"></div>
             </div>
@@ -182,7 +182,7 @@
             <div class="card-head">
               <div>
                 <div class="eyebrow">Execution</div>
-                <h3 id="executionTitle">执行计划 / 买入与止损</h3>
+                <h3 id="executionTitle">执行计划 / 触发价与止损</h3>
                 <p id="executionSubtitle">等待分析结果。</p>
               </div>
             </div>
@@ -215,7 +215,7 @@
               <div>
                 <div class="eyebrow">Levels</div>
                 <h3>关键价位与波动读数</h3>
-                <p>把 SafeZone、摆点防守位和温度读数集中展示。</p>
+                <p>把入场参考价、SafeZone、摆点防守位和温度读数集中展示。</p>
               </div>
             </div>
             <div class="analysis-metric-grid" id="keyLevelMetrics"></div>
@@ -249,6 +249,6 @@
     </div>
   </div>
 
-  <script type="module" src="/frontend/assets/scripts/analysis-page.js?v=20260415d"></script>
+  <script type="module" src="/frontend/assets/scripts/analysis-page.js?v=20260421a"></script>
 </body>
 </html>

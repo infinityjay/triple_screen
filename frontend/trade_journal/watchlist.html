@@ -8,14 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260410b">
+  <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260421a">
 </head>
 <body>
   <div id="bootScreen" class="gate-screen">
     <div class="gate-card">
       <div class="eyebrow">Watchlist Boot</div>
       <h1>正在加载观察列表</h1>
-      <p id="bootMessage">读取最近扫描结果，并生成周 / 日 / 小时三重滤网看板。</p>
+      <p id="bootMessage">读取最近扫描结果，并生成动力系统 / Force Index / 触发价监测看板。</p>
     </div>
   </div>
 
@@ -41,7 +41,7 @@
           <div class="brand-mark">∿</div>
           <div class="brand-copy">
             <strong>Triple Screen Atlas</strong>
-            <span>观察列表与技术分析原因看板</span>
+          <span>观察列表与触发价监测看板</span>
           </div>
         </div>
         <nav class="topbar-nav">
@@ -63,8 +63,8 @@
           <div class="hero-grid watchlist-hero-grid">
             <div class="page-head">
               <div class="eyebrow">Watchlist</div>
-              <h1>观察列表先看全局，再看入选理由和下一步执行</h1>
-              <p>这页先把候选股票压成可快速浏览的横向速览，再把完整的周 / 日 / 小时理由保留在下方宽表中。你可以先扫大面，再横向深入细节。</p>
+              <h1>观察列表先看全局，再看动力系统和触发价</h1>
+              <p>这页先把候选股票压成可快速浏览的横向速览，再把完整的周线动力系统、日线 Force Index 和参考触发价保留在下方宽表中。</p>
             </div>
             <div class="side-card watchlist-session-card">
               <div class="eyebrow">Session</div>
@@ -87,7 +87,7 @@
           <div class="summary-card">
             <div class="summary-label">已触发机会</div>
             <div class="summary-value accent-safe" id="watchlistTriggered">0</div>
-            <div class="summary-sub">已经由小时线触发的机会。</div>
+            <div class="summary-sub">已经触及 EMA 穿透价或前日突破价的机会。</div>
           </div>
           <div class="summary-card">
             <div class="summary-label">方向分布</div>
@@ -111,7 +111,8 @@
             <div class="toolbar ledger-toolbar">
               <select class="select" style="max-width:180px" id="statusFilter">
                 <option value="all">全部状态</option>
-                <option value="watchlist">仅观察中</option>
+                <option value="watchlist">仅待触发</option>
+                <option value="monitor">仅监测中</option>
                 <option value="triggered">仅已触发</option>
               </select>
               <select class="select" style="max-width:180px" id="directionFilter">
@@ -157,8 +158,8 @@
           <div class="section-head watchlist-detail-head">
             <div>
               <div class="eyebrow">Deep Dive</div>
-              <h2>完整三层分析宽表</h2>
-              <p>保留全部筛选理由和执行参数，适合横向深看；上面先扫一遍，这里再确认细节。</p>
+              <h2>完整三层监测宽表</h2>
+              <p>保留全部筛选理由、Force Index、动力系统颜色和执行参考价，适合横向深看。</p>
             </div>
           </div>
           <div id="watchlistTableContainer"></div>
@@ -167,6 +168,6 @@
     </div>
   </div>
 
-  <script type="module" src="/frontend/assets/scripts/watchlist-page.js?v=20260410b"></script>
+  <script type="module" src="/frontend/assets/scripts/watchlist-page.js?v=20260421a"></script>
 </body>
 </html>

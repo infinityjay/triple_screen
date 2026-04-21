@@ -80,6 +80,12 @@ def _daily_state_label(state: str | None) -> str:
         "RALLY_WAIT_HISTOGRAM": "已回到 13EMA 价值带，等待 Histogram 回落",
         "PULLBACK_HISTOGRAM_TURNED": "回调到价值带后，Histogram 已回升",
         "RALLY_HISTOGRAM_TURNED": "反弹到价值带后，Histogram 已回落",
+        "PULLBACK_WAIT_FORCE_BELOW_ZERO": "等待 2日 Force EMA 跌破 0",
+        "PULLBACK_FORCE_READY_WAIT_IMPULSE": "Force 已到位，等待日线动力系统不再反向",
+        "PULLBACK_FORCE_BELOW_ZERO": "2日 Force EMA 已跌破 0",
+        "RALLY_WAIT_FORCE_ABOVE_ZERO": "等待 2日 Force EMA 升破 0",
+        "RALLY_FORCE_READY_WAIT_IMPULSE": "Force 已到位，等待日线动力系统不再反向",
+        "RALLY_FORCE_ABOVE_ZERO": "2日 Force EMA 已升破 0",
     }
     return labels.get(str(state or ""), str(state or "—"))
 
@@ -196,7 +202,7 @@ def _build_followup_decision(weekly: dict[str, Any], daily: dict[str, Any], dive
             "code": "WATCH",
             "label": "可以继续跟进观察",
             "tone": "info",
-            "reason": "周线方向已经基本明确，但日线仍在等待回到 13EMA 价值带或等待 Histogram 转向确认。",
+            "reason": "周线方向已经基本明确，但日线 Force Index 或日线动力系统还没有完全到位。",
         }
 
     if weekly.get("actionable") and not weekly.get("pass"):
@@ -244,6 +250,8 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     latest_low = None
     latest_bar_at = None
     daily_ema13 = None
+    entry_plan: dict[str, Any] = {}
+    weekly_value_target: dict[str, Any] = {}
     execution_metrics: list[dict[str, Any]] = []
     execution_summary = "周线方向未明确时，不提供执行价位。"
     execution_hourly: dict[str, Any] = {}
@@ -280,6 +288,49 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             )
             latest_temperature = _safe_round(temperature.iloc[-1])
             average_temperature = _safe_round(avg_temperature.iloc[-1])
+            entry_plan = indicators.calc_ema_penetration_entry_plan(daily_frame, weekly_trend)
+            weekly_value_target = indicators.calc_weekly_value_target(weekly_frame, weekly_trend)
+
+            planned_entry = entry_plan.get("ema_penetration_entry")
+            if planned_entry is not None:
+                execution_exits = indicators.calc_exits(
+                    weekly_trend,
+                    float(planned_entry),
+                    daily_frame,
+                    0.0,
+                    settings.trade_plan,
+                    weekly_frame=weekly_frame,
+                )
+                suggested_entry = _safe_round(execution_exits.get("entry"))
+                suggested_stop = _safe_round(execution_exits.get("protective_stop_loss"))
+                suggested_target = _safe_round(execution_exits.get("take_profit"))
+                execution_summary = (
+                    f"当前执行口径：优先关注 EMA 穿透参考价 {suggested_entry if suggested_entry is not None else '—'}；"
+                    f"替代触发价为前一日高/低点外一跳 {entry_plan.get('breakout_entry', '—')}。"
+                    f" 初始止损仍需在 SafeZone / 尼克止损法之间手动选择。"
+                )
+                execution_metrics = [
+                    _metric("EMA 穿透参考价", suggested_entry, "accent"),
+                    _metric("前日突破参考价", _safe_round(entry_plan.get("breakout_entry")), "accent"),
+                    _metric("明日EMA估算", _safe_round(entry_plan.get("projected_next_ema"))),
+                    _metric("平均穿透", _safe_round(entry_plan.get("average_penetration"))),
+                    _metric("SafeZone 初始止损", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
+                    _metric("尼克止损", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
+                    _metric("尼克参考日期", execution_exits.get("initial_stop_nick_reference_date")),
+                    _metric("ATR 1x 移动止损", suggested_stop, "warn"),
+                    _metric("ATR 2x 移动止损", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
+                    _metric("周线价值区间目标", suggested_target),
+                    _metric(
+                        "周线价值区间",
+                        (
+                            f"{_safe_round(weekly_value_target.get('value_zone_low'))} ~ "
+                            f"{_safe_round(weekly_value_target.get('value_zone_high'))}"
+                        )
+                        if weekly_value_target.get("available")
+                        else "—",
+                    ),
+                    _metric("内部模型盈亏比", _safe_round(execution_exits.get("reward_risk_ratio_model"), 2)),
+                ]
 
     if weekly_trend in {"LONG", "SHORT"} and hourly_frame is not None and not hourly_frame.empty:
         execution_hourly = indicators.screen_hourly(
@@ -288,7 +339,7 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             settings.strategy,
             as_of=datetime.now(UTC),
         )
-        if execution_hourly.get("entry_price") is not None and daily_frame is not None and not daily_frame.empty:
+        if execution_hourly.get("entry_price") is not None and daily_frame is not None and not daily_frame.empty and not execution_exits:
             execution_exits = indicators.calc_exits(
                 weekly_trend,
                 float(execution_hourly["entry_price"]),
@@ -297,6 +348,7 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
                 settings.trade_plan,
                 signal_bar_high=execution_hourly.get("signal_bar_high"),
                 signal_bar_low=execution_hourly.get("signal_bar_low"),
+                weekly_frame=weekly_frame,
             )
             suggested_entry = _safe_round(execution_exits.get("entry"))
             suggested_stop = _safe_round(execution_exits.get("protective_stop_loss"))
@@ -331,9 +383,11 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
 
     weekly_metrics = [
         _metric("周线趋势", weekly.get("trend")),
+        _metric("动力系统颜色", weekly.get("impulse_color"), "accent"),
         _metric("MACD", _safe_round(weekly.get("macd"), 6)),
+        _metric("MACD 斜率", _safe_round(weekly.get("macd_slope"), 6)),
         _metric("Signal", _safe_round(weekly.get("macd_signal"), 6)),
-        _metric("Histogram", _safe_round(weekly.get("histogram"), 6), "accent" if weekly.get("actionable") else "neutral"),
+        _metric("Histogram", _safe_round(weekly.get("histogram"), 6)),
         _metric("Histogram 变化", _safe_round(weekly.get("histogram_delta"), 6)),
         _metric("13EMA", _safe_round(weekly.get("ema13"), 4)),
         _metric("13EMA 斜率", _safe_round(weekly.get("ema13_slope"), 6)),
@@ -342,38 +396,48 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     ]
     weekly_checks = [
         _check(
-            "Histogram 变化方向",
+            "MACD 斜率方向",
             weekly.get("actionable", False),
-            f"本周 Histogram 变化值 {_safe_round(weekly.get('histogram_delta'), 6)}，不为 0 才有方向。",
+            f"本周 MACD 斜率 {_safe_round(weekly.get('macd_slope'), 6)}，不为 0 才有方向。",
         ),
         _check(
-            "连续同向 Histogram bars",
+            "连续同向 MACD bars",
             bool(weekly.get("pass_checks", {}).get("confirmed_bars")),
             f"当前 {weekly.get('confirmed_bars', 0)} 根，规则要求至少 {settings.strategy.weekly.confirm_bars} 根。",
         ),
         _check(
-            "13EMA 斜率与 Histogram 同向",
+            "动力系统禁止规则",
             bool(weekly.get("pass_checks", {}).get("impulse_aligned")),
-            f"13EMA 斜率 {_safe_round(weekly.get('ema13_slope'), 6)}，需与 Histogram 变化方向一致。",
+            (
+                f"动力颜色 {weekly.get('impulse_color', '—')}；做多不能为红色，做空不能为绿色。"
+                f" EMA 斜率 {_safe_round(weekly.get('ema13_slope'), 6)}，MACD 斜率 {_safe_round(weekly.get('macd_slope'), 6)}。"
+            ),
         ),
         _check(
-            "收盘位于 13EMA 趋势侧",
-            bool(weekly.get("pass_checks", {}).get("close_on_trend_side")),
-            f"周线收盘需位于 13EMA {_safe_round(weekly.get('ema13'), 4)} 的趋势有利一侧。",
+            "周线价值区间目标可用",
+            bool(weekly.get("weekly_value_target", {}).get("available")),
+            (
+                f"周线 EMA13/EMA26 价值区间 "
+                f"{_safe_round(weekly.get('weekly_value_target', {}).get('value_zone_low'))} ~ "
+                f"{_safe_round(weekly.get('weekly_value_target', {}).get('value_zone_high'))}。"
+            ),
         ),
     ]
 
     daily_metrics = [
-        _metric("Elder 日线结论", daily.get("state")),
+        _metric("日线结论", daily.get("state")),
         _metric("日线阶段", _daily_state_label(daily.get("rsi_state"))),
         _metric("Setup 分数", _safe_round(daily.get("setup_score"), 2)),
         _metric(
-            "Elder 核心信号",
+            "三重滤网核心信号",
             f"{daily.get('elder_core_signal_count', 0)} / {daily.get('elder_core_signal_total', 3)}",
         ),
-        _metric("MACD Histogram", _safe_round(daily.get("momentum_hist_now"), 6)),
-        _metric("前一日 Histogram", _safe_round(daily.get("momentum_hist_prev"), 6)),
-        _metric("Histogram 变化", _safe_round(daily.get("momentum_hist_delta"), 6)),
+        _metric("2日 Force EMA", _safe_round(daily.get("force_index_ema2"), 2), "accent"),
+        _metric("前一日 Force EMA", _safe_round(daily.get("force_index_ema2_prev"), 2)),
+        _metric("Force 变化", _safe_round(daily.get("force_index_delta"), 2)),
+        _metric("日线动力颜色", daily.get("impulse_color")),
+        _metric("辅助 RSI", _safe_round(daily.get("rsi"), 2)),
+        _metric("辅助 Histogram 变化", _safe_round(daily.get("momentum_hist_delta"), 6)),
         _metric("13EMA", daily_ema13),
         _metric(
             "13EMA 价值带",
@@ -400,19 +464,19 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     ]
     daily_checks = [
         _check(
-            daily.get("correction_counter_label", "近8日修正收盘数"),
-            daily.get("countertrend_exists", False),
+            "2日 Force Index 信号",
+            daily.get("force_signal", False),
             (
-                f"当前计数 {daily.get('correction_count', 0)}。"
-                " 做多时看下跌收盘数和价格向 13EMA 回撤；做空时反向。"
+                f"当前 2日 Force EMA {_safe_round(daily.get('force_index_ema2'), 2)}。"
+                " 做多看跌破 0，做空看升破 0 且不是几周新高。"
             ),
         ),
         _check(
-            "回到 13EMA 价值带",
-            daily.get("value_zone_reached", False),
+            "日线动力系统不反向",
+            daily.get("same_impulse_or_trend", False),
             (
-                f"13EMA 价值带为 {_safe_round(daily.get('value_band_low'))} ~ {_safe_round(daily.get('value_band_high'))}；"
-                f" 最新价格离价值带 {_safe_round(daily.get('value_band_gap'))}。"
+                f"日线动力颜色 {daily.get('impulse_color', '—')}；"
+                "做多不能为红色，做空不能为绿色。"
             ),
         ),
         _check(
@@ -424,11 +488,11 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             ),
         ),
         _check(
-            "Histogram 转向",
-            daily.get("histogram_reversal", daily.get("momentum_reversal", False)),
+            "EMA 穿透参考价",
+            bool(daily.get("entry_plan", {}).get("available")),
             (
-                f"Histogram {_safe_round(daily.get('momentum_hist_prev'), 6)} -> {_safe_round(daily.get('momentum_hist_now'), 6)}。"
-                " 做多看柱线回升，做空看柱线回落。"
+                f"EMA 穿透价 {_safe_round(daily.get('entry_plan', {}).get('ema_penetration_entry'))}；"
+                f"替代突破价 {_safe_round(daily.get('entry_plan', {}).get('breakout_entry'))}。"
             ),
         ),
         _check(
@@ -495,8 +559,8 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
         "recommendation": followup,
         "summary": summary,
         "weekly": {
-            "title": "周线 / MACD + 13EMA 趋势",
-            "subtitle": "沿用现有 screen_weekly 规则，不改判定口径。",
+            "title": "周线 / 动力系统 + MACD 斜率",
+            "subtitle": "第一重滤网使用动力系统做禁止规则，并用 MACD 斜率确认方向。",
             "reason": weekly.get("reason"),
             "pass": weekly.get("pass", False),
             "actionable": weekly.get("actionable", False),
@@ -506,8 +570,8 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             "raw": weekly,
         },
         "daily": {
-            "title": "日线 / 13EMA 价值带 + Histogram + 结构",
-            "subtitle": "按 Elder 核心语境，只看回到 13EMA 价值带、Histogram 是否转向、结构防守位是否完好。",
+            "title": "日线 / 2日 Force Index + 动力系统",
+            "subtitle": "第二重滤网使用 2日 Force Index EMA 识别与周线趋势相反的回调/反弹，RSI 与 Histogram 仅辅助。",
             "reason": daily.get("reason"),
             "pass": daily.get("pass", False),
             "watch": daily.get("watch", False),
@@ -531,7 +595,7 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             "metrics": key_levels,
         },
         "execution": {
-            "title": "执行计划 / 买入与止损",
+            "title": "执行计划 / 触发价与止损",
             "summary": execution_summary,
             "entry_price": suggested_entry,
             "stop_loss": suggested_stop,
@@ -552,9 +616,9 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
 
 def _prompt_outline() -> list[str]:
     return [
-        "周线看 MACD、Histogram 变化、13EMA 斜率、确认 bars。",
-        "日线只看 13EMA 价值带、MACD Histogram 转向、结构防守位是否完好，自定义K线确认仅作辅助说明。",
-        "给出系统当前执行价位：建议买入价、当前保护止损、首个目标位，并说明这是按小时线执行规则推导。",
+        "周线看动力系统颜色、MACD 斜率、EMA 斜率、确认 bars；动力系统只做禁止规则。",
+        "日线核心看 2日 Force Index EMA：做多等待跌破 0，做空等待升破 0 且不是几周新高；RSI 与 Histogram 仅作辅助说明。",
+        "给出系统当前执行价位：EMA 穿透参考价、前一日高/低点外一跳的替代触发价、当前保护止损、周线价值区间目标。",
         "补充看周线/日线背离；当前止损口径先收敛为 SafeZone、尼克止损法，以及日线 ATR 1x/2x 移动止损。",
         "明确写出系统建议与你的 AI 建议一致或不一致的地方。",
     ]
