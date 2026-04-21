@@ -104,6 +104,11 @@ class StrategyConfig:
 
 
 @dataclass(frozen=True)
+class TradingModelConfig:
+    active: str
+
+
+@dataclass(frozen=True)
 class QualificationConfig:
     minimum_reward_risk: float
     intraday_minimum_reward_risk: float
@@ -166,6 +171,7 @@ class AppConfig:
     alpaca: AlpacaConfig
     earnings_calendar: EarningsCalendarConfig
     universe: UniverseConfig
+    trading_model: TradingModelConfig
     strategy: StrategyConfig
     qualification: QualificationConfig
     trade_plan: TradePlanConfig

@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import yaml
 
+import trading_models
 from config.loader import load_settings
 from journal.technical_analysis import TechnicalAnalysisError, analyze_symbol
 from storage.sqlite import SQLiteStorage
@@ -153,6 +154,7 @@ class TradeSettingsPayload(BaseModel):
 class SymbolAnalysisPayload(BaseModel):
     symbol: str
     include_ai: bool = True
+    model_id: str | None = None
 
 
 @app.get("/")
@@ -182,6 +184,18 @@ def get_health() -> dict[str, Any]:
         "database_path": str(runtime.database_path),
         "server": {"host": runtime.host, "port": runtime.port},
         "auth_enabled": runtime.auth_enabled,
+    }
+
+
+@app.get("/api/trading-models")
+def get_trading_models() -> dict[str, Any]:
+    try:
+        active_model_id = load_settings().trading_model.active
+    except Exception:
+        active_model_id = trading_models.DEFAULT_MODEL_ID
+    return {
+        "active_model_id": trading_models.normalize_model_id(active_model_id),
+        "models": trading_models.list_models(),
     }
 
 
@@ -249,7 +263,7 @@ def get_watchlist_data(
 @app.post("/api/technical-analysis")
 def post_technical_analysis(payload: SymbolAnalysisPayload) -> dict[str, Any]:
     try:
-        return analyze_symbol(payload.symbol, include_ai=payload.include_ai)
+        return analyze_symbol(payload.symbol, include_ai=payload.include_ai, model_id=payload.model_id)
     except TechnicalAnalysisError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

@@ -45,6 +45,9 @@ universe:
   exclude_symbols_containing:
     - "."
 
+trading_model:
+  active: "current"
+
 strategy:
   weekly:
     macd_fast: 12

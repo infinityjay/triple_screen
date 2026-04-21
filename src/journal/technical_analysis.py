@@ -10,6 +10,7 @@ from typing import Any
 import requests
 
 import indicators
+import trading_models
 from clients.alpaca import AlpacaClient
 from config.loader import load_settings
 from storage.sqlite import SQLiteStorage
@@ -221,8 +222,9 @@ def _build_followup_decision(weekly: dict[str, Any], daily: dict[str, Any], dive
     }
 
 
-def _build_system_analysis(symbol: str) -> dict[str, Any]:
+def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str, Any]:
     settings, market_data = _build_market_client()
+    model = trading_models.get_model(model_id or settings.trading_model.active)
     weekly_frame = market_data.get_weekly_bars(symbol)
     daily_frame = market_data.get_daily_bars(symbol)
     try:
@@ -230,9 +232,9 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
     except Exception:
         hourly_frame = None
 
-    weekly = indicators.screen_weekly(weekly_frame, settings.strategy)
+    weekly = model.screen_weekly(weekly_frame, settings.strategy)
     weekly_trend = str(weekly.get("trend") or "NEUTRAL")
-    daily = indicators.screen_daily(daily_frame, weekly_trend, settings.strategy)
+    daily = model.screen_daily(daily_frame, weekly_trend, settings.strategy)
     divergence = _build_divergence_snapshot(settings, weekly_frame, daily_frame, weekly_trend)
     followup = _build_followup_decision(weekly, daily, divergence)
 
@@ -288,12 +290,12 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             )
             latest_temperature = _safe_round(temperature.iloc[-1])
             average_temperature = _safe_round(avg_temperature.iloc[-1])
-            entry_plan = indicators.calc_ema_penetration_entry_plan(daily_frame, weekly_trend)
+            entry_plan = indicators.calc_ema_penetration_entry_plan(daily_frame, weekly_trend) if model.use_planned_daily_entry else {}
             weekly_value_target = indicators.calc_weekly_value_target(weekly_frame, weekly_trend)
 
             planned_entry = entry_plan.get("ema_penetration_entry")
             if planned_entry is not None:
-                execution_exits = indicators.calc_exits(
+                execution_exits = model.calc_exits(
                     weekly_trend,
                     float(planned_entry),
                     daily_frame,
@@ -333,23 +335,18 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
                 ]
 
     if weekly_trend in {"LONG", "SHORT"} and hourly_frame is not None and not hourly_frame.empty:
-        execution_hourly = indicators.screen_hourly(
-            hourly_frame,
-            weekly_trend,
-            settings.strategy,
+        intraday_plan = model.build_intraday_plan(
+            direction=weekly_trend,
+            daily_frame=daily_frame,
+            weekly_frame=weekly_frame,
+            hourly_frame=hourly_frame,
+            settings=settings.strategy,
+            trade_plan=settings.trade_plan,
             as_of=datetime.now(UTC),
         )
+        execution_hourly = intraday_plan.hourly if intraday_plan else {}
         if execution_hourly.get("entry_price") is not None and daily_frame is not None and not daily_frame.empty and not execution_exits:
-            execution_exits = indicators.calc_exits(
-                weekly_trend,
-                float(execution_hourly["entry_price"]),
-                daily_frame,
-                float(execution_hourly.get("atr", 0.0) or 0.0),
-                settings.trade_plan,
-                signal_bar_high=execution_hourly.get("signal_bar_high"),
-                signal_bar_low=execution_hourly.get("signal_bar_low"),
-                weekly_frame=weekly_frame,
-            )
+            execution_exits = intraday_plan.exits if intraday_plan else {}
             suggested_entry = _safe_round(execution_exits.get("entry"))
             suggested_stop = _safe_round(execution_exits.get("protective_stop_loss"))
             suggested_target = _safe_round(execution_exits.get("take_profit"))
@@ -556,11 +553,12 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
         "symbol": symbol,
         "generated_at": _utc_now_iso(),
         "source": "system",
+        "model": model.to_dict(),
         "recommendation": followup,
         "summary": summary,
         "weekly": {
-            "title": "周线 / 动力系统 + MACD 斜率",
-            "subtitle": "第一重滤网使用动力系统做禁止规则，并用 MACD 斜率确认方向。",
+            "title": f"周线 / {model.spec.label}",
+            "subtitle": model.spec.weekly_model,
             "reason": weekly.get("reason"),
             "pass": weekly.get("pass", False),
             "actionable": weekly.get("actionable", False),
@@ -570,8 +568,8 @@ def _build_system_analysis(symbol: str) -> dict[str, Any]:
             "raw": weekly,
         },
         "daily": {
-            "title": "日线 / 2日 Force Index + 动力系统",
-            "subtitle": "第二重滤网使用 2日 Force Index EMA 识别与周线趋势相反的回调/反弹，RSI 与 Histogram 仅辅助。",
+            "title": "日线 / Setup",
+            "subtitle": model.spec.daily_model,
             "reason": daily.get("reason"),
             "pass": daily.get("pass", False),
             "watch": daily.get("watch", False),
@@ -764,13 +762,13 @@ def _request_ai_analysis(system_analysis: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def analyze_symbol(symbol: str, include_ai: bool = True) -> dict[str, Any]:
+def analyze_symbol(symbol: str, include_ai: bool = True, model_id: str | None = None) -> dict[str, Any]:
     normalized_symbol = _normalize_symbol(symbol)
     if not normalized_symbol:
         raise TechnicalAnalysisError("请输入有效的股票代码。")
 
     try:
-        system_analysis = _build_system_analysis(normalized_symbol)
+        system_analysis = _build_system_analysis(normalized_symbol, model_id=model_id)
     except Exception as exc:
         raise TechnicalAnalysisError(f"系统分析失败：{exc}") from exc
 

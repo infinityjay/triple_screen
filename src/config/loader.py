@@ -25,6 +25,7 @@ from config.schema import (
     StrategyConfig,
     TelegramConfig,
     TradePlanConfig,
+    TradingModelConfig,
     UniverseConfig,
     WeeklyStrategyConfig,
 )
@@ -91,6 +92,7 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
     alpaca_cache_raw = alpaca_raw.get("cache", {})
     earnings_raw = raw.get("data_source", {}).get("earnings_calendar", {})
     universe_raw = raw.get("universe", {})
+    trading_model_raw = raw.get("trading_model", {})
     strategy_raw = raw.get("strategy", {})
     weekly_raw = strategy_raw.get("weekly", {})
     daily_raw = strategy_raw.get("daily", {})
@@ -169,6 +171,9 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
             custom_symbols=list(universe_raw.get("custom_symbols", [])),
             allowed_ticker_types=list(universe_raw.get("allowed_ticker_types", ["CS"])),
             exclude_symbols_containing=list(universe_raw.get("exclude_symbols_containing", ["."])),
+        ),
+        trading_model=TradingModelConfig(
+            active=str(trading_model_raw.get("active", "current")),
         ),
         strategy=StrategyConfig(
             weekly=WeeklyStrategyConfig(

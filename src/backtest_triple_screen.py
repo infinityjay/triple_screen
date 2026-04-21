@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 import indicators
+import trading_models
 from clients.alpaca import AlpacaClient
 from config.loader import load_settings
 from config.schema import AppConfig
@@ -31,7 +32,7 @@ DEFAULT_INITIAL_CAPITAL = 10_000.0
 DEFAULT_RISK_PCT = 2.0
 DEFAULT_LOOKBACK_YEARS = 3.0
 DEFAULT_MAX_TOTAL_OPEN_RISK_PCT = 6.0
-DEFAULT_MAX_OPEN_POSITIONS = 2
+DEFAULT_MAX_OPEN_POSITIONS = 0
 WATCHLIST_SESSION_LIMIT = 5
 DEFAULT_BATCH_SIZE = 40
 HOURLY_BATCH_SIZE = 5
@@ -99,6 +100,7 @@ class TriggerEvent:
     timestamp: pd.Timestamp
     current_bar: pd.Series
     exits: dict[str, Any]
+    trigger_source: str
 
 
 @dataclass
@@ -144,7 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-open-positions",
         type=int,
         default=DEFAULT_MAX_OPEN_POSITIONS,
-        help="Maximum concurrent open positions allowed by the stop-budget model.",
+        help="Maximum concurrent open positions allowed by the stop-budget model. Use 0 for unlimited.",
     )
     parser.add_argument("--initial-capital", type=float, default=DEFAULT_INITIAL_CAPITAL, help="Starting account equity.")
     parser.add_argument(
@@ -153,7 +155,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.0,
         help="Optional starting tradable capital. When greater than initial capital, the backtest allows financing/margin.",
     )
+    parser.add_argument(
+        "--sqlite-only",
+        action="store_true",
+        help="Use only cached SQLite price_bars data and never backfill from Alpaca.",
+    )
     parser.add_argument("--max-symbols", type=int, default=0, help="Optional universe cap for faster experiments.")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="",
+        choices=[item["id"] for item in trading_models.list_models()],
+        help="Trading model to run. Defaults to trading_model.active in config.",
+    )
+    parser.add_argument(
+        "--compare-models",
+        action="store_true",
+        help="Run all configured trading models sequentially with the same data and risk settings.",
+    )
+    parser.add_argument(
+        "--prefetch-only",
+        action="store_true",
+        help="Only fetch and persist historical bars for the selected universe/time window, then exit.",
+    )
     parser.add_argument("--output", type=str, default="", help="Optional JSON output path.")
     return parser
 
@@ -287,6 +311,7 @@ def fetch_timeframe_history(
     timeframe: str,
     start: datetime,
     end: datetime,
+    sqlite_only: bool = False,
 ) -> dict[str, pd.DataFrame]:
     api_timeframe = {"week": "1Week", "day": "1Day", "hour": "1Hour"}[timeframe]
     merged: dict[str, pd.DataFrame] = {}
@@ -301,6 +326,13 @@ def fetch_timeframe_history(
             if not cached_window.empty:
                 merged[symbol] = cached_window
             missing_symbols.append(symbol)
+
+    if sqlite_only:
+        print(
+            f"[cache] timeframe={timeframe} source=sqlite-only symbols={len(symbols)} partial_or_missing={len(missing_symbols)}",
+            flush=True,
+        )
+        return {symbol: ensure_utc_naive(merged.get(symbol)) for symbol in symbols}
 
     if not missing_symbols:
         print(f"[cache] timeframe={timeframe} source=sqlite symbols={len(symbols)}", flush=True)
@@ -334,6 +366,7 @@ def load_symbol_histories(
     benchmark_symbol: str,
     start_date: date,
     end_date: date,
+    sqlite_only: bool = False,
 ) -> tuple[dict[str, SymbolHistory], SymbolHistory]:
     market_timezone = ZoneInfo(settings.app.timezone)
     week_start = datetime.combine(start_date - timedelta(days=WEEKLY_BUFFER_DAYS), clock_time.min, tzinfo=UTC)
@@ -341,9 +374,15 @@ def load_symbol_histories(
     hour_start = datetime.combine(start_date - timedelta(days=HOURLY_BUFFER_DAYS), clock_time.min, tzinfo=UTC)
     end_dt = datetime.combine(end_date + timedelta(days=1), clock_time.min, tzinfo=UTC)
 
-    weekly_frames = fetch_timeframe_history(market_data, storage, symbols + [benchmark_symbol], "week", week_start, end_dt)
-    daily_frames = fetch_timeframe_history(market_data, storage, symbols + [benchmark_symbol], "day", day_start, end_dt)
-    hourly_frames = fetch_timeframe_history(market_data, storage, symbols, "hour", hour_start, end_dt)
+    weekly_frames = fetch_timeframe_history(
+        market_data, storage, symbols + [benchmark_symbol], "week", week_start, end_dt, sqlite_only=sqlite_only
+    )
+    daily_frames = fetch_timeframe_history(
+        market_data, storage, symbols + [benchmark_symbol], "day", day_start, end_dt, sqlite_only=sqlite_only
+    )
+    hourly_frames = fetch_timeframe_history(
+        market_data, storage, symbols, "hour", hour_start, end_dt, sqlite_only=sqlite_only
+    )
 
     histories: dict[str, SymbolHistory] = {}
     for symbol in symbols:
@@ -376,13 +415,14 @@ def classify_candidate(
     history: SymbolHistory,
     market_trend: str,
     settings: AppConfig,
+    model: trading_models.TradingModel,
     session_date: date,
 ) -> CandidateRecord | None:
     weekly_frame = slice_to_session(history.weekly, session_date)
     if weekly_frame.empty:
         return None
 
-    weekly = indicators.screen_weekly(weekly_frame, settings.strategy)
+    weekly = model.screen_weekly(weekly_frame, settings.strategy)
     if not weekly.get("actionable") or not weekly.get("pass"):
         return None
 
@@ -395,7 +435,7 @@ def classify_candidate(
     daily_frame = slice_to_session(history.daily, session_date)
     if daily_frame.empty:
         return None
-    daily = indicators.screen_daily(daily_frame, direction, settings.strategy)
+    daily = model.screen_daily(daily_frame, direction, settings.strategy)
     if not daily.get("pass"):
         return None
 
@@ -411,12 +451,13 @@ def refresh_candidate(
     candidate: CandidateRecord,
     market_trend: str,
     settings: AppConfig,
+    model: trading_models.TradingModel,
     session_date: date,
 ) -> CandidateRecord | None:
     weekly_frame = slice_to_session(history.weekly, session_date)
     if weekly_frame.empty:
         return None
-    weekly = indicators.screen_weekly(weekly_frame, settings.strategy)
+    weekly = model.screen_weekly(weekly_frame, settings.strategy)
     if not weekly.get("actionable") or not weekly.get("pass") or weekly.get("trend") != candidate.direction:
         return None
     if settings.market_filter.enabled and candidate.direction == "LONG" and market_trend == "SHORT":
@@ -425,19 +466,24 @@ def refresh_candidate(
     daily_frame = slice_to_session(history.daily, session_date)
     if daily_frame.empty:
         return None
-    daily = indicators.screen_daily(daily_frame, candidate.direction, settings.strategy)
+    daily = model.screen_daily(daily_frame, candidate.direction, settings.strategy)
     if daily.get("state") == "REJECT":
         return None
     return candidate
 
 
-def compute_market_trend(benchmark_history: SymbolHistory, settings: AppConfig, session_date: date) -> str:
+def compute_market_trend(
+    benchmark_history: SymbolHistory,
+    settings: AppConfig,
+    model: trading_models.TradingModel,
+    session_date: date,
+) -> str:
     if not settings.market_filter.enabled:
         return "UNKNOWN"
     weekly_frame = slice_to_session(benchmark_history.weekly, session_date)
     if weekly_frame.empty:
         return "UNKNOWN"
-    weekly = indicators.screen_weekly(weekly_frame, settings.strategy)
+    weekly = model.screen_weekly(weekly_frame, settings.strategy)
     return str(weekly.get("trend") or "UNKNOWN")
 
 
@@ -445,6 +491,7 @@ def build_watchlist(
     qualified_sessions: dict[str, list[CandidateRecord]],
     histories: dict[str, SymbolHistory],
     settings: AppConfig,
+    model: trading_models.TradingModel,
     market_trend: str,
     prior_sessions: list[date],
 ) -> list[CandidateRecord]:
@@ -454,7 +501,7 @@ def build_watchlist(
             key = (candidate.symbol, candidate.direction)
             if key in deduped:
                 continue
-            refreshed = refresh_candidate(histories[candidate.symbol], candidate, market_trend, settings, prior_sessions[-1])
+            refreshed = refresh_candidate(histories[candidate.symbol], candidate, market_trend, settings, model, prior_sessions[-1])
             if refreshed:
                 deduped[key] = refreshed
     return list(deduped.values())
@@ -544,6 +591,29 @@ def is_stop_hit(direction: str, active_stop: float, bar: pd.Series) -> bool:
     )
 
 
+def get_planned_trigger(
+    direction: str,
+    entry_plan: dict[str, Any],
+    current_bar: pd.Series,
+) -> tuple[float | None, str | None]:
+    primary_entry = entry_plan.get("ema_penetration_entry")
+    breakout_entry = entry_plan.get("breakout_entry")
+    current_high = float(current_bar["high"])
+    current_low = float(current_bar["low"])
+
+    if direction == "LONG":
+        if primary_entry is not None and current_low <= float(primary_entry):
+            return round(float(primary_entry), 4), "EMA_PENETRATION"
+        if breakout_entry is not None and current_high >= float(breakout_entry):
+            return round(float(breakout_entry), 4), "PREVIOUS_DAY_BREAK"
+    elif direction == "SHORT":
+        if primary_entry is not None and current_high >= float(primary_entry):
+            return round(float(primary_entry), 4), "EMA_PENETRATION"
+        if breakout_entry is not None and current_low <= float(breakout_entry):
+            return round(float(breakout_entry), 4), "PREVIOUS_DAY_BREAK"
+    return None, None
+
+
 def exit_price_from_stop(active_stop: float) -> float:
     return round(active_stop, 4)
 
@@ -615,6 +685,7 @@ def collect_session_timestamps(session_frames: dict[str, pd.DataFrame]) -> list[
 
 def run_backtest(
     settings: AppConfig,
+    model_id: str,
     start_date: date,
     end_date: date,
     risk_pct: float,
@@ -622,10 +693,12 @@ def run_backtest(
     max_open_positions: int,
     initial_capital: float,
     initial_buying_power: float,
+    sqlite_only: bool,
     max_symbols: int,
 ) -> dict[str, Any]:
     if initial_buying_power > 0 and initial_buying_power < initial_capital:
         raise ValueError("Initial buying power cannot be lower than initial capital.")
+    model = trading_models.get_model(model_id or settings.trading_model.active)
 
     storage = SQLiteStorage(settings.storage.database_path)
     storage.init_db()
@@ -637,7 +710,16 @@ def run_backtest(
         symbols = symbols[:max_symbols]
 
     benchmark_symbol = settings.market_filter.benchmark_symbol
-    histories, benchmark_history = load_symbol_histories(settings, market_data, storage, symbols, benchmark_symbol, start_date, end_date)
+    histories, benchmark_history = load_symbol_histories(
+        settings,
+        market_data,
+        storage,
+        symbols,
+        benchmark_symbol,
+        start_date,
+        end_date,
+        sqlite_only=sqlite_only,
+    )
     sessions = derive_sessions(benchmark_history, start_date, end_date, settings.app.timezone)
     if len(sessions) < 2:
         raise RuntimeError("Not enough benchmark sessions to run the backtest.")
@@ -667,11 +749,12 @@ def run_backtest(
 
         if session_index > 0:
             prior_session = sessions[session_index - 1]
-            market_trend = compute_market_trend(benchmark_history, settings, prior_session)
+            market_trend = compute_market_trend(benchmark_history, settings, model, prior_session)
             watchlist = build_watchlist(
                 qualified_sessions=qualified_sessions,
                 histories=histories,
                 settings=settings,
+                model=model,
                 market_trend=market_trend,
                 prior_sessions=sessions[:session_index],
             )
@@ -720,6 +803,9 @@ def run_backtest(
                     daily_frame = slice_to_session(history.daily, prior_session)
                     if daily_frame.empty:
                         continue
+                    weekly_frame = slice_to_session(history.weekly, prior_session)
+                    if weekly_frame.empty:
+                        continue
 
                     session_hours = session_frames.get(candidate.symbol)
                     if session_hours is None or session_hours.empty or timestamp not in session_hours.index:
@@ -729,25 +815,19 @@ def run_backtest(
                     if isinstance(current_bar, pd.DataFrame):
                         current_bar = current_bar.iloc[-1]
 
-                    full_hourly_frame = history.hourly.frame.loc[:timestamp]
-                    hourly = indicators.screen_hourly(
-                        full_hourly_frame,
-                        candidate.direction,
-                        settings.strategy,
+                    intraday_plan = model.build_intraday_plan(
+                        direction=candidate.direction,
+                        daily_frame=daily_frame,
+                        weekly_frame=weekly_frame,
+                        hourly_frame=history.hourly.frame.loc[:timestamp],
+                        settings=settings.strategy,
+                        trade_plan=settings.trade_plan,
                         as_of=build_as_of(current_timestamp),
+                        current_bar=current_bar,
                     )
-                    if not hourly.get("pass"):
+                    if intraday_plan is None or not intraday_plan.hourly.get("pass"):
                         continue
-
-                    exits = indicators.calc_exits(
-                        candidate.direction,
-                        float(hourly["entry_price"]),
-                        daily_frame,
-                        float(hourly["atr"]),
-                        settings.trade_plan,
-                        signal_bar_high=hourly.get("signal_bar_high"),
-                        signal_bar_low=hourly.get("signal_bar_low"),
-                    )
+                    exits = intraday_plan.exits
                     if (
                         float(exits.get("reward_risk_ratio_model", 0.0) or 0.0)
                         < settings.qualification.intraday_minimum_reward_risk
@@ -761,6 +841,7 @@ def run_backtest(
                             timestamp=current_timestamp,
                             current_bar=current_bar,
                             exits=exits,
+                            trigger_source=intraday_plan.trigger_source,
                         )
                     )
 
@@ -861,7 +942,16 @@ def run_backtest(
                     capture_pct,
                 )
                 if proposed_stop is not None and not warning_triggered:
+                    previous_stop = position.active_stop
                     position.active_stop = float(proposed_stop)
+                    account_equity = compute_account_equity(cash, open_positions, margin_debt=margin_debt)
+                    total_budget = (
+                        math.inf
+                        if max_total_open_risk_pct <= 0
+                        else max(account_equity, 0.0) * (max_total_open_risk_pct / 100.0)
+                    )
+                    if compute_total_open_risk(open_positions) > total_budget:
+                        position.active_stop = previous_stop
 
                 session_frame = session_frames.get(symbol)
                 if session_frame is not None and not session_frame.empty:
@@ -876,10 +966,10 @@ def run_backtest(
                 max_drawdown_pct,
             )
 
-        market_trend = compute_market_trend(benchmark_history, settings, session_date)
+        market_trend = compute_market_trend(benchmark_history, settings, model, session_date)
         today_candidates: list[CandidateRecord] = []
         for symbol in symbols:
-            candidate = classify_candidate(histories[symbol], market_trend, settings, session_date)
+            candidate = classify_candidate(histories[symbol], market_trend, settings, model, session_date)
             if candidate:
                 today_candidates.append(candidate)
         qualified_sessions[session_date.isoformat()] = today_candidates
@@ -929,12 +1019,18 @@ def run_backtest(
         "risk_pct_per_trade": round(risk_pct, 4),
         "max_total_open_risk_pct": round(max_total_open_risk_pct, 4),
         "max_open_positions": max_open_positions,
+        "model": model.to_dict(),
         "universe_size": len(symbols),
         "watchlist_session_limit": WATCHLIST_SESSION_LIMIT,
         "historical_earnings_filter_included": False,
-        "data_source": "sqlite-first with Alpaca backfill; fetched bars are persisted to price_bars",
-        "position_sizing": "whole shares only; each entry is constrained by remaining stop budget, per-trade 2% risk logic, and available buying power",
-        "exit_model": "initial stop at entry from SafeZone/Nick, daily ATR 1x stop refreshed after each close without monotonic filter, mark remaining positions to market at end",
+        "data_source": (
+            "sqlite-only price_bars cache; symbols with partial history participate only where data exists"
+            if sqlite_only
+            else "sqlite-first with Alpaca backfill; fetched bars are persisted to price_bars"
+        ),
+        "position_sizing": "whole shares only; each entry is constrained by remaining stop budget, per-trade 2% risk logic, and available buying power; max_open_positions=0 means no position-count cap",
+        "entry_model": model.spec.intraday_trigger,
+        "exit_model": model.spec.exit_model,
         "same_bar_rule": "conservative; if trigger and stop both fit inside the same hour bar, exit at stop on that bar",
     }
     summary = {
@@ -987,25 +1083,112 @@ def run_backtest(
     return result
 
 
+def prefetch_history(
+    settings: AppConfig,
+    start_date: date,
+    end_date: date,
+    max_symbols: int,
+) -> dict[str, Any]:
+    storage = SQLiteStorage(settings.storage.database_path)
+    storage.init_db()
+    market_data = AlpacaClient(settings.alpaca, storage=storage, market_timezone=settings.app.timezone)
+    universe_rows = market_data.get_top_symbols(settings.universe)
+    symbols = [row["symbol"] for row in universe_rows if row.get("symbol")]
+    if max_symbols > 0:
+        symbols = symbols[:max_symbols]
+    benchmark_symbol = settings.market_filter.benchmark_symbol
+    load_symbol_histories(
+        settings,
+        market_data,
+        storage,
+        symbols,
+        benchmark_symbol,
+        start_date,
+        end_date,
+        sqlite_only=False,
+    )
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "symbol_count": len(symbols),
+        "benchmark_symbol": benchmark_symbol,
+        "timeframes": ["week", "day", "hour"],
+        "database_path": str(settings.storage.database_path),
+    }
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
     settings = load_settings()
     start_date, end_date = resolve_period(args)
-    result = run_backtest(
-        settings=settings,
-        start_date=start_date,
-        end_date=end_date,
-        risk_pct=args.risk_pct,
-        max_total_open_risk_pct=args.max_total_open_risk_pct,
-        max_open_positions=args.max_open_positions,
-        initial_capital=args.initial_capital,
-        initial_buying_power=args.initial_buying_power,
-        max_symbols=args.max_symbols,
-    )
 
-    print(json.dumps({"run_id": result["run_id"], **result["summary"]}, ensure_ascii=False, indent=2))
+    if args.prefetch_only:
+        result = prefetch_history(
+            settings=settings,
+            start_date=start_date,
+            end_date=end_date,
+            max_symbols=args.max_symbols,
+        )
+        print(json.dumps({"prefetch": result}, ensure_ascii=False, indent=2))
+    elif args.compare_models:
+        model_ids = [item["id"] for item in trading_models.list_models()]
+        runs = []
+        for model_id in model_ids:
+            runs.append(
+                run_backtest(
+                    settings=settings,
+                    model_id=model_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    risk_pct=args.risk_pct,
+                    max_total_open_risk_pct=args.max_total_open_risk_pct,
+                    max_open_positions=args.max_open_positions,
+                    initial_capital=args.initial_capital,
+                    initial_buying_power=args.initial_buying_power,
+                    sqlite_only=args.sqlite_only,
+                    max_symbols=args.max_symbols,
+                )
+            )
+        result = {
+            "comparison": {
+                run["assumptions"]["model"]["id"]: {
+                    "run_id": run["run_id"],
+                    "model": run["assumptions"]["model"],
+                    **run["summary"],
+                }
+                for run in runs
+            },
+            "runs": runs,
+        }
+        print(json.dumps(result["comparison"], ensure_ascii=False, indent=2))
+    else:
+        model_id = args.model or settings.trading_model.active
+        result = run_backtest(
+            settings=settings,
+            model_id=model_id,
+            start_date=start_date,
+            end_date=end_date,
+            risk_pct=args.risk_pct,
+            max_total_open_risk_pct=args.max_total_open_risk_pct,
+            max_open_positions=args.max_open_positions,
+            initial_capital=args.initial_capital,
+            initial_buying_power=args.initial_buying_power,
+            sqlite_only=args.sqlite_only,
+            max_symbols=args.max_symbols,
+        )
+        print(
+            json.dumps(
+                {
+                    "run_id": result["run_id"],
+                    "model": result["assumptions"]["model"],
+                    **result["summary"],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
     if args.output:
         output_path = Path(args.output)
         output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

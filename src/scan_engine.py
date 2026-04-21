@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, time as clock_time, timedelta
 from zoneinfo import ZoneInfo
 
 import indicators
+import trading_models
 from clients.alpaca import AlpacaClient
 from clients.earnings import EarningsCalendarClient
 from clients.telegram import TelegramNotifier
@@ -42,6 +43,7 @@ class TripleScreenScanner:
         self.storage = storage
         self.notifier = notifier
         self.dry_run = dry_run
+        self.model = trading_models.get_model(settings.trading_model.active)
         self.journal_manager = JournalManager(
             storage=storage,
             market_data=market_data,
@@ -91,7 +93,7 @@ class TripleScreenScanner:
             return "UNKNOWN"
 
         frame = self.market_data.get_weekly_bars(self.settings.market_filter.benchmark_symbol)
-        result = indicators.screen_weekly(frame, self.settings.strategy)
+        result = self.model.screen_weekly(frame, self.settings.strategy)
         return result.get("trend", "UNKNOWN")
 
     @staticmethod
@@ -247,7 +249,7 @@ class TripleScreenScanner:
             try:
                 weekly_frame = self.market_data.get_weekly_bars(symbol)
                 daily_frame = self.market_data.get_daily_bars(symbol)
-                weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
+                weekly = self.model.screen_weekly(weekly_frame, self.settings.strategy)
                 daily_impulse = indicators.calc_impulse_system(daily_frame, self.settings.strategy)
                 weekly_color = weekly.get("impulse_color")
                 daily_color = daily_impulse.get("color")
@@ -298,7 +300,7 @@ class TripleScreenScanner:
     ) -> dict | None:
         try:
             weekly_frame = self.market_data.get_weekly_bars(symbol)
-            weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
+            weekly = self.model.screen_weekly(weekly_frame, self.settings.strategy)
             if not weekly.get("actionable"):
                 return None
 
@@ -328,7 +330,7 @@ class TripleScreenScanner:
                 return None
 
             daily_frame = self.market_data.get_daily_bars(symbol)
-            daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
+            daily = self.model.screen_daily(daily_frame, direction, self.settings.strategy)
             if not daily["pass"] and not daily.get("watch"):
                 logger.info(
                     "[%s] skipped after daily screen: %s | state=%s entered_value_zone=%s value_zone_reached=%s "
@@ -415,56 +417,23 @@ class TripleScreenScanner:
 
             weekly_frame = self.market_data.get_weekly_bars(symbol)
             daily_frame = self.market_data.get_daily_bars(symbol)
-            daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
+            daily = self.model.screen_daily(daily_frame, direction, self.settings.strategy)
             if not daily.get("pass"):
                 return None
 
             hourly_frame = self.market_data.get_hourly_bars(symbol)
-            hourly = indicators.screen_hourly(hourly_frame, direction, self.settings.strategy, as_of=_utc_now())
-            if "close" not in hourly:
-                return None
-
-            entry_plan = daily.get("entry_plan") or {}
-            primary_entry = entry_plan.get("ema_penetration_entry")
-            breakout_entry = entry_plan.get("breakout_entry")
-            current_high = float(hourly.get("current_high", hourly.get("close", 0.0)) or 0.0)
-            current_low = float(hourly.get("current_low", hourly.get("close", 0.0)) or 0.0)
-            primary_touched = False
-            breakout_touched = False
-            selected_entry = primary_entry
-            trigger_source = "EMA_PENETRATION"
-            if direction == "LONG":
-                primary_touched = primary_entry is not None and current_low <= float(primary_entry)
-                breakout_touched = breakout_entry is not None and current_high >= float(breakout_entry)
-            else:
-                primary_touched = primary_entry is not None and current_high >= float(primary_entry)
-                breakout_touched = breakout_entry is not None and current_low <= float(breakout_entry)
-
-            if primary_touched and primary_entry is not None:
-                selected_entry = primary_entry
-                trigger_source = "EMA_PENETRATION"
-            elif breakout_touched and breakout_entry is not None:
-                selected_entry = breakout_entry
-                trigger_source = "PREVIOUS_DAY_BREAK"
-            elif selected_entry is None:
-                selected_entry = hourly["entry_price"]
-                trigger_source = "HOURLY_BREAK"
-
-            plan_triggered = primary_touched or breakout_touched
-            hourly["entry_plan"] = entry_plan
-            hourly["ema_penetration_entry"] = primary_entry
-            hourly["previous_day_break_entry"] = breakout_entry
-            hourly["primary_entry_touched"] = primary_touched
-            hourly["breakout_entry_touched"] = breakout_touched
-            hourly["trigger_source"] = trigger_source
-            hourly["pass"] = bool(plan_triggered)
-            hourly["status"] = "TRIGGERED" if plan_triggered else "WAITING_ENTRY_PRICE"
-            hourly["entry_price"] = round(float(selected_entry), 4)
-            hourly["reason"] = (
-                f"价格已触及{entry_plan.get('trigger_label', '交易')}参考价（{trigger_source}）"
-                if plan_triggered
-                else entry_plan.get("reason", hourly.get("reason", "等待价格触发"))
+            intraday_plan = self.model.build_intraday_plan(
+                direction=direction,
+                daily_frame=daily_frame,
+                weekly_frame=weekly_frame,
+                hourly_frame=hourly_frame,
+                settings=self.settings.strategy,
+                trade_plan=self.settings.trade_plan,
+                as_of=_utc_now(),
             )
+            if intraday_plan is None or "close" not in intraday_plan.hourly:
+                return None
+            hourly = intraday_plan.hourly
 
             self.storage.upsert_hourly(
                 symbol,
@@ -476,16 +445,7 @@ class TripleScreenScanner:
                 hourly["breakout_short"],
             )
 
-            exits = indicators.calc_exits(
-                direction,
-                hourly["entry_price"],
-                daily_frame,
-                hourly["atr"],
-                self.settings.trade_plan,
-                signal_bar_high=hourly.get("signal_bar_high"),
-                signal_bar_low=hourly.get("signal_bar_low"),
-                weekly_frame=weekly_frame,
-            )
+            exits = intraday_plan.exits
             if float(exits.get("reward_risk_ratio_model", 0.0) or 0.0) < self.settings.qualification.intraday_minimum_reward_risk:
                 logger.info(
                     "[%s] skipped intraday because reward/risk %.2f < %.2f",
@@ -530,7 +490,7 @@ class TripleScreenScanner:
         direction = candidate["direction"]
         try:
             weekly_frame = self.market_data.get_weekly_bars(symbol)
-            weekly = indicators.screen_weekly(weekly_frame, self.settings.strategy)
+            weekly = self.model.screen_weekly(weekly_frame, self.settings.strategy)
             if not weekly.get("actionable") or not weekly.get("pass") or weekly.get("trend") != direction:
                 logger.info("[%s] dropped from tracking after weekly refresh: %s", symbol, weekly.get("reason"))
                 return None
@@ -540,7 +500,7 @@ class TripleScreenScanner:
                 return None
 
             daily_frame = self.market_data.get_daily_bars(symbol)
-            daily = indicators.screen_daily(daily_frame, direction, self.settings.strategy)
+            daily = self.model.screen_daily(daily_frame, direction, self.settings.strategy)
             if daily.get("state") == "REJECT":
                 logger.info("[%s] dropped from tracking after daily refresh: %s", symbol, daily.get("reason"))
                 return None

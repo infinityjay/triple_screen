@@ -10,6 +10,8 @@ import {
 const state = {
   payload: null,
   loading: false,
+  models: [],
+  activeModelId: "",
 };
 
 function $(id) {
@@ -115,7 +117,13 @@ function renderSystem(system) {
   $("systemDecisionBadge").innerHTML = getBadge(recommendation.label || "系统结论", recommendation.tone || "info");
   $("systemSummary").className = `alert ${recommendation.tone === "safe" ? "success" : recommendation.tone === "warn" ? "warn" : "info"}`;
   $("systemSummary").textContent = system?.summary || "暂无系统结论。";
+  const model = system?.model || {};
   $("systemDifference").innerHTML = `
+    <div class="insight-item">
+      <strong>模型口径</strong>
+      <p>${escapeHtml(model.label || "当前配置模型")}</p>
+      <p>${escapeHtml(model.description || "—")}</p>
+    </div>
     <div class="insight-item">
       <strong>系统观察建议</strong>
       <p>${escapeHtml(recommendation.reason || "—")}</p>
@@ -139,7 +147,7 @@ function renderSystem(system) {
   renderChecks("dailyChecks", daily.checks);
 
   $("executionTitle").textContent = execution.title || "执行计划 / 买入与止损";
-  $("executionSubtitle").textContent = "展示 EMA 穿透参考价、前日突破参考价、止损与周线价值区间目标。";
+  $("executionSubtitle").textContent = system?.model?.intraday_trigger || "展示当前模型的触发价、止损与目标。";
   $("executionReason").textContent = execution.summary || "—";
   renderMetrics("executionMetrics", execution.metrics);
 
@@ -260,6 +268,7 @@ async function loadAnalysis(symbol) {
       body: {
         symbol,
         include_ai: $("includeAiToggle").checked,
+        model_id: $("modelSelect")?.value || state.activeModelId || null,
       },
     });
     renderPayload(payload);
@@ -273,6 +282,18 @@ async function loadAnalysis(symbol) {
   }
 }
 
+async function loadModels() {
+  const payload = await apiRequest("/trading-models");
+  state.models = Array.isArray(payload.models) ? payload.models : [];
+  state.activeModelId = payload.active_model_id || state.models[0]?.id || "";
+  $("modelSelect").innerHTML = state.models
+    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label)}</option>`)
+    .join("");
+  if (state.activeModelId) {
+    $("modelSelect").value = state.activeModelId;
+  }
+}
+
 async function bootApp() {
   syncShell("analysis");
   setScreenState("boot", "检查本地 Journal API，并准备技术分析页面…");
@@ -280,6 +301,7 @@ async function bootApp() {
     const health = await ensureApiReady();
     renderConnectionStatus(true, `本地 API 已连接 · ${health.server.host}:${health.server.port}`);
     setScreenState("app");
+    await loadModels();
     renderPromptOutline();
 
     const initialSymbol = new URLSearchParams(window.location.search).get("symbol");
