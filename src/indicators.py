@@ -20,6 +20,7 @@ CHANDELIER_ATR_MULTIPLIER = 3.0
 PARABOLIC_STEP = 0.02
 PARABOLIC_MAX_STEP = 0.2
 NICK_STOP_OFFSET = 0.01
+NICK_STOP_LOOKBACK_DAYS = 20
 MIN_TICK = 0.01
 WEEKLY_VALUE_FAST_EMA = 13
 WEEKLY_VALUE_SLOW_EMA = 26
@@ -367,11 +368,7 @@ def calc_nick_stop_detail(df: pd.DataFrame, direction: str, offset: float = NICK
     if direction not in {"LONG", "SHORT"}:
         return None
 
-    boundary_series = df["high"].astype(float) if direction == "LONG" else df["low"].astype(float)
-    boundary_mode = "high" if direction == "LONG" else "low"
-    boundary_pivots = _find_pivots(boundary_series, boundary_mode)
-    start_index = next((index for index in reversed(boundary_pivots) if index < len(df) - 1), 0)
-    structure_window = df.iloc[start_index:]
+    structure_window = df.tail(NICK_STOP_LOOKBACK_DAYS)
 
     if direction == "LONG":
         probe_prices = structure_window["low"].astype(float).nsmallest(min(2, len(structure_window)))

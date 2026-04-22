@@ -5,7 +5,8 @@ import unittest
 import pandas as pd
 
 import indicators
-from config.schema import DailyStrategyConfig, HourlyStrategyConfig, StrategyConfig, WeeklyStrategyConfig
+from config.schema import DailyStrategyConfig, HourlyStrategyConfig, StrategyConfig, TradePlanConfig, WeeklyStrategyConfig
+import trading_models
 
 
 def _settings() -> StrategyConfig:
@@ -79,6 +80,45 @@ class ElderTripleScreenRuleTests(unittest.TestCase):
         self.assertIsNotNone(detail)
         self.assertEqual(detail["reference_date"], "2026-04-03")
         self.assertEqual(round(detail["stop"], 2), 97.99)
+
+    def test_current_model_hourly_plan_exposes_storage_breakout_flags(self) -> None:
+        index = pd.date_range("2026-04-01 13:00", periods=20, freq="h")
+        hourly = pd.DataFrame(
+            {
+                "open": [100.0] * 20,
+                "high": [101.0] * 20,
+                "low": [99.0] * 20,
+                "close": [100.0] * 20,
+                "volume": [1_000_000] * 20,
+            },
+            index=index,
+        )
+        daily = _frame([100 + idx for idx in range(40)])
+        daily.iloc[-1, daily.columns.get_loc("high")] = 120.0
+        daily.iloc[-1, daily.columns.get_loc("low")] = 95.0
+        daily.iloc[-1, daily.columns.get_loc("close")] = 110.0
+        daily.iloc[-1, daily.columns.get_loc("volume")] = 1_000_000
+
+        plan = trading_models.get_model("current").build_intraday_plan(
+            direction="LONG",
+            daily_frame=daily,
+            weekly_frame=daily,
+            hourly_frame=hourly,
+            settings=_settings(),
+            trade_plan=TradePlanConfig(
+                safezone_lookback=10,
+                safezone_ema_period=22,
+                safezone_long_coefficient=2.0,
+                safezone_short_coefficient=3.0,
+                thermometer_period=22,
+                thermometer_target_multiplier=1.0,
+            ),
+            as_of=pd.Timestamp("2026-04-02 08:00"),
+        )
+
+        self.assertIsNotNone(plan)
+        self.assertIn("breakout_long", plan.hourly)
+        self.assertIn("breakout_short", plan.hourly)
 
 
 if __name__ == "__main__":

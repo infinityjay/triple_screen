@@ -200,6 +200,8 @@ def _build_current_intraday_plan(
         "previous_day_break_entry": entry_plan.get("breakout_entry"),
         "primary_entry_touched": primary_touched,
         "breakout_entry_touched": breakout_touched,
+        "breakout_long": triggered if direction == "LONG" else False,
+        "breakout_short": triggered if direction == "SHORT" else False,
         "trigger_source": trigger_source,
         "trigger_score": 4.0 if triggered else 0.0,
         "pass": triggered,

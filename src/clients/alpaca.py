@@ -176,7 +176,6 @@ class AlpacaClient:
         frame = self.fetch_bars(symbol, metadata["api_timeframe"], start, end)
         if frame is not None and self.storage and self.config.cache.enabled:
             self.storage.upsert_price_bars(symbol, timeframe, frame)
-            self.storage.trim_price_bars(symbol, timeframe, metadata["keep_rows"])
             return self.storage.get_price_bars(symbol, timeframe)
         return frame
 
@@ -197,7 +196,6 @@ class AlpacaClient:
         frame = self.fetch_bars(symbol, metadata["api_timeframe"], pd.Timestamp(refresh_start).to_pydatetime(), self._utc_now())
         if frame is not None and self.storage:
             self.storage.upsert_price_bars(symbol, timeframe, frame)
-            self.storage.trim_price_bars(symbol, timeframe, metadata["keep_rows"])
             refreshed = self.storage.get_price_bars(symbol, timeframe)
             if refreshed is not None:
                 return refreshed
@@ -231,7 +229,6 @@ class AlpacaClient:
             if frame is None or frame.empty:
                 continue
             self.storage.upsert_price_bars(symbol, timeframe, frame)
-            self.storage.trim_price_bars(symbol, timeframe, keep_rows)
 
     def _request_json(self, base_url: str, endpoint: str, params: dict | None = None) -> dict | list | None:
         for attempt in range(self.config.retry_attempts):

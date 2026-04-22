@@ -292,6 +292,23 @@ class TwoStageStopTests(unittest.TestCase):
         stop = indicators.calc_nick_stop(_daily_frame_nick_long(), "LONG")
         self.assertEqual(stop, 97.99)
 
+    def test_calc_nick_stop_uses_second_low_from_recent_daily_window(self) -> None:
+        older_index = pd.date_range("2026-02-02", periods=25, freq="B")
+        older = pd.DataFrame(
+            {
+                "open": [200.0] * len(older_index),
+                "high": [205.0] * len(older_index),
+                "low": [1.0] + [2.0] + [190.0] * (len(older_index) - 2),
+                "close": [204.0] * len(older_index),
+            },
+            index=older_index,
+        )
+        recent = _daily_frame_nick_long()
+
+        stop = indicators.calc_nick_stop(pd.concat([older, recent]), "LONG")
+
+        self.assertEqual(stop, 97.99)
+
     def test_calc_nick_stop_uses_second_high_for_top_structure(self) -> None:
         stop = indicators.calc_nick_stop(_daily_frame_nick_short(), "SHORT")
         self.assertEqual(stop, 110.01)
