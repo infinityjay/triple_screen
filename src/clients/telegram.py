@@ -57,6 +57,10 @@ class TelegramNotifier:
 
     @staticmethod
     def _bar(value: float, max_value: float, length: int = 10, fill: str = "█", empty: str = "░") -> str:
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            value = 0.0
         pct = min(value / max_value, 1.0) if max_value > 0 else 0
         filled = int(pct * length)
         return fill * filled + empty * (length - filled)
@@ -200,25 +204,30 @@ class TelegramNotifier:
         initial_stop_basis_label = self._stop_basis_label(exits.get("initial_stop_basis", exits.get("stop_basis", "UNKNOWN")))
         protective_stop_basis_label = self._stop_basis_label(exits.get("protective_stop_basis", "ATR_1X"))
         breakout_bar = self._bar(hourly.get("breakout_strength", 0), 1.0, length=8)
+        entry_price = self._fmt_num(hourly.get("entry_price"), 2)
+        hourly_close = self._fmt_num(hourly.get("close"), 2)
+        current_high = self._fmt_num(hourly.get("current_high"), 2)
+        current_low = self._fmt_num(hourly.get("current_low"), 2)
+        signal_bar_high = self._fmt_num(hourly.get("signal_bar_high"), 2)
+        signal_bar_low = self._fmt_num(hourly.get("signal_bar_low"), 2)
+        trigger_source = hourly.get("trigger_source")
 
         if direction == "LONG":
             if signal.get("opportunity_status") == "TRIGGERED":
-                breakout_line = (
-                    f"上一根已收盘高点：{hourly['signal_bar_high']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
-                )
+                if trigger_source in {"EMA_PENETRATION", "PREVIOUS_DAY_BREAK"}:
+                    breakout_line = f"触发来源：{trigger_source}  当前价：{hourly_close}  触发价：{entry_price}"
+                else:
+                    breakout_line = f"上一根已收盘高点：{signal_bar_high}  当前价：{hourly_close}  触发价：{entry_price}"
             else:
-                breakout_line = (
-                    f"当前跟踪 stop：{hourly['entry_price']:.2f}  当前小时高点：{hourly['current_high']:.2f}  当前价：{hourly['close']:.2f}"
-                )
+                breakout_line = f"当前跟踪 stop：{entry_price}  当前小时高点：{current_high}  当前价：{hourly_close}"
         else:
             if signal.get("opportunity_status") == "TRIGGERED":
-                breakout_line = (
-                    f"上一根已收盘低点：{hourly['signal_bar_low']:.2f}  当前价：{hourly['close']:.2f}  触发价：{hourly['entry_price']:.2f}"
-                )
+                if trigger_source in {"EMA_PENETRATION", "PREVIOUS_DAY_BREAK"}:
+                    breakout_line = f"触发来源：{trigger_source}  当前价：{hourly_close}  触发价：{entry_price}"
+                else:
+                    breakout_line = f"上一根已收盘低点：{signal_bar_low}  当前价：{hourly_close}  触发价：{entry_price}"
             else:
-                breakout_line = (
-                    f"当前跟踪 stop：{hourly['entry_price']:.2f}  当前小时低点：{hourly['current_low']:.2f}  当前价：{hourly['close']:.2f}"
-                )
+                breakout_line = f"当前跟踪 stop：{entry_price}  当前小时低点：{current_low}  当前价：{hourly_close}"
 
         title = f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>"
         if rank is not None and total_ranked is not None:
@@ -257,8 +266,8 @@ class TelegramNotifier:
             f"EMA穿透参考价：<code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  前日突破参考价：<code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
             f"明日EMA估算：<code>{self._fmt_num(entry_plan.get('projected_next_ema'), 2)}</code>  平均穿透：<code>{self._fmt_num(entry_plan.get('average_penetration'), 2)}</code>\n"
             f"{breakout_line}\n"
-            f"突破强度：[{breakout_bar}] {hourly.get('breakout_strength', 0):.2f}xATR\n"
-            f"ATR：<code>{hourly['atr']:.4f}</code>\n"
+            f"突破强度：[{breakout_bar}] {self._fmt_num(hourly.get('breakout_strength'), 2)}xATR\n"
+            f"ATR：<code>{self._fmt_num(hourly.get('atr'), 4)}</code>\n"
             f"触发状态：<b>{hourly_status_label}</b>\n"
             f"小时线结论：{hourly['reason']}\n"
             f"{'─' * 32}\n"
