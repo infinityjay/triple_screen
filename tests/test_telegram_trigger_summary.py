@@ -79,6 +79,16 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
         self.assertIn("触发来源：EMA_PENETRATION", message)
         self.assertIn("触发价：146.10", message)
 
+    def test_detailed_signal_escapes_strategy_text_for_telegram_html(self) -> None:
+        signal = _build_signal("SHORT")
+        signal["daily"]["reason"] = "最新高点 37.46 <= 防守位 38.00"
+        signal["hourly"]["reason"] = "价格已触及卖空参考价（EMA_PENETRATION）"
+
+        message = self.notifier.format_signal_message(signal)
+
+        self.assertIn("37.46 &lt;= 防守位", message)
+        self.assertNotIn("37.46 <=", message)
+
 
 if __name__ == "__main__":
     unittest.main()

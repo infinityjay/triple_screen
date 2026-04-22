@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from html import escape
 from typing import Any
 
 import requests
@@ -9,6 +10,12 @@ import requests
 from config.schema import TelegramConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _html_text(value: Any, default: str = "—") -> str:
+    if value is None:
+        return default
+    return escape(str(value), quote=False)
 
 
 def _utc_now() -> datetime:
@@ -215,7 +222,7 @@ class TelegramNotifier:
         if direction == "LONG":
             if signal.get("opportunity_status") == "TRIGGERED":
                 if trigger_source in {"EMA_PENETRATION", "PREVIOUS_DAY_BREAK"}:
-                    breakout_line = f"触发来源：{trigger_source}  当前价：{hourly_close}  触发价：{entry_price}"
+                    breakout_line = f"触发来源：{_html_text(trigger_source)}  当前价：{hourly_close}  触发价：{entry_price}"
                 else:
                     breakout_line = f"上一根已收盘高点：{signal_bar_high}  当前价：{hourly_close}  触发价：{entry_price}"
             else:
@@ -223,7 +230,7 @@ class TelegramNotifier:
         else:
             if signal.get("opportunity_status") == "TRIGGERED":
                 if trigger_source in {"EMA_PENETRATION", "PREVIOUS_DAY_BREAK"}:
-                    breakout_line = f"触发来源：{trigger_source}  当前价：{hourly_close}  触发价：{entry_price}"
+                    breakout_line = f"触发来源：{_html_text(trigger_source)}  当前价：{hourly_close}  触发价：{entry_price}"
                 else:
                     breakout_line = f"上一根已收盘低点：{signal_bar_low}  当前价：{hourly_close}  触发价：{entry_price}"
             else:
@@ -242,25 +249,25 @@ class TelegramNotifier:
             f"综合评分：{self._score_stars(score)} <code>{score:.1f}/10</code>\n"
             f"{'─' * 32}\n"
             f"<b>第一重 · 周线动力系统</b>\n"
-            f"方向：<b>{weekly['trend']}</b>\n"
-            f"动力颜色：<b>{weekly.get('impulse_color', '—')}</b>  MACD斜率：<code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
+            f"方向：<b>{_html_text(weekly.get('trend'))}</b>\n"
+            f"动力颜色：<b>{_html_text(weekly.get('impulse_color'))}</b>  MACD斜率：<code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
             f"MACD：<code>{self._fmt_num(weekly.get('macd'), 4)}</code>  Signal：<code>{self._fmt_num(weekly.get('macd_signal'), 4)}</code>\n"
             f"Histogram：<code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
             f"13EMA：<code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  斜率：<code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
             f"连续同向 bars：<code>{weekly.get('confirmed_bars', '—')}</code> / 禁止规则通过：<b>{self._bool_text(weekly.get('impulse_allows_direction'))}</b>\n"
-            f"周线结论：{weekly['reason']}\n"
+            f"周线结论：{_html_text(weekly.get('reason'))}\n"
             f"{'─' * 32}\n"
             f"<b>第二重 · 日线 Force Index</b>\n"
             f"日线阶段：<b>{daily_state_label}</b>  核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 3)}</code>\n"
             f"2日Force EMA：<code>{self._fmt_num(daily.get('force_index_ema2_prev'), 0, signed=True)}</code> → <code>{self._fmt_num(daily.get('force_index_ema2'), 0, signed=True)}</code>\n"
-            f"日线动力颜色：<b>{daily.get('impulse_color', '—')}</b>  同向/不反向：<b>{self._bool_text(daily.get('same_impulse_or_trend'))}</b>\n"
+            f"日线动力颜色：<b>{_html_text(daily.get('impulse_color'))}</b>  同向/不反向：<b>{self._bool_text(daily.get('same_impulse_or_trend'))}</b>\n"
             f"辅助RSI：<code>{self._fmt_num(daily.get('rsi'), 2)}</code>  Histogram变化：<code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
             f"13EMA价值带：<code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  距离价值带：<code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
             f"{daily.get('correction_counter_label', '近8日修正收盘数')}：<code>{daily.get('correction_count', 0)}</code>  结构防守位：<code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
             f"Force信号：<b>{self._bool_text(daily.get('force_signal'))}</b>  结构完整：<b>{self._bool_text(daily.get('structure_intact'))}</b>\n"
             f"辅助K线确认：<b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  收盘相对昨收：<b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
             f"影线比例：<code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  收盘位置：<code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
-            f"日线结论：{daily['reason']}\n"
+            f"日线结论：{_html_text(daily.get('reason'))}\n"
             f"{'─' * 32}\n"
             f"<b>第三重 · 触发价监测</b>\n"
             f"EMA穿透参考价：<code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  前日突破参考价：<code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
@@ -269,7 +276,7 @@ class TelegramNotifier:
             f"突破强度：[{breakout_bar}] {self._fmt_num(hourly.get('breakout_strength'), 2)}xATR\n"
             f"ATR：<code>{self._fmt_num(hourly.get('atr'), 4)}</code>\n"
             f"触发状态：<b>{hourly_status_label}</b>\n"
-            f"小时线结论：{hourly['reason']}\n"
+            f"小时线结论：{_html_text(hourly.get('reason'))}\n"
             f"{'─' * 32}\n"
             f"<b>交易建议</b>\n"
             f"建议入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>\n"
@@ -286,10 +293,10 @@ class TelegramNotifier:
             f"{'─' * 32}\n"
             f"<b>候选池标签</b>\n"
             f"候选日期：<code>{signal.get('source_session_date', 'UNKNOWN')}</code>\n"
-            f"财报状态：<b>{earnings.get('status', 'UNKNOWN')}</b>  {earnings.get('reason', '未获取到财报信息')}\n"
+            f"财报状态：<b>{_html_text(earnings.get('status', 'UNKNOWN'))}</b>  {_html_text(earnings.get('reason', '未获取到财报信息'))}\n"
             f"周线背离：{'是' if divergence.get('weekly', {}).get('detected') else '否'}  "
             f"日线背离：{'是' if divergence.get('daily', {}).get('detected') else '否'}\n"
-            f"{'强提醒：' + divergence.get('daily', {}).get('exhaustion_reason', '') if signal.get('strong_divergence') else '强提醒：无'}\n"
+            f"{'强提醒：' + _html_text(divergence.get('daily', {}).get('exhaustion_reason', '')) if signal.get('strong_divergence') else '强提醒：无'}\n"
             f"{'─' * 32}\n"
             f"<i>{_utc_datetime_label()}</i>"
         )
@@ -444,8 +451,8 @@ class TelegramNotifier:
         for index, item in enumerate(items[:8], start=1):
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
-                f"周线 {item.get('weekly_impulse_color', '—')} / 日线 {item.get('daily_impulse_color', '—')}\n"
-                f"   {item.get('reason', '需要检查是否平仓')}\n"
+                f"周线 {_html_text(item.get('weekly_impulse_color'))} / 日线 {_html_text(item.get('daily_impulse_color'))}\n"
+                f"   {_html_text(item.get('reason', '需要检查是否平仓'))}\n"
             )
         return "".join(lines)
 
