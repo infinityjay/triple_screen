@@ -85,9 +85,11 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
             scan_time_sec=9.2,
         )
 
-        self.assertIn("EMA穿透参考价(已触发) 438.20", message)
-        self.assertIn("前日突破参考价(未触发) 441.30", message)
-        self.assertIn("止盈 450.00", message)
+        self.assertIn("现价 440.55", message)
+        self.assertIn("建议买入价：<code>438.20</code>", message)
+        self.assertIn("原因：EMA穿透", message)
+        self.assertIn("Entry：EMA <code>438.20*</code>  突破 <code>441.30</code>", message)
+        self.assertIn("止损：EMA <code>431.10</code>  突破 <code>431.10</code>", message)
 
     def test_short_trigger_summary_includes_sell_price_and_initial_stop(self) -> None:
         message = self.notifier.format_trigger_summary_message(
@@ -97,9 +99,11 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
             scan_time_sec=9.2,
         )
 
-        self.assertIn("EMA穿透参考价(已触发) 146.10", message)
-        self.assertIn("前日突破参考价(未触发) 145.40", message)
-        self.assertIn("止损 149.70", message)
+        self.assertIn("现价 146.73", message)
+        self.assertIn("建议买入价：<code>146.10</code>", message)
+        self.assertIn("原因：EMA穿透", message)
+        self.assertIn("Entry：EMA <code>146.10*</code>  突破 <code>145.40</code>", message)
+        self.assertIn("止损：EMA <code>149.70</code>  突破 <code>149.70</code>", message)
 
     def test_detailed_signal_supports_ema_trigger_without_signal_bar(self) -> None:
         message = self.notifier.format_signal_message(_build_signal("SHORT"))

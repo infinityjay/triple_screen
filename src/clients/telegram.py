@@ -224,6 +224,37 @@ class TelegramNotifier:
             )
         return "；".join(parts)
 
+    def _entry_option_by_code(self, options: list[dict] | None, code: str) -> dict[str, Any]:
+        if not options:
+            return {}
+        return next((option for option in options if option.get("code") == code), {})
+
+    def _format_entry_option_price(self, option: dict[str, Any]) -> str:
+        if not option:
+            return "—"
+        triggered = "*" if option.get("triggered") else ""
+        return f"{self._fmt_num(option.get('price'), 2)}{triggered}"
+
+    def _format_entry_option_stop(self, option: dict[str, Any], fallback_exits: dict[str, Any]) -> str:
+        if not option:
+            return "—"
+        exits = option.get("exits") or fallback_exits or {}
+        return self._fmt_num(exits.get("initial_stop_model_loss"), 2)
+
+    def _format_trigger_reason(self, signal: dict[str, Any]) -> str:
+        hourly = signal.get("hourly") or {}
+        labels = {
+            "EMA_PENETRATION": "EMA穿透",
+            "PREVIOUS_DAY_BREAK": "前日突破",
+        }
+        trigger_sources = hourly.get("trigger_sources") or []
+        if trigger_sources:
+            return "+".join(labels.get(source, str(source)) for source in trigger_sources)
+        trigger_source = hourly.get("trigger_source")
+        if trigger_source:
+            return labels.get(trigger_source, str(trigger_source))
+        return str(hourly.get("reason") or "触发")
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -519,32 +550,26 @@ class TelegramNotifier:
         lines = [
             f"🏁 <b>Triggered 机会（{len(triggered_signals)}）</b>\n",
             f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n",
+            f"* = 已触发\n",
             f"{'─' * 24}\n",
         ]
         for index, signal in enumerate(triggered_signals, start=1):
             direction = "做多" if signal["direction"] == "LONG" else "做空"
-            entry_label = "买入价" if signal["direction"] == "LONG" else "卖出价"
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             exits = signal["exits"]
-            safezone_stop = self._fmt_num(exits.get("initial_stop_safezone"), 2)
-            nick_stop = self._fmt_num(exits.get("initial_stop_nick"), 2)
-            if safezone_stop == "—" and nick_stop == "—" and exits.get("initial_stop_loss") is not None:
-                initial_stop_line = f"初始止损 {exits['initial_stop_loss']:.2f}"
-            else:
-                initial_stop_line = f"初始止损待你选择（SafeZone {safezone_stop} / 尼克 {nick_stop}）"
-            rr_value = exits.get("reward_risk_ratio_model")
-            if rr_value is None:
-                rr_value = exits.get("reward_risk_ratio")
-            entry_options_line = self._format_entry_options_summary(signal.get("hourly", {}).get("entry_options"))
-            if not entry_options_line:
-                entry_options_line = f"{entry_label} {signal['exits']['entry']:.2f} · {initial_stop_line}"
+            hourly = signal.get("hourly", {})
+            entry_options = hourly.get("entry_options") or []
+            ema_option = self._entry_option_by_code(entry_options, "EMA_PENETRATION")
+            breakout_option = self._entry_option_by_code(entry_options, "PREVIOUS_DAY_BREAK")
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
-                f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
-                f"   现价 {signal['hourly']['close']:.2f} · {entry_options_line}\n"
-                f"   模型 RR {self._fmt_num(rr_value, 2)}R · "
-                f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
-                f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"
+                f"现价 {self._fmt_num(hourly.get('close'), 2)}{divergence_badge}\n"
+                f"   建议买入价：<code>{self._fmt_num(exits.get('entry'), 2)}</code>  "
+                f"原因：{_html_text(self._format_trigger_reason(signal))}\n"
+                f"   Entry：EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
+                f"突破 <code>{self._format_entry_option_price(breakout_option)}</code>\n"
+                f"   止损：EMA <code>{self._format_entry_option_stop(ema_option, exits)}</code>  "
+                f"突破 <code>{self._format_entry_option_stop(breakout_option, exits)}</code>\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")

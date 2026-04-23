@@ -675,17 +675,10 @@ class TripleScreenScanner:
         if not self.dry_run:
             if top_triggered:
                 self.notifier.send_trigger_summary(top_triggered, tracking_label or "UNKNOWN", len(candidates), elapsed)
-                time.sleep(1)
-            for index, opportunity in enumerate(top_triggered, start=1):
+            for opportunity in top_triggered:
                 if opportunity.get("cooldown_active"):
                     continue
-                payload = dict(opportunity)
-                payload["rank"] = index
-                payload["total_ranked"] = len(top_triggered)
-                payload["rank_group"] = "TRIGGERED"
-                self.notifier.send_signal(payload)
                 self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
-                time.sleep(1)
 
         logger.info(
             "intraday trigger scan finished: %s candidates scanned, %s triggered, elapsed %.1fs",
