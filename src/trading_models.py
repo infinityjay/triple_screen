@@ -162,6 +162,44 @@ def get_planned_trigger(
     return None, None, primary_touched, breakout_touched
 
 
+def _build_entry_options(
+    direction: str,
+    entry_plan: dict[str, Any],
+    daily_frame: pd.DataFrame,
+    weekly_frame: pd.DataFrame | None,
+    atr: float,
+    trade_plan: TradePlanConfig,
+    primary_touched: bool,
+    breakout_touched: bool,
+) -> list[dict[str, Any]]:
+    option_specs = [
+        ("EMA_PENETRATION", "EMA穿透参考价", entry_plan.get("ema_penetration_entry"), primary_touched),
+        ("PREVIOUS_DAY_BREAK", "前日突破参考价", entry_plan.get("breakout_entry"), breakout_touched),
+    ]
+    options: list[dict[str, Any]] = []
+    for code, label, price, touched in option_specs:
+        if price is None:
+            continue
+        entry = round(float(price), 4)
+        options.append(
+            {
+                "code": code,
+                "label": label,
+                "price": entry,
+                "triggered": bool(touched),
+                "exits": indicators.calc_exits(
+                    direction,
+                    entry,
+                    daily_frame,
+                    atr,
+                    trade_plan,
+                    weekly_frame=weekly_frame,
+                ),
+            }
+        )
+    return options
+
+
 def _build_current_intraday_plan(
     direction: str,
     daily_frame: pd.DataFrame | None,
@@ -177,14 +215,25 @@ def _build_current_intraday_plan(
 
     entry_plan = indicators.calc_ema_penetration_entry_plan(daily_frame, direction)
     entry_price, trigger_source, primary_touched, breakout_touched = get_planned_trigger(direction, entry_plan, bar)
-    if entry_price is None:
-        entry_price = entry_plan.get("ema_penetration_entry") or entry_plan.get("breakout_entry")
-        trigger_source = "EMA_PENETRATION" if entry_plan.get("ema_penetration_entry") is not None else "PREVIOUS_DAY_BREAK"
-    if entry_price is None or trigger_source is None:
+    atr = _hourly_atr(hourly_frame, settings)
+    entry_options = _build_entry_options(
+        direction,
+        entry_plan,
+        daily_frame,
+        weekly_frame,
+        atr,
+        trade_plan,
+        primary_touched,
+        breakout_touched,
+    )
+    if not entry_options:
         return None
 
-    atr = _hourly_atr(hourly_frame, settings)
+    selected_option = next((option for option in entry_options if option["triggered"]), entry_options[0])
+    entry_price = selected_option["price"]
+    trigger_source = selected_option["code"]
     triggered = bool(primary_touched or breakout_touched)
+    triggered_labels = [option["label"] for option in entry_options if option["triggered"]]
     hourly = {
         "close": round(float(bar["close"]), 4),
         "current_high": round(float(bar["high"]), 4),
@@ -203,24 +252,18 @@ def _build_current_intraday_plan(
         "breakout_long": triggered if direction == "LONG" else False,
         "breakout_short": triggered if direction == "SHORT" else False,
         "trigger_source": trigger_source,
+        "trigger_sources": [option["code"] for option in entry_options if option["triggered"]],
         "trigger_score": 4.0 if triggered else 0.0,
         "pass": triggered,
         "entry_plan": entry_plan,
+        "entry_options": entry_options,
         "reason": (
-            f"价格已触及{entry_plan.get('trigger_label', '交易')}参考价（{trigger_source}）"
+            f"价格已触及{entry_plan.get('trigger_label', '交易')}参考价：{', '.join(triggered_labels)}"
             if triggered
             else entry_plan.get("reason", "等待价格触发")
         ),
     }
-    exits = indicators.calc_exits(
-        direction,
-        float(entry_price),
-        daily_frame,
-        atr,
-        trade_plan,
-        weekly_frame=weekly_frame,
-    )
-    return IntradayPlan(hourly=hourly, exits=exits, trigger_source=trigger_source)
+    return IntradayPlan(hourly=hourly, exits=selected_option["exits"], trigger_source=trigger_source)
 
 
 def _build_legacy_intraday_plan(

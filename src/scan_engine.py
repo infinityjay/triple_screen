@@ -446,15 +446,6 @@ class TripleScreenScanner:
             )
 
             exits = intraday_plan.exits
-            if float(exits.get("reward_risk_ratio_model", 0.0) or 0.0) < self.settings.qualification.intraday_minimum_reward_risk:
-                logger.info(
-                    "[%s] skipped intraday because reward/risk %.2f < %.2f",
-                    symbol,
-                    float(exits.get("reward_risk_ratio_model", 0.0) or 0.0),
-                    self.settings.qualification.intraday_minimum_reward_risk,
-                )
-                return None
-
             opportunity = dict(candidate)
             opportunity["hourly"] = hourly
             opportunity["daily"] = daily
@@ -664,10 +655,9 @@ class TripleScreenScanner:
                 if result:
                     opportunities.append(result)
 
-        triggered_limit = max(self.settings.alerts.max_triggered_signals_per_scan, 0)
         opportunities.sort(key=self._triggered_sort_key)
         triggered = [item for item in opportunities if item["opportunity_status"] == "TRIGGERED"]
-        top_triggered = triggered[:triggered_limit] if triggered_limit else []
+        top_triggered = triggered
 
         for index, opportunity in enumerate(top_triggered, start=1):
             logger.info(

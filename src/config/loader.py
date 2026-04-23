@@ -220,7 +220,6 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
             qualified_display_limit=int(
                 alerts_raw.get("qualified_display_limit", alerts_raw.get("max_signals_per_scan", 15))
             ),
-            max_triggered_signals_per_scan=int(alerts_raw.get("max_triggered_signals_per_scan", 3)),
             telegram=telegram,
         ),
         market_filter=MarketFilterConfig(

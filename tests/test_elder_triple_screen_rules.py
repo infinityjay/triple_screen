@@ -119,6 +119,11 @@ class ElderTripleScreenRuleTests(unittest.TestCase):
         self.assertIsNotNone(plan)
         self.assertIn("breakout_long", plan.hourly)
         self.assertIn("breakout_short", plan.hourly)
+        self.assertEqual(
+            [option["code"] for option in plan.hourly["entry_options"]],
+            ["EMA_PENETRATION", "PREVIOUS_DAY_BREAK"],
+        )
+        self.assertTrue(all("exits" in option for option in plan.hourly["entry_options"]))
 
 
 if __name__ == "__main__":

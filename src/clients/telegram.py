@@ -187,6 +187,43 @@ class TelegramNotifier:
 
         return "\n".join(build_lines("初始止损", initial_methods) + build_lines("跟踪止损", trailing_methods))
 
+    def _entry_option_label(self, option: dict[str, Any]) -> str:
+        label = option.get("label") or option.get("code") or "入场参考价"
+        status = "已触发" if option.get("triggered") else "未触发"
+        return f"{label}（{status}）"
+
+    def _format_entry_options(self, options: list[dict] | None) -> str:
+        if not options:
+            return ""
+        lines: list[str] = []
+        for option in options:
+            exits = option.get("exits") or {}
+            label = _html_text(self._entry_option_label(option))
+            lines.append(
+                f"• {label}：入场 <code>{self._fmt_num(option.get('price'), 2)}</code>  "
+                f"模型止损 <code>{self._fmt_num(exits.get('initial_stop_model_loss'), 2)}</code>  "
+                f"保护止损 <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code>  "
+                f"止盈 <code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  "
+                f"RR <code>{self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R</code>"
+            )
+        return "\n".join(lines)
+
+    def _format_entry_options_summary(self, options: list[dict] | None) -> str:
+        if not options:
+            return ""
+        parts: list[str] = []
+        for option in options:
+            exits = option.get("exits") or {}
+            label = option.get("label") or option.get("code") or "入场"
+            status = "已触发" if option.get("triggered") else "未触发"
+            parts.append(
+                f"{label}({status}) {self._fmt_num(option.get('price'), 2)} / "
+                f"止损 {self._fmt_num(exits.get('initial_stop_model_loss'), 2)} / "
+                f"止盈 {self._fmt_num(exits.get('take_profit'), 2)} / "
+                f"RR {self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R"
+            )
+        return "；".join(parts)
+
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
         symbol = signal["symbol"]
@@ -201,7 +238,11 @@ class TelegramNotifier:
         earnings = signal.get("earnings", {})
         divergence = signal.get("divergence", {})
         entry_plan = hourly.get("entry_plan") or daily.get("entry_plan") or {}
+        entry_options = hourly.get("entry_options") or []
         weekly_target = exits.get("weekly_value_target") or weekly.get("weekly_value_target") or {}
+        entry_options_block = self._format_entry_options(entry_options) or (
+            f"入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>"
+        )
 
         dir_emoji = "🚀" if direction == "LONG" else "🔻"
         dir_label = "做多" if direction == "LONG" else "做空"
@@ -238,7 +279,7 @@ class TelegramNotifier:
 
         title = f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>"
         if rank is not None and total_ranked is not None:
-            rank_prefix = "Triggered Top" if rank_group == "TRIGGERED" else "Top"
+            rank_prefix = "Triggered" if rank_group == "TRIGGERED" else "Top"
             title = f"🏁 <b>{rank_prefix} {rank}/{total_ranked}</b>\n{title}"
         if signal.get("strong_divergence"):
             title = f"🚨 <b>强背离提醒</b>\n{title}"
@@ -278,8 +319,8 @@ class TelegramNotifier:
             f"触发状态：<b>{hourly_status_label}</b>\n"
             f"小时线结论：{_html_text(hourly.get('reason'))}\n"
             f"{'─' * 32}\n"
-            f"<b>交易建议</b>\n"
-            f"建议入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>\n"
+            f"<b>入场方案</b>\n"
+            f"{entry_options_block}\n"
             f"初始止损：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
             f"SafeZone 初始止损：<code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  尼克止损：<code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
             f"ATR 移动止损 1x：<code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x：<code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
@@ -476,7 +517,7 @@ class TelegramNotifier:
             )
 
         lines = [
-            f"🏁 <b>Top {len(triggered_signals)} Triggered 机会</b>\n",
+            f"🏁 <b>Triggered 机会（{len(triggered_signals)}）</b>\n",
             f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n",
             f"{'─' * 24}\n",
         ]
@@ -494,11 +535,13 @@ class TelegramNotifier:
             rr_value = exits.get("reward_risk_ratio_model")
             if rr_value is None:
                 rr_value = exits.get("reward_risk_ratio")
+            entry_options_line = self._format_entry_options_summary(signal.get("hourly", {}).get("entry_options"))
+            if not entry_options_line:
+                entry_options_line = f"{entry_label} {signal['exits']['entry']:.2f} · {initial_stop_line}"
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
                 f"执行分 {self._execution_score(signal):.1f}{divergence_badge}\n"
-                f"   现价 {signal['hourly']['close']:.2f} · {entry_label} {signal['exits']['entry']:.2f} · "
-                f"{initial_stop_line}\n"
+                f"   现价 {signal['hourly']['close']:.2f} · {entry_options_line}\n"
                 f"   模型 RR {self._fmt_num(rr_value, 2)}R · "
                 f"Elder核心 {signal['daily'].get('elder_core_signal_count', 0)}/{signal['daily'].get('elder_core_signal_total', 3)} · "
                 f"财报 {signal.get('earnings', {}).get('status', 'UNKNOWN')}\n"

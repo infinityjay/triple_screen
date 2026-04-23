@@ -139,7 +139,6 @@ class TelegramConfig:
 class AlertConfig:
     cooldown_hours: int
     qualified_display_limit: int
-    max_triggered_signals_per_scan: int
     telegram: TelegramConfig
 
 
