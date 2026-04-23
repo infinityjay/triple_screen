@@ -235,12 +235,6 @@ class TelegramNotifier:
         triggered = "*" if option.get("triggered") else ""
         return f"{self._fmt_num(option.get('price'), 2)}{triggered}"
 
-    def _format_entry_option_stop(self, option: dict[str, Any], fallback_exits: dict[str, Any]) -> str:
-        if not option:
-            return "—"
-        exits = option.get("exits") or fallback_exits or {}
-        return self._fmt_num(exits.get("initial_stop_model_loss"), 2)
-
     def _format_trigger_reason(self, signal: dict[str, Any]) -> str:
         hourly = signal.get("hourly") or {}
         labels = {
@@ -568,8 +562,8 @@ class TelegramNotifier:
                 f"原因：{_html_text(self._format_trigger_reason(signal))}\n"
                 f"   Entry：EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
                 f"突破 <code>{self._format_entry_option_price(breakout_option)}</code>\n"
-                f"   止损：EMA <code>{self._format_entry_option_stop(ema_option, exits)}</code>  "
-                f"突破 <code>{self._format_entry_option_stop(breakout_option, exits)}</code>\n"
+                f"   止损：SafeZone <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  "
+                f"尼克 <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
             )
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
