@@ -19,11 +19,7 @@ from config.loader import load_settings
 from config.schema import AppConfig
 from journal import (
     apply_monotonic_stop,
-    compute_open_profit,
-    compute_profit_capture_pct,
-    compute_stop_locked_profit,
     compute_used_stop,
-    should_block_stop_relaxation,
 )
 from storage.sqlite import SQLiteStorage
 
@@ -930,20 +926,10 @@ def run_backtest(
                     continue
                 atr_stops, _ = indicators.calc_atr_stops(daily_frame, position.direction, atr_period=14)
                 proposed_stop = atr_stops.get(1.0)
-                latest_close = float(daily_frame["close"].iloc[-1])
-                open_profit = compute_open_profit(position.entry_price, latest_close, position.shares, position.direction)
-                locked_profit = compute_stop_locked_profit(position.entry_price, proposed_stop, position.shares, position.direction)
-                capture_pct = compute_profit_capture_pct(open_profit, locked_profit)
-                warning_triggered = should_block_stop_relaxation(
-                    position.active_stop,
-                    proposed_stop,
-                    position.direction,
-                    open_profit,
-                    capture_pct,
-                )
-                if proposed_stop is not None and not warning_triggered:
+                next_stop = apply_monotonic_stop(position.active_stop, proposed_stop, position.direction)
+                if next_stop is not None and abs(float(next_stop) - float(position.active_stop)) > 1e-9:
                     previous_stop = position.active_stop
-                    position.active_stop = float(proposed_stop)
+                    position.active_stop = float(next_stop)
                     account_equity = compute_account_equity(cash, open_positions, margin_debt=margin_debt)
                     total_budget = (
                         math.inf

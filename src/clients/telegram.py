@@ -450,7 +450,7 @@ class TelegramNotifier:
             f"持仓 {total_positions} 笔 · 更新 {updated_count} 笔 · 未变 {unchanged_count} 笔 · 失败 {error_count} 笔\n",
         ]
 
-        display_items = [item for item in updates if item.get("status") in {"UPDATED", "WARNING"}][:8]
+        display_items = [item for item in updates if item.get("status") in {"UPDATED", "UNCHANGED"}][:8]
         if not display_items and total_positions == 0:
             lines.append("当前没有未平仓交易需要更新。\n")
             return "".join(lines)
@@ -459,17 +459,17 @@ class TelegramNotifier:
             return "".join(lines)
 
         for index, item in enumerate(display_items, start=1):
-            previous_stop = item.get("previous_stop_loss")
+            current_stop = item.get("current_stop_loss")
+            atr_1x_stop = item.get("proposed_stop_loss")
+            atr_2x_stop = item.get("proposed_stop_loss_atr_2x")
             applied_stop = item.get("applied_stop_loss")
-            open_profit = item.get("open_profit")
-            capture_pct = item.get("profit_capture_pct_atr_1x")
-            warning_triggered = bool(item.get("warning_triggered"))
-            stop_basis = item.get("stop_basis", "UNKNOWN")
+            status = "更新" if item.get("status") == "UPDATED" else "维持"
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
-                f"{previous_stop if previous_stop is not None else '—'} → {applied_stop if applied_stop is not None else '—'} "
-                f"({stop_basis}) · 浮盈 {self._fmt_num(open_profit, 2)} · 锁盈 {self._fmt_num(capture_pct, 2)}%"
-                f"{' · WARNING' if warning_triggered else ''}\n"
+                f"当前止损 <code>{self._fmt_num(current_stop, 2)}</code> · "
+                f"ATR 1x <code>{self._fmt_num(atr_1x_stop, 2)}</code> · "
+                f"ATR 2x <code>{self._fmt_num(atr_2x_stop, 2)}</code> · "
+                f"建议止损 <code>{self._fmt_num(applied_stop, 2)}</code> · {status}\n"
             )
         return "".join(lines)
 

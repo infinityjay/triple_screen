@@ -57,68 +57,6 @@ def apply_monotonic_stop(
     return min(current_stop, proposed_stop)
 
 
-def is_stop_relaxation(
-    current_stop: float | None,
-    proposed_stop: float | None,
-    direction: str | None,
-) -> bool:
-    if current_stop is None or proposed_stop is None:
-        return False
-    normalized_direction = normalize_trade_direction(direction)
-    if normalized_direction == LONG:
-        return proposed_stop < current_stop
-    return proposed_stop > current_stop
-
-
-def compute_open_profit(
-    entry_price: float | None,
-    current_price: float | None,
-    shares: float | None,
-    direction: str | None,
-) -> float | None:
-    if entry_price is None or current_price is None or shares is None:
-        return None
-
-    normalized_direction = normalize_trade_direction(direction)
-    pnl_per_share = current_price - entry_price if normalized_direction == LONG else entry_price - current_price
-    return round(pnl_per_share * shares, 4)
-
-
-def compute_stop_locked_profit(
-    entry_price: float | None,
-    stop_price: float | None,
-    shares: float | None,
-    direction: str | None,
-) -> float | None:
-    if entry_price is None or stop_price is None or shares is None:
-        return None
-
-    normalized_direction = normalize_trade_direction(direction)
-    pnl_per_share = stop_price - entry_price if normalized_direction == LONG else entry_price - stop_price
-    return round(pnl_per_share * shares, 4)
-
-
-def compute_profit_capture_pct(open_profit: float | None, locked_profit: float | None) -> float | None:
-    if open_profit is None or locked_profit is None or open_profit <= 0:
-        return None
-    return round((locked_profit / open_profit) * 100, 2)
-
-
-def should_block_stop_relaxation(
-    current_stop: float | None,
-    proposed_stop: float | None,
-    direction: str | None,
-    open_profit: float | None,
-    capture_pct: float | None,
-    min_capture_pct: float = 33.33,
-) -> bool:
-    if open_profit is None or open_profit <= 0 or capture_pct is None:
-        return False
-    if not is_stop_relaxation(current_stop, proposed_stop, direction):
-        return False
-    return capture_pct < min_capture_pct
-
-
 def _to_float(value: Any) -> float | None:
     if value is None:
         return None
@@ -173,9 +111,9 @@ class JournalManager:
             direction = normalize_trade_direction(str(trade.get("direction", "long")))
             entry_price = _to_float(trade.get("buy_price"))
             shares = _to_float(trade.get("shares"))
-            previous_stop = _to_float(trade.get("suggested_stop_loss"))
-            if previous_stop is None:
-                previous_stop = _to_float(trade.get("stop_loss"))
+            current_stop = _to_float(trade.get("stop_loss"))
+            previous_suggested_stop = _to_float(trade.get("suggested_stop_loss"))
+            monotonic_anchor = previous_suggested_stop if previous_suggested_stop is not None else current_stop
 
             if not trade_id or not symbol:
                 updates.append(
@@ -211,37 +149,15 @@ class JournalManager:
                     raise ValueError("日线数据不足")
 
                 atr_stops, _ = indicators.calc_atr_stops(daily_frame, direction, atr_period=14)
-                latest_close = _to_float(daily_frame["close"].iloc[-1])
                 proposed_stop = _to_float(atr_stops.get(1.0))
                 proposed_stop_wide = _to_float(atr_stops.get(2.0))
-                applied_stop = proposed_stop
+                applied_stop = apply_monotonic_stop(monotonic_anchor, proposed_stop, direction)
                 used_stop = compute_used_stop(entry_price, applied_stop, shares, direction)
-                open_profit = compute_open_profit(entry_price, latest_close, shares, direction)
-                locked_profit = compute_stop_locked_profit(entry_price, proposed_stop, shares, direction)
-                locked_profit_wide = compute_stop_locked_profit(entry_price, proposed_stop_wide, shares, direction)
-                capture_pct = compute_profit_capture_pct(open_profit, locked_profit)
-                capture_pct_wide = compute_profit_capture_pct(open_profit, locked_profit_wide)
-                warning_triggered = should_block_stop_relaxation(
-                    previous_stop,
-                    proposed_stop,
-                    direction,
-                    open_profit,
-                    capture_pct,
+                changed = monotonic_anchor is None or (
+                    applied_stop is not None and abs(float(applied_stop) - float(monotonic_anchor)) > 1e-9
                 )
-                if warning_triggered:
-                    applied_stop = previous_stop
-                    changed = False
-                    status = "WARNING"
-                    note = (
-                        f"新止损若继续放松，只能锁住 {capture_pct:.2f}% 当前浮盈；"
-                        "会回吐超过 2/3 浮盈，停止继续下调。"
-                    )
-                else:
-                    changed = previous_stop is None or (
-                        proposed_stop is not None and abs(float(proposed_stop) - float(previous_stop)) > 1e-9
-                    )
-                    status = "UPDATED" if changed else "UNCHANGED"
-                    note = "ATR 移动止损建议已重新计算" if changed else "ATR 移动止损建议维持不变"
+                status = "UPDATED" if changed else "UNCHANGED"
+                note = "建议止损已按单向规则更新" if changed else "建议止损维持不变"
                 stop_basis = "ATR_1X" if proposed_stop is not None else "UNKNOWN"
 
                 if apply_changes:
@@ -258,17 +174,11 @@ class JournalManager:
                         "symbol": symbol,
                         "direction": to_storage_direction(direction),
                         "session_date": target_session,
-                        "previous_stop_loss": _round_or_none(previous_stop),
-                        "latest_close": _round_or_none(latest_close),
-                        "open_profit": _round_or_none(open_profit),
+                        "current_stop_loss": _round_or_none(current_stop),
+                        "previous_stop_loss": _round_or_none(monotonic_anchor),
                         "proposed_stop_loss": _round_or_none(proposed_stop),
                         "proposed_stop_loss_atr_2x": _round_or_none(proposed_stop_wide),
                         "applied_stop_loss": _round_or_none(applied_stop),
-                        "locked_profit_atr_1x": _round_or_none(locked_profit),
-                        "locked_profit_atr_2x": _round_or_none(locked_profit_wide),
-                        "profit_capture_pct_atr_1x": _round_or_none(capture_pct, 2),
-                        "profit_capture_pct_atr_2x": _round_or_none(capture_pct_wide, 2),
-                        "warning_triggered": warning_triggered,
                         "stop_basis": stop_basis,
                         "changed": changed,
                         "status": status,
@@ -282,7 +192,8 @@ class JournalManager:
                         "symbol": symbol,
                         "direction": to_storage_direction(direction),
                         "session_date": target_session,
-                        "previous_stop_loss": _round_or_none(previous_stop),
+                        "current_stop_loss": _round_or_none(current_stop),
+                        "previous_stop_loss": _round_or_none(monotonic_anchor),
                         "status": "ERROR",
                         "changed": False,
                         "note": str(exc),
@@ -293,7 +204,7 @@ class JournalManager:
             self.storage.insert_trade_stop_updates(updates)
 
         updated_count = sum(1 for item in updates if item.get("status") == "UPDATED")
-        unchanged_count = sum(1 for item in updates if item.get("status") in {"UNCHANGED", "WARNING"})
+        unchanged_count = sum(1 for item in updates if item.get("status") == "UNCHANGED")
         error_count = sum(1 for item in updates if item.get("status") == "ERROR")
 
         return StopUpdateSummary(

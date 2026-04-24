@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 
 import indicators
-from journal.service import JournalManager, compute_open_profit, compute_stop_locked_profit, compute_profit_capture_pct
+from journal.service import JournalManager
 from config.schema import TradePlanConfig
 
 
@@ -184,7 +184,7 @@ class TwoStageStopTests(unittest.TestCase):
         self.assertIsNone(exits["reward_risk_ratio"])
         self.assertEqual(exits["reward_risk_ratio_model"], 0.01)
 
-    def test_open_position_stop_updates_use_safezone_only(self) -> None:
+    def test_open_position_stop_updates_do_not_loosen_below_current_stop(self) -> None:
         manager = JournalManager(
             storage=_FakeStorage(),
             market_data=_FakeMarketData(),
@@ -200,18 +200,13 @@ class TwoStageStopTests(unittest.TestCase):
 
         summary = manager.preview_open_position_stops(session_date=date(2026, 4, 9))
 
-        self.assertEqual(summary.updated_count, 1)
-        self.assertEqual(summary.unchanged_count, 0)
+        self.assertEqual(summary.updated_count, 0)
+        self.assertEqual(summary.unchanged_count, 1)
+        self.assertEqual(summary.updates[0]["current_stop_loss"], 101.0)
         self.assertEqual(summary.updates[0]["previous_stop_loss"], 101.0)
         self.assertEqual(summary.updates[0]["proposed_stop_loss"], 96.7908)
         self.assertEqual(summary.updates[0]["proposed_stop_loss_atr_2x"], 95.5816)
-        self.assertEqual(summary.updates[0]["applied_stop_loss"], 96.7908)
-        self.assertEqual(summary.updates[0]["latest_close"], 100.0)
-        self.assertEqual(summary.updates[0]["open_profit"], -85.0)
-        self.assertEqual(summary.updates[0]["locked_profit_atr_1x"], -117.0918)
-        self.assertEqual(summary.updates[0]["locked_profit_atr_2x"], -129.1837)
-        self.assertIsNone(summary.updates[0]["profit_capture_pct_atr_1x"])
-        self.assertIsNone(summary.updates[0]["profit_capture_pct_atr_2x"])
+        self.assertEqual(summary.updates[0]["applied_stop_loss"], 101.0)
         self.assertEqual(summary.updates[0]["stop_basis"], "ATR_1X")
 
     def test_open_position_stop_updates_keep_previous_suggested_stop_separate_from_manual_stop(self) -> None:
@@ -232,19 +227,14 @@ class TwoStageStopTests(unittest.TestCase):
 
         self.assertEqual(summary.updated_count, 1)
         self.assertEqual(summary.unchanged_count, 0)
+        self.assertEqual(summary.updates[0]["current_stop_loss"], 100.0)
         self.assertEqual(summary.updates[0]["previous_stop_loss"], 103.0)
         self.assertEqual(summary.updates[0]["proposed_stop_loss"], 103.7204)
         self.assertEqual(summary.updates[0]["proposed_stop_loss_atr_2x"], 102.5408)
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 103.7204)
-        self.assertEqual(summary.updates[0]["latest_close"], 105.0)
-        self.assertEqual(summary.updates[0]["open_profit"], -35.0)
-        self.assertEqual(summary.updates[0]["locked_profit_atr_1x"], -47.7959)
-        self.assertEqual(summary.updates[0]["locked_profit_atr_2x"], -59.5918)
-        self.assertIsNone(summary.updates[0]["profit_capture_pct_atr_1x"])
-        self.assertIsNone(summary.updates[0]["profit_capture_pct_atr_2x"])
         self.assertEqual(summary.updates[0]["stop_basis"], "ATR_1X")
 
-    def test_open_position_stop_updates_warn_and_block_looser_stop_when_capture_below_one_third(self) -> None:
+    def test_open_position_stop_updates_keep_previous_suggested_stop_when_new_stop_is_looser(self) -> None:
         manager = JournalManager(
             storage=_FakeStorageProfitableWithTightPreviousStop(),
             market_data=_FakeMarketDataProfitableWarning(),
@@ -262,14 +252,12 @@ class TwoStageStopTests(unittest.TestCase):
 
         self.assertEqual(summary.updated_count, 0)
         self.assertEqual(summary.unchanged_count, 1)
+        self.assertEqual(summary.updates[0]["current_stop_loss"], 120.0)
         self.assertEqual(summary.updates[0]["previous_stop_loss"], 120.0)
         self.assertLess(summary.updates[0]["proposed_stop_loss"], 120.0)
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 120.0)
-        self.assertEqual(summary.updates[0]["open_profit"], 300.0)
-        self.assertLess(summary.updates[0]["profit_capture_pct_atr_1x"], 33.33)
-        self.assertTrue(summary.updates[0]["warning_triggered"])
-        self.assertEqual(summary.updates[0]["status"], "WARNING")
-        self.assertIn("超过 2/3 浮盈", summary.updates[0]["note"])
+        self.assertEqual(summary.updates[0]["status"], "UNCHANGED")
+        self.assertEqual(summary.updates[0]["note"], "建议止损维持不变")
 
     def test_calc_safezone_stop_uses_wider_short_coefficient(self) -> None:
         stop, noise = indicators.calc_safezone_stop(
@@ -312,16 +300,6 @@ class TwoStageStopTests(unittest.TestCase):
     def test_calc_nick_stop_uses_second_high_for_top_structure(self) -> None:
         stop = indicators.calc_nick_stop(_daily_frame_nick_short(), "SHORT")
         self.assertEqual(stop, 110.01)
-
-    def test_profit_capture_metrics_report_percent_of_open_profit(self) -> None:
-        open_profit = compute_open_profit(100.0, 110.0, 10, "long")
-        locked_profit = compute_stop_locked_profit(100.0, 107.0, 10, "long")
-        capture_pct = compute_profit_capture_pct(open_profit, locked_profit)
-
-        self.assertEqual(open_profit, 100.0)
-        self.assertEqual(locked_profit, 70.0)
-        self.assertEqual(capture_pct, 70.0)
-
 
 if __name__ == "__main__":
     unittest.main()
