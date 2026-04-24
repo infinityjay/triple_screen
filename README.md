@@ -8,6 +8,7 @@
 - 密钥只放在 `.env`，不再写进 Python 文件
 - 策略、数据源、通知、存储、入口模块并列放在同一层
 - 保留 `python src/scanner.py` 这种简单启动方式
+- 新增 `python src/universe_optimizer.py` 用于把候选股票池从 300 压缩到更聚焦的 100
 
 ## 目录结构
 
@@ -85,6 +86,51 @@ cp .env.example .env
 - base URL 现在支持两种写法：`https://.../v2` 或不带 `/v2` 的根域名，代码会自动规整
 - 小时线增量刷新已改成精确时间窗口，不再只按日期拉取
 - 扫描开始时会先对 YAML 股票池做批量请求预热缓存，再在本地逐票计算指标，避免 300 只股票逐票逐周期打 API
+
+## 股票池优化器
+
+项目现在提供一个独立的股票池优化模块 [src/universe_optimizer.py](/Users/jay/workspace/my_github/triple_screen/src/universe_optimizer.py)，用于把较大的股票池压缩成更聚焦的候选池。
+
+当前实现优先使用你已经有的 Alpaca 日线行情，围绕这些维度打分：
+
+- 流动性：20 日平均成交额
+- 波动机会：ATR 占股价比例是否落在合适区间
+- 风险调整后动量：6 个月 / 12 个月动量，排除最近 1 个月
+- 相对强弱：相对 `SPY`、`QQQ`
+- 趋势质量：`close`、`EMA50`、`EMA200` 的位置关系
+- 可选扩展字段：`roe_ttm`、`debt_to_equity`、`accruals_ratio`、`earnings_revision_1m`、`short_interest_pct_float`、`days_to_cover`
+
+默认会输出：
+
+- 直接按综合机会分数排序后的前 `100` 只
+- `LONG / SHORT` 比例不做强制约束
+- 如果你想人为约束方向数量，可以额外传 `--long-count` 或 `--short-count`
+
+直接用当前配置里的股票池：
+
+```bash
+python src/universe_optimizer.py --top-k 100 --output-file config/universe_us_top100_optimized.yaml
+```
+
+指定本地股票列表文件：
+
+```bash
+python src/universe_optimizer.py \
+  --input-file config/universe_us_top300.yaml \
+  --top-k 100 \
+  --output-file config/universe_us_top100_optimized.yaml
+```
+
+从远程 YAML / JSON / CSV 地址直接拉一份列表再筛：
+
+```bash
+python src/universe_optimizer.py \
+  --input-url https://example.com/my_universe.yaml \
+  --input-format auto \
+  --output-file config/universe_us_top100_optimized.yaml
+```
+
+输出文件仍然是 `symbols:` 结构，所以你后续如果想直接拿去给扫描器用，只需要把 [config/settings.yaml](/Users/jay/workspace/my_github/triple_screen/config/settings.yaml) 里的 `universe.static_file` 指向新文件即可。
 
 ## Alpaca 配置说明
 
