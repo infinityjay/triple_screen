@@ -38,7 +38,7 @@ data_source:
 universe:
   mode: "static_file"
   top_n: 100
-  static_file: "config/universe_us_top100_optimized.yaml"
+  static_file: "config/universe_us_top300.yaml"
   custom_symbols: []
   allowed_ticker_types:
     - "CS"

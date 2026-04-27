@@ -93,9 +93,9 @@
             <div class="summary-sub" id="summarySingleStopSub">基于总资金和单笔止损比例。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">月度止损上限</div>
+            <div class="summary-label">总止损额度</div>
             <div class="summary-value accent-danger" id="summaryMonthBudget">—</div>
-            <div class="summary-sub" id="summaryMonthBudgetSub">仅做月度参考，不参与当前剩余额度。</div>
+            <div class="summary-sub" id="summaryMonthBudgetSub">按总资金 6% 计算，只看当前持仓。</div>
           </div>
           <div class="summary-card">
             <div class="summary-label">当前剩余止损额度</div>
@@ -456,8 +456,8 @@
                     <input class="input" id="s_singleStop" type="number" step="0.1">
                   </div>
                   <div class="field-group span-6">
-                    <label>月度止损上限 (%)</label>
-                    <input class="input" id="s_monthStop" type="number" step="0.1">
+                    <label>总止损额度 (%)</label>
+                    <input class="input" id="s_monthStop" type="number" step="0.1" disabled>
                   </div>
                   <div class="field-group span-6">
                     <label>默认统计月份</label>

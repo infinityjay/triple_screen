@@ -168,6 +168,13 @@ export function getRiskPerShare(entryPrice, stopLoss, direction = "long") {
   return diff > 0 ? diff : 0;
 }
 
+export function getSignedStopBudgetPerShare(entryPrice, stopLoss, direction = "long") {
+  const entry = parseNumberValue(entryPrice);
+  const stop = parseNumberValue(stopLoss);
+  if (entry === null || stop === null) return null;
+  return normalizeDirection(direction) === "short" ? stop - entry : entry - stop;
+}
+
 export function getStopStatus(entryPrice, stopLoss, direction = "long") {
   const entry = parseNumberValue(entryPrice);
   const stop = parseNumberValue(stopLoss);
@@ -231,15 +238,12 @@ export function getTradeTargetPrice(trade) {
 }
 
 export function getTradeUsedStop(trade) {
-  if (isTradeClosed(trade)) {
-    const realizedPnl = calculateGrossPnl(trade?.buy_price, trade?.sell_price, trade?.shares, trade?.direction);
-    if (realizedPnl !== null) return realizedPnl < 0 ? Math.abs(realizedPnl) : 0;
-  }
-  const risk = getRiskPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
+  if (isTradeClosed(trade)) return 0;
+  const risk = getSignedStopBudgetPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
   const shares = parseNumberValue(trade?.shares);
-  if (risk !== null && shares !== null) return Math.abs(risk * shares);
+  if (risk !== null && shares !== null) return risk * shares;
   const stored = parseNumberValue(trade?.used_stop);
-  return stored === null ? 0 : Math.abs(stored);
+  return stored === null ? 0 : stored;
 }
 
 export function getTradeBuyMonth(trade) {

@@ -94,6 +94,34 @@ class BacktestRiskBudgetTests(unittest.TestCase):
         self.assertEqual(compute_position_open_risk(open_positions["MSFT"]), 60.0)
         self.assertEqual(compute_remaining_stop_budget(10_000.0, 6.0, open_positions), 460.0)
 
+    def test_remaining_stop_budget_credits_locked_profit_stops(self) -> None:
+        open_positions = {
+            "AAPL": Position(
+                symbol="AAPL",
+                direction="LONG",
+                entry_session_date="2026-04-10",
+                entry_timestamp="2026-04-10T14:30:00+00:00",
+                entry_price=100.0,
+                initial_stop=95.0,
+                active_stop=101.0,
+                risk_per_share=5.0,
+                shares=100,
+                take_profit=115.0,
+                source_session_date="2026-04-09",
+                bars_held=1,
+                position_cost=10_000.0,
+                last_price=102.0,
+                entry_cash_before=10_000.0,
+                entry_equity_before=10_000.0,
+                entry_open_risk_before=0.0,
+                entry_remaining_stop_budget=600.0,
+                entry_allowed_risk=200.0,
+            )
+        }
+
+        self.assertEqual(compute_position_open_risk(open_positions["AAPL"]), -100.0)
+        self.assertEqual(compute_remaining_stop_budget(10_000.0, 6.0, open_positions), 700.0)
+
     def test_account_equity_supports_margin_buying_power(self) -> None:
         open_positions = {
             "AAPL": Position(

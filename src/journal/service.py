@@ -37,9 +37,7 @@ def compute_used_stop(
     else:
         risk_per_share = stop_loss - entry_price
 
-    if risk_per_share <= 0:
-        return 0.0
-    return round(abs(risk_per_share * shares), 4)
+    return round(risk_per_share * shares, 4)
 
 
 def apply_monotonic_stop(

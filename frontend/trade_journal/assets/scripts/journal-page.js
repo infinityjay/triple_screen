@@ -68,6 +68,7 @@ const REVIEW_TEMPLATES = {
 };
 
 const SUGGESTED_STOP_METHOD_CODE = "TWO_BAR";
+const TOTAL_STOP_BUDGET_PCT = 6;
 
 const state = {
   trades: [],
@@ -196,15 +197,6 @@ function getCapturePreviewTrade() {
   };
 }
 
-function getMonthClosedRiskUsed(month, includeCapturePreview = false) {
-  return getClosedTradesForMonth(month, includeCapturePreview).reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
-}
-
-function getMonthClosedLossUsed(month, includeCapturePreview = false) {
-  const netClosed = getMonthClosedNetPnl(month, includeCapturePreview);
-  return netClosed < 0 ? Math.abs(netClosed) : 0;
-}
-
 function getMonthOpenRisk(month, includeCapturePreview = false) {
   const trades = getOpenTradesForMonth(month, includeCapturePreview);
   return trades.reduce((sum, trade) => sum + getTradeUsedStop(trade), 0);
@@ -269,13 +261,12 @@ function getMonthlyCompletionRate(month) {
 function getRiskNumbers(includeCapturePreview = false) {
   const settings = getSettings();
   const singleStop = settings.total * (settings.singleStop / 100);
-  const monthBudget = settings.total * (settings.monthStop / 100);
-  const realizedLossUsed = getMonthClosedLossUsed(settings.month, includeCapturePreview);
+  const monthBudget = settings.total * (TOTAL_STOP_BUDGET_PCT / 100);
   const openUsed = getMonthOpenRisk(settings.month, includeCapturePreview);
-  const totalUsed = realizedLossUsed + openUsed;
+  const totalUsed = openUsed;
   const remaining = monthBudget - totalUsed;
   const pct = monthBudget > 0 ? (totalUsed / monthBudget) * 100 : 0;
-  return { singleStop, monthBudget, realizedLossUsed, openUsed, totalUsed, remaining, pct };
+  return { singleStop, monthBudget, totalStopPct: TOTAL_STOP_BUDGET_PCT, openUsed, totalUsed, remaining, pct };
 }
 
 function truncateText(value, length = 100) {
@@ -334,7 +325,7 @@ function renderSummary(includeCapturePreview = false) {
   const closedPct = settings.total > 0 ? (netClosed / settings.total) * 100 : null;
   const completionRate = getMonthlyCompletionRate(month);
   const overdue = getOverdueIncompleteTrades();
-  const { singleStop, monthBudget, realizedLossUsed, openUsed, remaining, pct } = getRiskNumbers(includeCapturePreview);
+  const { singleStop, monthBudget, totalStopPct, openUsed, remaining, pct } = getRiskNumbers(includeCapturePreview);
 
   $("summaryTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "未设置";
   $("summarySingleStop").textContent = settings.total ? formatCurrency(singleStop, 2) : "—";
@@ -360,9 +351,9 @@ function renderSummary(includeCapturePreview = false) {
     ? `${formatPercent(settings.singleStop, 1)} 规则已启用`
     : "先在设置里填总资金";
   $("summaryMonthBudgetSub").textContent = settings.total
-    ? `${formatPercent(settings.monthStop, 1)} 月度止损上限，已结亏损和持仓风险都会占用`
-    : "月度参考上限尚未设定";
-  $("summaryRemainingSub").textContent = `已结亏损占用 ${formatCurrency(realizedLossUsed, 2)} · 当前持仓占用 ${formatCurrency(openUsed, 2)} · 剩余 ${formatCurrency(remaining, 2)}`;
+    ? `${formatPercent(totalStopPct, 1)} 总止损额度，只统计当前持仓`
+    : "总止损额度尚未设定";
+  $("summaryRemainingSub").textContent = `当前持仓占用 ${formatCurrency(openUsed, 2)} · 剩余 ${formatCurrency(remaining, 2)}`;
   $("summaryOpenCountSub").textContent = openTrades.length
     ? `其中 ${openTrades.filter((trade) => normalizeDirection(trade.direction) === "short").length} 笔做空`
     : "当前没有月末持仓";
@@ -375,8 +366,8 @@ function renderSummary(includeCapturePreview = false) {
 
   const notes = [];
   if (!settings.total) notes.push("先在设置里填写总资金和风险比例，系统才能给出仓位建议。");
-  if (remaining <= 0) notes.push("本月止损额度已经用尽，建议暂停新开仓，先做复盘。");
-  else if (pct >= 75) notes.push("本月止损额度占用偏高，新仓要更严格筛选。");
+  if (remaining <= 0) notes.push("当前持仓止损额度已经用尽，建议暂停新开仓，先处理现有仓位。");
+  else if (pct >= 75) notes.push("当前持仓止损额度占用偏高，新仓要更严格筛选。");
   if (overdue.length) notes.push(`有 ${overdue.length} 笔旧交易还没补完整，统计结论会受影响。`);
   if (!closedTrades.length) notes.push("本月还没有已结交易，先聚焦执行质量和记录完整度。");
   $("heroNotes").innerHTML = notes.length
@@ -436,9 +427,9 @@ function renderOverview() {
   const month = getCurrentMonth();
   const closedTrades = getClosedTradesForMonth(month);
   const insights = [];
-  const { pct, remaining, realizedLossUsed, openUsed } = getRiskNumbers();
-  if (remaining <= 0) insights.push(["本月止损额度已触顶", "本月已结亏损加当前持仓风险已经耗尽月度额度，先暂停新增仓位。"]);
-  else if (pct >= 75) insights.push(["本月止损占用偏高", `已结亏损占用 ${formatCurrency(realizedLossUsed, 2)}，持仓占用 ${formatCurrency(openUsed, 2)}，新仓要缩量。`]);
+  const { pct, remaining, openUsed } = getRiskNumbers();
+  if (remaining <= 0) insights.push(["当前持仓止损额度已触顶", "未平仓风险已经耗尽总止损额度，先暂停新增仓位。"]);
+  else if (pct >= 75) insights.push(["当前持仓止损占用偏高", `持仓占用 ${formatCurrency(openUsed, 2)}，新仓要缩量。`]);
   if (openTrades.length) insights.push(["先盯住仍在持仓的仓位", `当前有 ${openTrades.length} 笔持仓，优先保证止损和跟踪记录及时更新。`]);
   if (!closedTrades.length) insights.push(["本月样本偏少", "已结交易太少时，不要过度解读胜率和净结果。"]);
   if (!insights.length) insights.push(["节奏正常", "风险、样本数和记录完整度都在可接受范围内。"]);
@@ -460,6 +451,7 @@ function renderJournalRail(list) {
       const gaps = getTradeCompletionGaps(trade);
       const target = getTradeTargetPrice(trade);
       const usedStop = getTradeUsedStop(trade);
+      const isClosed = isTradeClosed(trade);
       const initialStop = getTradeInitialStop(trade);
       const currentStop = getTradeCurrentStop(trade);
       const primaryNote = trade.stop_reason || trade.sell_reason || trade.review || "这笔交易还没有补充说明。";
@@ -479,8 +471,8 @@ function renderJournalRail(list) {
               <strong>${formatCurrency(trade.buy_price, 3)}</strong>
             </div>
             <div>
-              <span>风险占用</span>
-              <strong>${formatCurrency(usedStop, 2)}</strong>
+              <span>${isClosed ? "已结结果" : "风险占用"}</span>
+              <strong class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${isClosed ? formatCurrency(pnl, 2) : formatCurrency(usedStop, 2)}</strong>
             </div>
             <div>
               <span>目标</span>
@@ -530,6 +522,7 @@ function renderJournalTable(list) {
       const gaps = getTradeCompletionGaps(trade);
       const initialStop = getTradeInitialStop(trade);
       const currentStop = getTradeCurrentStop(trade);
+      const riskOrResult = isTradeClosed(trade) ? (pnl === null ? "—" : formatCurrency(pnl, 2)) : formatCurrency(getTradeUsedStop(trade), 2);
       return `
         <tr>
           <td class="symbol-cell">
@@ -542,7 +535,7 @@ function renderJournalTable(list) {
           <td>${formatShares(trade.shares)}</td>
           <td>${formatCurrency(initialStop, 3)}</td>
           <td>${formatCurrency(currentStop, 3)}</td>
-          <td>${formatCurrency(getTradeUsedStop(trade), 2)}</td>
+          <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${riskOrResult}</td>
           <td>${formatCurrency(getTradeTargetPrice(trade), 3)}</td>
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "持仓中" : formatCurrency(pnl, 2)}</td>
           <td class="reason-cell">${escapeHtml(trade.stop_reason || "—")}</td>
@@ -572,7 +565,7 @@ function renderJournalTable(list) {
             <th>股数</th>
             <th>初始止损价</th>
             <th>当前保护止损</th>
-            <th>占用风险</th>
+            <th>风险/结果</th>
             <th>目标价</th>
             <th>净结果</th>
             <th>交易计划</th>
@@ -625,14 +618,14 @@ function renderStats() {
     leadTitle = "样本不足，先看执行";
     leadBody = "本月还没有足够的已结交易样本，先确保计划、止损和复盘记录都完整。";
   } else if (risk.remaining <= 0) {
-    leadTitle = "本月止损额度已触顶";
-    leadBody = "已结亏损和未平仓风险已经耗尽本月额度，先停止新开仓，优先做复盘和风险回收。";
+    leadTitle = "当前持仓止损额度已触顶";
+    leadBody = "未平仓风险已经耗尽总止损额度，先停止新开仓，优先处理现有仓位。";
   } else if (net < 0) {
     leadTitle = "净结果偏弱，先收紧风险";
     leadBody = "本月已结交易净结果为负，优先复盘亏损交易的执行偏差，而不是急着扩大样本。";
   } else if (risk.pct >= 75) {
-    leadTitle = "月度止损占用偏高";
-    leadBody = "本月已结亏损与当前持仓风险合计占用偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
+    leadTitle = "当前持仓止损占用偏高";
+    leadBody = "未平仓风险占用偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
   } else if ((completionRate || 0) < 70) {
     leadTitle = "结果先放一边，先补数据";
     leadBody = "记录完整度偏低会直接影响统计质量，先把旧交易补全。";
@@ -653,10 +646,9 @@ function renderStats() {
     ["胜率", closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"],
     ["平均盈利", avgWin === null ? "—" : formatCurrency(avgWin, 2)],
     ["平均亏损", avgLoss === null ? "—" : formatCurrency(avgLoss, 2)],
-    ["月度止损占用", formatPercent(risk.pct, 0)],
-    ["已结亏损占用", formatCurrency(risk.realizedLossUsed, 2)],
+    ["持仓止损占用", formatPercent(risk.pct, 0)],
     ["当前持仓止损", formatCurrency(risk.openUsed, 2)],
-    ["月度剩余额度", formatCurrency(risk.remaining, 2)],
+    ["当前剩余额度", formatCurrency(risk.remaining, 2)],
     ["已记录交易", String(all.length)],
     ["完整记录", completionRate === null ? "—" : formatPercent(completionRate, 0)],
   ]
@@ -671,7 +663,7 @@ function renderStats() {
     .join("");
 
   const suggestions = [];
-  if (risk.remaining <= 0) suggestions.push(["暂停新仓", "本月止损额度已经耗尽，优先处理现有持仓和复盘。"]);
+  if (risk.remaining <= 0) suggestions.push(["暂停新仓", "当前持仓止损额度已经耗尽，优先处理现有持仓。"]);
   if (losses.length > wins.length && closed.length >= 4) suggestions.push(["复盘亏损共性", "检查是否总在同一类 setup 或同一执行环节上出错。"]);
   if ((completionRate || 0) < 70) suggestions.push(["补齐旧记录", "先把未填写的计划、平仓原因和复盘补完，再看统计。"]);
   if (!suggestions.length) suggestions.push(["延续当前流程", "继续按照现在的节奏维护交易日志，并关注持仓止损更新。"]);
@@ -1046,7 +1038,7 @@ async function persistSettings() {
 function scheduleSettingsSave() {
   const total = parseNumberValue($("s_total")?.value);
   const singleStop = parseNumberValue($("s_singleStop")?.value);
-  const monthStop = parseNumberValue($("s_monthStop")?.value);
+  const monthStop = TOTAL_STOP_BUDGET_PCT;
   const month = $("s_month")?.value || getCurrentMonth();
 
   state.settings = normalizeSettings({
@@ -1074,7 +1066,7 @@ function renderSettings() {
   const settings = getSettings();
   $("s_total").value = settings.total ? formatInputNumber(settings.total) : "";
   $("s_singleStop").value = formatInputNumber(settings.singleStop, 1);
-  $("s_monthStop").value = formatInputNumber(settings.monthStop, 1);
+  $("s_monthStop").value = formatInputNumber(TOTAL_STOP_BUDGET_PCT, 1);
   $("s_month").value = settings.month;
 }
 
