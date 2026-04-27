@@ -62,9 +62,7 @@ def choose_monotonic_stop_anchor(
 ) -> float | None:
     if current_stop is None:
         return previous_suggested_stop
-    if previous_suggested_stop is None:
-        return current_stop
-    return apply_monotonic_stop(current_stop, previous_suggested_stop, direction)
+    return current_stop
 
 
 def _to_float(value: Any) -> float | None:

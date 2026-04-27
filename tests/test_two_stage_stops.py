@@ -226,7 +226,7 @@ class TwoStageStopTests(unittest.TestCase):
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 101.0)
         self.assertEqual(summary.updates[0]["stop_basis"], "ATR_1X")
 
-    def test_open_position_stop_updates_keep_previous_suggested_stop_separate_from_manual_stop(self) -> None:
+    def test_open_position_stop_updates_use_current_stop_as_anchor(self) -> None:
         manager = JournalManager(
             storage=_FakeStorageWithSuggestedStop(),
             market_data=_FakeMarketDataLowerSafezone(),
@@ -245,7 +245,7 @@ class TwoStageStopTests(unittest.TestCase):
         self.assertEqual(summary.updated_count, 1)
         self.assertEqual(summary.unchanged_count, 0)
         self.assertEqual(summary.updates[0]["current_stop_loss"], 100.0)
-        self.assertEqual(summary.updates[0]["previous_stop_loss"], 103.0)
+        self.assertEqual(summary.updates[0]["previous_stop_loss"], 100.0)
         self.assertEqual(summary.updates[0]["proposed_stop_loss"], 103.7204)
         self.assertEqual(summary.updates[0]["proposed_stop_loss_atr_2x"], 102.5408)
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 103.7204)

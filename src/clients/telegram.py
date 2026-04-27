@@ -416,17 +416,12 @@ class TelegramNotifier:
 
         for index, signal in enumerate(qualified_signals, start=1):
             direction = "做多" if signal["direction"] == "LONG" else "做空"
-            daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
-            earnings_status = signal.get("earnings", {}).get("status", "UNKNOWN")
-            entry_plan = signal.get("daily", {}).get("entry_plan", {})
             status_label = self._status_label(signal)
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   {daily_state} · Force {self._fmt_num(signal['daily'].get('force_index_ema2'), 0, signed=True)} · "
-                f"参考价 {self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)} / {self._fmt_num(entry_plan.get('breakout_entry'), 2)} · "
-                f"价值带 {self._bool_text(signal['daily'].get('value_zone_reached'))} · 财报 {earnings_status}\n"
+                f"   周线：{_html_text(signal['weekly'].get('reason'))} · 日线：{_html_text(signal['daily'].get('reason'))}\n"
             )
 
         if stop_update_summary:
@@ -505,14 +500,14 @@ class TelegramNotifier:
         alert_count = int(exit_summary.get("alert_count", 0) or 0)
         items = list(exit_summary.get("items", []))
         lines = [
-            "🚨 <b>持仓动力系统平仓警报</b>\n",
-            f"持仓 {total_positions} 笔 · 需要检查 {alert_count} 笔\n",
+            "⚠️ <b>模型提示重大亏损风险</b>\n",
+            f"持仓 {total_positions} 笔 · 需重点复核 {alert_count} 笔\n",
         ]
         if total_positions == 0:
             lines.append("当前没有未平仓交易。\n")
             return "".join(lines)
         if not items:
-            lines.append("当前持仓未发现周线/日线动力系统反向。\n")
+            lines.append("当前持仓未发现模型驱动的风险反转。\n")
             return "".join(lines)
         for index, item in enumerate(items[:8], start=1):
             lines.append(

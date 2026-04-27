@@ -270,7 +270,7 @@ class TripleScreenScanner:
                             "daily_impulse_color": daily_color,
                             "daily_ema_slope": daily_impulse.get("ema_slope"),
                             "daily_macd_slope": daily_impulse.get("macd_slope"),
-                            "reason": "周线或日线动力系统已与持仓方向相反，按规则需要检查平仓。",
+                            "reason": "模型提示当前持仓面临大额亏损风险，按规则需要复核是否平仓。",
                         }
                     )
             except Exception as exc:
