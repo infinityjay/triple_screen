@@ -965,10 +965,8 @@ async function saveTrade() {
 
   const previewRisk = getRiskNumbers(true);
   if (previewRisk.singleStop > 0 && previewRisk.remaining < 0) {
-    const confirmed = window.confirm(
-      `这笔交易会让当前持仓止损超出剩余额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。仍然继续保存吗？`
-    );
-    if (!confirmed) return;
+    showAlert("captureAlert", `这笔交易会让当前持仓止损超出总额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，无法保存。请调整仓位或等待现有仓位平仓。`, "danger");
+    return;
   }
 
   const button = $("captureSaveBtn");

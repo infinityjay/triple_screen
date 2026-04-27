@@ -17,6 +17,7 @@ import yaml
 
 import trading_models
 from config.loader import load_settings
+from journal.service import compute_used_stop
 from journal.technical_analysis import TechnicalAnalysisError, analyze_symbol
 from storage.sqlite import SQLiteStorage
 
@@ -206,12 +207,30 @@ def list_trades() -> list[dict[str, Any]]:
 
 @app.post("/api/trades")
 def create_trade(payload: TradePayload) -> dict[str, Any]:
-    return storage.insert_trade(payload.model_dump())
+    payload_dict = payload.model_dump()
+    # Recalculate used_stop to ensure accuracy
+    used_stop = compute_used_stop(
+        entry_price=payload_dict.get("buy_price"),
+        stop_loss=payload_dict.get("stop_loss"),
+        shares=payload_dict.get("shares"),
+        direction=payload_dict.get("direction"),
+    )
+    payload_dict["used_stop"] = used_stop
+    return storage.insert_trade(payload_dict)
 
 
 @app.put("/api/trades/{trade_id}")
 def update_trade(trade_id: str, payload: TradePayload) -> dict[str, Any]:
-    updated = storage.update_trade(trade_id, payload.model_dump())
+    payload_dict = payload.model_dump()
+    # Recalculate used_stop to ensure accuracy
+    used_stop = compute_used_stop(
+        entry_price=payload_dict.get("buy_price"),
+        stop_loss=payload_dict.get("stop_loss"),
+        shares=payload_dict.get("shares"),
+        direction=payload_dict.get("direction"),
+    )
+    payload_dict["used_stop"] = used_stop
+    updated = storage.update_trade(trade_id, payload_dict)
     if not updated:
         raise HTTPException(status_code=404, detail="Trade not found")
     return updated

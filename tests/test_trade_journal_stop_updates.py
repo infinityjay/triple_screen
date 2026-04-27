@@ -19,6 +19,13 @@ class TradeJournalStopUpdateTests(unittest.TestCase):
         self.assertEqual(compute_used_stop(100.0, 104.0, 20, "short"), 80.0)
         self.assertEqual(compute_used_stop(100.0, 102.0, 20, "long"), 0.0)
         self.assertEqual(compute_used_stop(100.0, 98.0, 20, "short"), 0.0)
+        # Test when stop equals entry
+        self.assertEqual(compute_used_stop(100.0, 100.0, 20, "long"), 0.0)
+        self.assertEqual(compute_used_stop(100.0, 100.0, 20, "short"), 0.0)
+        # Test when stop is above entry for long
+        self.assertEqual(compute_used_stop(100.0, 105.0, 20, "long"), 0.0)
+        # Test when stop is below entry for short
+        self.assertEqual(compute_used_stop(100.0, 95.0, 20, "short"), 0.0)
 
 
 if __name__ == "__main__":
