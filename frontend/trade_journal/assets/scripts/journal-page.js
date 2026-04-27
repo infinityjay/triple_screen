@@ -1,5 +1,4 @@
 import {
-  APP_CONFIG,
   apiRequest,
   calculateGrossPnl,
   calculateNetPnl,
@@ -15,7 +14,6 @@ import {
   getCommissionValue,
   getDirectionLabel,
   getLocalDateStamp,
-  getLocalMonthStamp,
   getRecommendedShares,
   getRiskPerShare,
   getStatusMeta,
@@ -23,14 +21,12 @@ import {
   getTargetPrice,
   getTradeAgeInDays,
   getTradeAnchorDate,
-  getTradeBuyMonth,
   getTradeCompletionGaps,
   getTradeNetPnl,
   getTradeSellMonth,
   getTradeTargetPct,
   getTradeTargetPrice,
   getTradeUsedStop,
-  hasNumberValue,
   hasPartialSellInfo,
   hasTextValue,
   isTradeClosed,
@@ -45,7 +41,7 @@ import {
   setScreenState,
   settingsRowToState,
   settingsStateToRow,
-  syncShell,
+  syncShell
 } from "./shared.js";
 
 const REVIEW_TEMPLATES = {
@@ -334,9 +330,8 @@ function renderSummary(includeCapturePreview = false) {
   $("summaryClosedResult").textContent = closedTrades.length ? formatCurrency(netClosed, 2) : "—";
   $("summaryClosedResult").className = `summary-value ${netClosed >= 0 ? "accent-safe" : "accent-danger"}`;
   $("summaryClosedResultSub").textContent = closedTrades.length
-    ? `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${closedTrades.length - wins.length} 负 · 占总资金 ${
-        closedPct === null ? "—" : formatPercent(closedPct, 2)
-      }`
+    ? `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${closedTrades.length - wins.length} 负 · 占总资金 ${closedPct === null ? "—" : formatPercent(closedPct, 2)
+    }`
     : "本月暂无已结交易";
   $("summaryOpenCount").textContent = String(openTrades.length);
   $("summaryUsedPct").textContent = closedPct === null ? "—" : formatPercent(closedPct, 2);
@@ -389,10 +384,10 @@ function renderOverview() {
 
   $("reminderList").innerHTML = overdue.length
     ? overdue
-        .slice(0, 6)
-        .map((trade) => {
-          const gaps = getTradeCompletionGaps(trade);
-          return `
+      .slice(0, 6)
+      .map((trade) => {
+        const gaps = getTradeCompletionGaps(trade);
+        return `
             <div class="reminder-item">
               <strong>${escapeHtml(trade.stock || "—")} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
               <p>${formatDateLabel(trade.buy_date || trade.created_at)} 建立，距今 ${getTradeAgeInDays(trade) || 0} 天，待补：${escapeHtml(gaps.join("、"))}</p>
@@ -401,17 +396,17 @@ function renderOverview() {
               </div>
             </div>
           `;
-        })
-        .join("")
+      })
+      .join("")
     : `<div class="empty-state">目前没有长期未补完整的交易。</div>`;
 
   const focusItems = openTrades.length ? openTrades.slice(0, 5) : recentTrades;
   $("focusList").innerHTML = focusItems.length
     ? focusItems
-        .map((trade) => {
-          const pnl = getTradeNetPnl(trade);
-          const meta = getStatusMeta(trade);
-          return `
+      .map((trade) => {
+        const pnl = getTradeNetPnl(trade);
+        const meta = getStatusMeta(trade);
+        return `
             <div class="focus-item">
               <strong>${escapeHtml(trade.stock || "—")} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
               <p>${escapeHtml(meta.label)} · 入场 ${formatCurrency(trade.buy_price, 3)} · 股数 ${formatShares(trade.shares)} · ${pnl === null ? "等待平仓结果" : `净结果 ${formatCurrency(pnl, 2)}`}</p>
@@ -420,8 +415,8 @@ function renderOverview() {
               </div>
             </div>
           `;
-        })
-        .join("")
+      })
+      .join("")
     : `<div class="empty-state">还没有交易，先录入第一笔。</div>`;
 
   const month = getCurrentMonth();
@@ -815,13 +810,13 @@ function computeCapture() {
   const usedStop =
     buyPrice !== null && stopLoss !== null && shares !== null
       ? getTradeUsedStop({
-          buy_price: buyPrice,
-          stop_loss: stopLoss,
-          shares,
-          direction,
-          sell_price: sellPrice,
-          sell_date: $("f_sellDate").value || null,
-        })
+        buy_price: buyPrice,
+        stop_loss: stopLoss,
+        shares,
+        direction,
+        sell_price: sellPrice,
+        sell_date: $("f_sellDate").value || null,
+      })
       : null;
   const recommendedShares = getRecommendedShares(maxLoss, buyPrice, stopLoss, direction);
   const stopStatus = getStopStatus(buyPrice, stopLoss, direction);
@@ -906,13 +901,13 @@ function getCapturePayload() {
   const usedStop =
     buyPrice !== null && stopLoss !== null && shares !== null
       ? getTradeUsedStop({
-          buy_price: buyPrice,
-          stop_loss: stopLoss,
-          shares,
-          direction,
-          sell_price: sellPrice,
-          sell_date: sellDate,
-        })
+        buy_price: buyPrice,
+        stop_loss: stopLoss,
+        shares,
+        direction,
+        sell_price: sellPrice,
+        sell_date: sellDate,
+      })
       : null;
 
   return {

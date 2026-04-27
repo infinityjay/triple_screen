@@ -15,7 +15,7 @@ export function safeStorageGet(key) {
 export function safeStorageSet(key, value) {
   try {
     localStorage.setItem(key, value);
-  } catch (_) {}
+  } catch (_) { }
 }
 
 export function readStoredJson(key, fallback) {
@@ -239,7 +239,7 @@ export function getTradeTargetPrice(trade) {
 
 export function getTradeUsedStop(trade) {
   if (isTradeClosed(trade)) return 0;
-  const risk = getSignedStopBudgetPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
+  const risk = getRiskPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
   const shares = parseNumberValue(trade?.shares);
   if (risk !== null && shares !== null) return risk * shares;
   const stored = parseNumberValue(trade?.used_stop);
