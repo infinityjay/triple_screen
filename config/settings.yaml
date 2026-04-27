@@ -46,7 +46,7 @@ universe:
     - "."
 
 trading_model:
-  active: "current"
+  active: "legacy_pre_45c9b2d"
 
 strategy:
   weekly:

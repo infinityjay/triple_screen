@@ -12,7 +12,7 @@ from config.schema import StrategyConfig, TradePlanConfig
 
 CURRENT_MODEL_ID = "current"
 LEGACY_MODEL_ID = "legacy_pre_45c9b2d"
-DEFAULT_MODEL_ID = CURRENT_MODEL_ID
+DEFAULT_MODEL_ID = LEGACY_MODEL_ID
 
 
 @dataclass(frozen=True)
