@@ -107,6 +107,23 @@ class _FakeStorageWithSuggestedStop:
         ]
 
 
+class _FakeStorageWithManualStopAboveSuggestedStop:
+    def list_open_trades(self) -> list[dict]:
+        return [
+            {
+                "id": "trade-4",
+                "stock": "WDAY",
+                "direction": "long",
+                "buy_price": 108.5,
+                "shares": 10,
+                "stop_loss": 110.0,
+                "initial_stop_loss": 100.0,
+                "initial_stop_basis": "PULLBACK_PIVOT",
+                "suggested_stop_loss": 103.0,
+            }
+        ]
+
+
 class _FakeStorageProfitableWithTightPreviousStop:
     def list_open_trades(self) -> list[dict]:
         return [
@@ -233,6 +250,30 @@ class TwoStageStopTests(unittest.TestCase):
         self.assertEqual(summary.updates[0]["proposed_stop_loss_atr_2x"], 102.5408)
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 103.7204)
         self.assertEqual(summary.updates[0]["stop_basis"], "ATR_1X")
+
+    def test_open_position_stop_updates_do_not_loosen_below_manual_stop_when_suggestion_lags(self) -> None:
+        manager = JournalManager(
+            storage=_FakeStorageWithManualStopAboveSuggestedStop(),
+            market_data=_FakeMarketDataLowerSafezone(),
+            trade_plan=TradePlanConfig(
+                safezone_lookback=10,
+                safezone_ema_period=22,
+                safezone_long_coefficient=2.0,
+                safezone_short_coefficient=3.0,
+                thermometer_period=22,
+                thermometer_target_multiplier=1.0,
+            ),
+        )
+
+        summary = manager.preview_open_position_stops(session_date=date(2026, 4, 9))
+
+        self.assertEqual(summary.updated_count, 0)
+        self.assertEqual(summary.unchanged_count, 1)
+        self.assertEqual(summary.updates[0]["current_stop_loss"], 110.0)
+        self.assertEqual(summary.updates[0]["previous_stop_loss"], 110.0)
+        self.assertEqual(summary.updates[0]["proposed_stop_loss"], 103.7204)
+        self.assertEqual(summary.updates[0]["applied_stop_loss"], 110.0)
+        self.assertEqual(summary.updates[0]["status"], "UNCHANGED")
 
     def test_open_position_stop_updates_keep_previous_suggested_stop_when_new_stop_is_looser(self) -> None:
         manager = JournalManager(

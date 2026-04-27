@@ -55,6 +55,18 @@ def apply_monotonic_stop(
     return min(current_stop, proposed_stop)
 
 
+def choose_monotonic_stop_anchor(
+    current_stop: float | None,
+    previous_suggested_stop: float | None,
+    direction: str | None,
+) -> float | None:
+    if current_stop is None:
+        return previous_suggested_stop
+    if previous_suggested_stop is None:
+        return current_stop
+    return apply_monotonic_stop(current_stop, previous_suggested_stop, direction)
+
+
 def _to_float(value: Any) -> float | None:
     if value is None:
         return None
@@ -111,7 +123,7 @@ class JournalManager:
             shares = _to_float(trade.get("shares"))
             current_stop = _to_float(trade.get("stop_loss"))
             previous_suggested_stop = _to_float(trade.get("suggested_stop_loss"))
-            monotonic_anchor = previous_suggested_stop if previous_suggested_stop is not None else current_stop
+            monotonic_anchor = choose_monotonic_stop_anchor(current_stop, previous_suggested_stop, direction)
 
             if not trade_id or not symbol:
                 updates.append(
