@@ -85,7 +85,7 @@ class EodEarningsReminderTests(unittest.TestCase):
                     "direction": "LONG",
                     "opportunity_status": "MONITOR",
                     "candidate_score": 8.4,
-                    "weekly": {"reason": "周线向上"},
+                    "weekly": {"reason": "周线向上", "trend": "LONG"},
                     "daily": {"reason": "日线结构完整", "rsi_state": "RECOVERING"},
                     "earnings": {},
                     "strong_divergence": False,
@@ -96,7 +96,7 @@ class EodEarningsReminderTests(unittest.TestCase):
             scan_time_sec=0.5,
         )
 
-        self.assertIn("周线：周线向上 · 日线：日线结构完整", message)
+        self.assertIn("周线：向上 · 日线：超卖后回升", message)
         self.assertNotIn("Force", message)
 
     def test_open_position_exit_alert_section_uses_model_risk_warning(self) -> None:

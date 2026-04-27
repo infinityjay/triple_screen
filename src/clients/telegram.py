@@ -418,10 +418,12 @@ class TelegramNotifier:
             direction = "做多" if signal["direction"] == "LONG" else "做空"
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             status_label = self._status_label(signal)
+            weekly_trend = "向上" if signal['weekly'].get('trend') == "LONG" else "向下"
+            daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   周线：{_html_text(signal['weekly'].get('reason'))} · 日线：{_html_text(signal['daily'].get('reason'))}\n"
+                f"   周线：{weekly_trend} · 日线：{daily_state}\n"
             )
 
         if stop_update_summary:
