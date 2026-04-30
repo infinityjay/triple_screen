@@ -29,7 +29,7 @@ DEFAULT_RISK_PCT = 2.0
 DEFAULT_LOOKBACK_YEARS = 3.0
 DEFAULT_MAX_TOTAL_OPEN_RISK_PCT = 6.0
 DEFAULT_MAX_OPEN_POSITIONS = 0
-WATCHLIST_SESSION_LIMIT = 5
+WATCHLIST_SESSION_LIMIT = 3
 DEFAULT_BATCH_SIZE = 40
 HOURLY_BATCH_SIZE = 5
 HOURLY_WINDOW_DAYS = 120
@@ -594,18 +594,47 @@ def get_planned_trigger(
 ) -> tuple[float | None, str | None]:
     primary_entry = entry_plan.get("ema_penetration_entry")
     breakout_entry = entry_plan.get("breakout_entry")
+    current_open = float(current_bar["open"])
     current_high = float(current_bar["high"])
     current_low = float(current_bar["low"])
+    current_close = float(current_bar["close"])
+    candle_range = max(current_high - current_low, 1e-9)
+    upper_half_close = current_close >= current_low + candle_range * 0.5
+    lower_half_close = current_close <= current_low + candle_range * 0.5
+    upper_40_close = current_close >= current_low + candle_range * 0.6
+    lower_40_close = current_close <= current_low + candle_range * 0.4
 
     if direction == "LONG":
-        if primary_entry is not None and current_low <= float(primary_entry):
+        if (
+            primary_entry is not None
+            and current_low <= float(primary_entry)
+            and current_close >= float(primary_entry)
+            and current_close > current_open
+            and upper_40_close
+        ):
             return round(float(primary_entry), 4), "EMA_PENETRATION"
-        if breakout_entry is not None and current_high >= float(breakout_entry):
+        if (
+            breakout_entry is not None
+            and current_high >= float(breakout_entry)
+            and current_close >= float(breakout_entry)
+            and upper_half_close
+        ):
             return round(float(breakout_entry), 4), "PREVIOUS_DAY_BREAK"
     elif direction == "SHORT":
-        if primary_entry is not None and current_high >= float(primary_entry):
+        if (
+            primary_entry is not None
+            and current_high >= float(primary_entry)
+            and current_close <= float(primary_entry)
+            and current_close < current_open
+            and lower_40_close
+        ):
             return round(float(primary_entry), 4), "EMA_PENETRATION"
-        if breakout_entry is not None and current_low <= float(breakout_entry):
+        if (
+            breakout_entry is not None
+            and current_low <= float(breakout_entry)
+            and current_close <= float(breakout_entry)
+            and lower_half_close
+        ):
             return round(float(breakout_entry), 4), "PREVIOUS_DAY_BREAK"
     return None, None
 

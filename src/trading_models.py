@@ -145,26 +145,49 @@ def get_planned_trigger(
     direction: str,
     entry_plan: dict[str, Any],
     current_bar: pd.Series,
-) -> tuple[float | None, str | None, bool, bool]:
+) -> tuple[float | None, str | None, bool, bool, bool, bool]:
     primary_entry = entry_plan.get("ema_penetration_entry")
     breakout_entry = entry_plan.get("breakout_entry")
+    current_open = float(current_bar["open"])
     current_high = float(current_bar["high"])
     current_low = float(current_bar["low"])
+    current_close = float(current_bar["close"])
+    candle_range = max(current_high - current_low, 1e-9)
+    upper_half_close = current_close >= current_low + candle_range * 0.5
+    lower_half_close = current_close <= current_low + candle_range * 0.5
+    upper_40_close = current_close >= current_low + candle_range * 0.6
+    lower_40_close = current_close <= current_low + candle_range * 0.4
     primary_touched = False
     breakout_touched = False
+    primary_confirmed = False
+    breakout_confirmed = False
 
     if direction == "LONG":
         primary_touched = primary_entry is not None and current_low <= float(primary_entry)
         breakout_touched = breakout_entry is not None and current_high >= float(breakout_entry)
+        primary_confirmed = (
+            primary_touched
+            and current_close >= float(primary_entry)
+            and current_close > current_open
+            and upper_40_close
+        )
+        breakout_confirmed = breakout_touched and current_close >= float(breakout_entry) and upper_half_close
     elif direction == "SHORT":
         primary_touched = primary_entry is not None and current_high >= float(primary_entry)
         breakout_touched = breakout_entry is not None and current_low <= float(breakout_entry)
+        primary_confirmed = (
+            primary_touched
+            and current_close <= float(primary_entry)
+            and current_close < current_open
+            and lower_40_close
+        )
+        breakout_confirmed = breakout_touched and current_close <= float(breakout_entry) and lower_half_close
 
-    if primary_touched and primary_entry is not None:
-        return round(float(primary_entry), 4), "EMA_PENETRATION", primary_touched, breakout_touched
-    if breakout_touched and breakout_entry is not None:
-        return round(float(breakout_entry), 4), "PREVIOUS_DAY_BREAK", primary_touched, breakout_touched
-    return None, None, primary_touched, breakout_touched
+    if primary_confirmed and primary_entry is not None:
+        return round(float(primary_entry), 4), "EMA_PENETRATION", primary_touched, breakout_touched, primary_confirmed, breakout_confirmed
+    if breakout_confirmed and breakout_entry is not None:
+        return round(float(breakout_entry), 4), "PREVIOUS_DAY_BREAK", primary_touched, breakout_touched, primary_confirmed, breakout_confirmed
+    return None, None, primary_touched, breakout_touched, primary_confirmed, breakout_confirmed
 
 
 def _build_entry_options(
@@ -176,13 +199,27 @@ def _build_entry_options(
     trade_plan: TradePlanConfig,
     primary_touched: bool,
     breakout_touched: bool,
+    primary_confirmed: bool,
+    breakout_confirmed: bool,
 ) -> list[dict[str, Any]]:
     option_specs = [
-        ("EMA_PENETRATION", "EMA穿透参考价", entry_plan.get("ema_penetration_entry"), primary_touched),
-        ("PREVIOUS_DAY_BREAK", "前日突破参考价", entry_plan.get("breakout_entry"), breakout_touched),
+        (
+            "EMA_PENETRATION",
+            "EMA穿透参考价",
+            entry_plan.get("ema_penetration_entry"),
+            primary_touched,
+            primary_confirmed,
+        ),
+        (
+            "PREVIOUS_DAY_BREAK",
+            "前日突破参考价",
+            entry_plan.get("breakout_entry"),
+            breakout_touched,
+            breakout_confirmed,
+        ),
     ]
     options: list[dict[str, Any]] = []
-    for code, label, price, touched in option_specs:
+    for code, label, price, touched, confirmed in option_specs:
         if price is None:
             continue
         entry = round(float(price), 4)
@@ -191,7 +228,8 @@ def _build_entry_options(
                 "code": code,
                 "label": label,
                 "price": entry,
-                "triggered": bool(touched),
+                "touched": bool(touched),
+                "triggered": bool(confirmed),
                 "exits": indicators.calc_exits(
                     direction,
                     entry,
@@ -219,7 +257,14 @@ def _build_current_intraday_plan(
         return None
 
     entry_plan = indicators.calc_ema_penetration_entry_plan(daily_frame, direction)
-    entry_price, trigger_source, primary_touched, breakout_touched = get_planned_trigger(direction, entry_plan, bar)
+    (
+        entry_price,
+        trigger_source,
+        primary_touched,
+        breakout_touched,
+        primary_confirmed,
+        breakout_confirmed,
+    ) = get_planned_trigger(direction, entry_plan, bar)
     atr = _hourly_atr(hourly_frame, settings)
     entry_options = _build_entry_options(
         direction,
@@ -230,6 +275,8 @@ def _build_current_intraday_plan(
         trade_plan,
         primary_touched,
         breakout_touched,
+        primary_confirmed,
+        breakout_confirmed,
     )
     if not entry_options:
         return None
@@ -237,8 +284,10 @@ def _build_current_intraday_plan(
     selected_option = next((option for option in entry_options if option["triggered"]), entry_options[0])
     entry_price = selected_option["price"]
     trigger_source = selected_option["code"]
-    triggered = bool(primary_touched or breakout_touched)
+    triggered = bool(primary_confirmed or breakout_confirmed)
     triggered_labels = [option["label"] for option in entry_options if option["triggered"]]
+    touched_labels = [option["label"] for option in entry_options if option["touched"]]
+    trigger_score = 4.0 if primary_confirmed else 3.5 if breakout_confirmed else 0.0
     hourly = {
         "close": round(float(bar["close"]), 4),
         "current_high": round(float(bar["high"]), 4),
@@ -254,18 +303,24 @@ def _build_current_intraday_plan(
         "previous_day_break_entry": entry_plan.get("breakout_entry"),
         "primary_entry_touched": primary_touched,
         "breakout_entry_touched": breakout_touched,
+        "primary_entry_confirmed": primary_confirmed,
+        "breakout_entry_confirmed": breakout_confirmed,
         "breakout_long": triggered if direction == "LONG" else False,
         "breakout_short": triggered if direction == "SHORT" else False,
         "trigger_source": trigger_source,
         "trigger_sources": [option["code"] for option in entry_options if option["triggered"]],
-        "trigger_score": 4.0 if triggered else 0.0,
+        "trigger_score": trigger_score,
         "pass": triggered,
         "entry_plan": entry_plan,
         "entry_options": entry_options,
         "reason": (
             f"价格已触及{entry_plan.get('trigger_label', '交易')}参考价：{', '.join(triggered_labels)}"
             if triggered
-            else entry_plan.get("reason", "等待价格触发")
+            else (
+                f"价格已触及参考价但小时K尚未确认收复/站稳：{', '.join(touched_labels)}"
+                if touched_labels
+                else entry_plan.get("reason", "等待价格触发")
+            )
         ),
     }
     return IntradayPlan(hourly=hourly, exits=selected_option["exits"], trigger_source=trigger_source)

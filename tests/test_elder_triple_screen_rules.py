@@ -125,6 +125,46 @@ class ElderTripleScreenRuleTests(unittest.TestCase):
         )
         self.assertTrue(all("exits" in option for option in plan.hourly["entry_options"]))
 
+    def test_elder_force_primary_trigger_requires_hourly_reclaim(self) -> None:
+        entry_plan = {"ema_penetration_entry": 100.0, "breakout_entry": 106.0}
+
+        touched_without_confirmation = trading_models.get_planned_trigger(
+            "LONG",
+            entry_plan,
+            pd.Series({"open": 101.0, "high": 101.5, "low": 99.5, "close": 99.8}),
+        )
+        confirmed_reclaim = trading_models.get_planned_trigger(
+            "LONG",
+            entry_plan,
+            pd.Series({"open": 99.7, "high": 102.0, "low": 99.5, "close": 101.5}),
+        )
+
+        self.assertEqual(touched_without_confirmation[:2], (None, None))
+        self.assertTrue(touched_without_confirmation[2])
+        self.assertFalse(touched_without_confirmation[4])
+        self.assertEqual(confirmed_reclaim[:2], (100.0, "EMA_PENETRATION"))
+        self.assertTrue(confirmed_reclaim[4])
+
+    def test_elder_force_breakout_trigger_requires_hourly_close_through_level(self) -> None:
+        entry_plan = {"ema_penetration_entry": 100.0, "breakout_entry": 106.0}
+
+        intrabar_probe = trading_models.get_planned_trigger(
+            "LONG",
+            entry_plan,
+            pd.Series({"open": 104.0, "high": 106.5, "low": 103.5, "close": 105.5}),
+        )
+        confirmed_breakout = trading_models.get_planned_trigger(
+            "LONG",
+            entry_plan,
+            pd.Series({"open": 104.0, "high": 107.0, "low": 103.5, "close": 106.5}),
+        )
+
+        self.assertEqual(intrabar_probe[:2], (None, None))
+        self.assertTrue(intrabar_probe[3])
+        self.assertFalse(intrabar_probe[5])
+        self.assertEqual(confirmed_breakout[:2], (106.0, "PREVIOUS_DAY_BREAK"))
+        self.assertTrue(confirmed_breakout[5])
+
 
 if __name__ == "__main__":
     unittest.main()

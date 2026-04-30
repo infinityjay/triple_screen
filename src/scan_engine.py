@@ -17,6 +17,8 @@ from storage.sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 
+TRACKING_SESSION_LIMIT = 3
+
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
@@ -113,7 +115,7 @@ class TripleScreenScanner:
         return ordered[0] if len(ordered) == 1 else f"{ordered[0]} ~ {ordered[-1]}"
 
     def _load_tracking_candidates(self) -> tuple[list[dict], str]:
-        recent_candidates = self.storage.get_recent_qualified_candidates(session_limit=5)
+        recent_candidates = self.storage.get_recent_qualified_candidates(session_limit=TRACKING_SESSION_LIMIT)
         deduped: dict[tuple[str, str], dict] = {}
         session_dates: list[str] = []
         for candidate in recent_candidates:
