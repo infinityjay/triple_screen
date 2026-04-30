@@ -15,7 +15,7 @@
     <div class="gate-card">
       <div class="eyebrow">Technical Analysis Boot</div>
       <h1>正在加载单票技术分析工作台</h1>
-      <p id="bootMessage">检查本地 API，并准备动力系统 / Force Index 分析与 AI 对照模块。</p>
+      <p id="bootMessage">检查本地 API，并准备动力系统 / Force Index 分析模块。</p>
     </div>
   </div>
 
@@ -42,7 +42,7 @@
           <div class="brand-mark">∿</div>
           <div class="brand-copy">
             <strong>Triple Screen Atlas</strong>
-            <span>单票动力系统 / Force Index 分析与 AI 对照</span>
+            <span>单票动力系统 / Force Index 分析</span>
           </div>
         </div>
         <nav class="topbar-nav">
@@ -64,22 +64,24 @@
           <div class="hero-grid analysis-hero-grid">
             <div class="page-head">
               <div class="eyebrow">Single Symbol Analysis</div>
-              <h1>输入股票代码，一次看完系统技术面与 AI 技术面建议</h1>
-              <p>这页只看系统当前监测所需的周线动力系统、日线 Force Index、触发价和止损目标。左边保留系统规则口径，右边给出 AI 的独立解读。</p>
+              <h1>输入股票代码，一次看完系统技术面</h1>
+              <p>这页只看系统当前监测所需的周线动力系统、日线 Force Index、触发价和止损目标。</p>
               <form class="analysis-form" id="analysisForm">
                 <input class="input mono analysis-symbol-input" id="symbolInput" type="text" placeholder="例如 AAPL / MSFT / NVDA" autocomplete="off" spellcheck="false">
                 <select class="input" id="modelSelect"></select>
+                <!-- AI analysis temporarily disabled to avoid API costs.
                 <label class="checkbox-row">
                   <input id="includeAiToggle" type="checkbox" checked>
                   <span>同时请求 AI 对照分析</span>
                 </label>
+                -->
                 <button class="btn btn-primary" id="analyzeBtn" type="submit">开始分析</button>
               </form>
             </div>
             <div class="side-card analysis-focus-card">
               <div class="eyebrow">Compare Lens</div>
               <h3 id="analysisHeadline">等待输入股票代码</h3>
-              <p id="analysisHeadlineBody">系统模块会复用扫描器同一套动力系统与 Force Index 函数；AI 模块会用固定模板阅读同一批指标，再给出独立结论。</p>
+              <p id="analysisHeadlineBody">系统模块会复用扫描器同一套动力系统与 Force Index 函数。</p>
               <div class="insight-list" id="analysisPromptOutline"></div>
             </div>
           </div>
@@ -111,11 +113,13 @@
             <div class="summary-value" id="summaryStop">—</div>
             <div class="summary-sub" id="summaryStopReason">等待止损价位。</div>
           </div>
+          <!-- AI summary temporarily disabled to avoid API costs.
           <div class="summary-card">
             <div class="summary-label">AI 结论</div>
             <div class="summary-value" id="summaryAiDecision">—</div>
             <div class="summary-sub" id="summaryAiReason">等待 AI 模块。</div>
           </div>
+          -->
         </section>
 
         <section class="analysis-compare-grid">
@@ -132,6 +136,7 @@
             <div class="stack" id="systemDifference"></div>
           </article>
 
+          <!-- AI analysis panel temporarily disabled to avoid API costs.
           <article class="watchlist-card analysis-panel">
             <div class="card-head">
               <div>
@@ -144,6 +149,7 @@
             <div id="aiSummary" class="alert info">勾选 AI 对照后，分析结果会显示在这里。</div>
             <div class="stack" id="aiDifference"></div>
           </article>
+          -->
         </section>
 
         <section class="analysis-detail-grid">

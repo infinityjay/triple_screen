@@ -14,6 +14,8 @@ const state = {
   activeModelId: "",
 };
 
+const AI_ANALYSIS_ENABLED = false;
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -39,7 +41,7 @@ function renderPromptOutline(outline = []) {
       ];
 
   $("analysisPromptOutline").innerHTML = items
-    .map((item) => `<div class="insight-item"><strong>AI 模板</strong><p>${escapeHtml(item)}</p></div>`)
+    .map((item) => `<div class="insight-item"><strong>系统规则</strong><p>${escapeHtml(item)}</p></div>`)
     .join("");
 }
 
@@ -160,6 +162,8 @@ function renderSystem(system) {
 }
 
 function renderAi(ai) {
+  if (!AI_ANALYSIS_ENABLED) return;
+
   renderPromptOutline(ai?.outline || []);
 
   if (!ai || ai.status === "SKIPPED") {
@@ -249,25 +253,27 @@ function renderPayload(payload) {
   const system = payload?.system || {};
   const ai = payload?.ai || {};
 
-  $("analysisHeadline").textContent = `${payload?.symbol || "—"} · 系统与 AI 双视角`;
-  $("analysisHeadlineBody").textContent = `生成时间：${escapeHtml(payload?.generated_at || "—")}。你可以直接对照系统规则与 AI 建议的相同点和分歧点。`;
+  $("analysisHeadline").textContent = `${payload?.symbol || "—"} · 系统技术面`;
+  $("analysisHeadlineBody").textContent = `生成时间：${escapeHtml(payload?.generated_at || "—")}。当前只展示系统规则分析。`;
   renderSystem(system);
-  renderAi(ai);
+  if (AI_ANALYSIS_ENABLED) renderAi(ai);
 }
 
 async function loadAnalysis(symbol) {
   setLoading(true);
   $("systemSummary").className = "alert info";
   $("systemSummary").textContent = `正在分析 ${symbol} 的周线与日线…`;
-  $("aiSummary").className = "alert info";
-  $("aiSummary").textContent = $("includeAiToggle").checked ? "正在请求 AI 对照分析…" : "本次未启用 AI。";
+  if (AI_ANALYSIS_ENABLED) {
+    $("aiSummary").className = "alert info";
+    $("aiSummary").textContent = $("includeAiToggle").checked ? "正在请求 AI 对照分析…" : "本次未启用 AI。";
+  }
 
   try {
     const payload = await apiRequest("/technical-analysis", {
       method: "POST",
       body: {
         symbol,
-        include_ai: $("includeAiToggle").checked,
+        include_ai: AI_ANALYSIS_ENABLED && $("includeAiToggle")?.checked,
         model_id: $("modelSelect")?.value || state.activeModelId || null,
       },
     });
@@ -275,8 +281,10 @@ async function loadAnalysis(symbol) {
   } catch (error) {
     $("systemSummary").className = "alert danger";
     $("systemSummary").textContent = error.message || String(error);
-    $("aiSummary").className = "alert warn";
-    $("aiSummary").textContent = "本次没有可展示的 AI 结果。";
+    if (AI_ANALYSIS_ENABLED) {
+      $("aiSummary").className = "alert warn";
+      $("aiSummary").textContent = "本次没有可展示的 AI 结果。";
+    }
   } finally {
     setLoading(false);
   }
