@@ -1,10 +1,10 @@
 {
   "comparison": {
-    "current": {
+    "elder_force": {
       "run_id": "2c7dc791612e4e42bffb9001e37e8c3f",
       "model": {
-        "id": "current",
-        "label": "Force 回调 + EMA 穿透触发",
+        "id": "elder_force",
+        "label": "Elder Force 回调模型",
         "description": "当前代码中的模型：日线用 2 日 Force Index 识别顺周线方向的回调/反弹，盘中以日线 EMA 穿透价优先、前一日突破价备选。",
         "weekly_model": "MACD slope with impulse-system direction gate",
         "daily_model": "2-day Force Index pullback/rally setup",
@@ -31,11 +31,11 @@
       "max_drawdown_pct": 20.9067,
       "profit_factor": 1.1712
     },
-    "legacy_pre_45c9b2d": {
+    "value_reversal": {
       "run_id": "c46e049ac8294c1fbb464d1395803921",
       "model": {
-        "id": "legacy_pre_45c9b2d",
-        "label": "价值带转向 + 小时突破触发",
+        "id": "value_reversal",
+        "label": "价值带转向模型",
         "description": "45c9b2d 之前一直使用的模型：日线看回到 13EMA 价值带、Histogram 转向和结构完整，盘中用上一根小时 K 高低点 trailing stop 触发。",
         "weekly_model": "MACD histogram delta with EMA13 alignment",
         "daily_model": "Value-zone pullback/rally plus histogram reversal",
@@ -75,8 +75,8 @@
         "max_total_open_risk_pct": 6.0,
         "max_open_positions": 0,
         "model": {
-          "id": "current",
-          "label": "Force 回调 + EMA 穿透触发",
+          "id": "elder_force",
+          "label": "Elder Force 回调模型",
           "description": "当前代码中的模型：日线用 2 日 Force Index 识别顺周线方向的回调/反弹，盘中以日线 EMA 穿透价优先、前一日突破价备选。",
           "weekly_model": "MACD slope with impulse-system direction gate",
           "daily_model": "2-day Force Index pullback/rally setup",
@@ -10228,8 +10228,8 @@
         "max_total_open_risk_pct": 6.0,
         "max_open_positions": 0,
         "model": {
-          "id": "legacy_pre_45c9b2d",
-          "label": "价值带转向 + 小时突破触发",
+          "id": "value_reversal",
+          "label": "价值带转向模型",
           "description": "45c9b2d 之前一直使用的模型：日线看回到 13EMA 价值带、Histogram 转向和结构完整，盘中用上一根小时 K 高低点 trailing stop 触发。",
           "weekly_model": "MACD histogram delta with EMA13 alignment",
           "daily_model": "Value-zone pullback/rally plus histogram reversal",

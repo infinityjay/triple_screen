@@ -9,8 +9,8 @@
     "max_total_open_risk_pct": 6.0,
     "max_open_positions": 2,
     "model": {
-      "id": "legacy_pre_45c9b2d",
-      "label": "价值带转向 + 小时突破触发",
+      "id": "value_reversal",
+      "label": "价值带转向模型",
       "description": "45c9b2d 之前一直使用的模型：日线看回到 13EMA 价值带、Histogram 转向和结构完整，盘中用上一根小时 K 高低点 trailing stop 触发。",
       "weekly_model": "MACD histogram delta with EMA13 alignment",
       "daily_model": "Value-zone pullback/rally plus histogram reversal",

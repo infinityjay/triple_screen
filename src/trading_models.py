@@ -10,9 +10,14 @@ import indicators
 from config.schema import StrategyConfig, TradePlanConfig
 
 
-CURRENT_MODEL_ID = "current"
-LEGACY_MODEL_ID = "legacy_pre_45c9b2d"
-DEFAULT_MODEL_ID = LEGACY_MODEL_ID
+ELDER_FORCE_MODEL_ID = "elder_force"
+VALUE_REVERSAL_MODEL_ID = "value_reversal"
+DEFAULT_MODEL_ID = VALUE_REVERSAL_MODEL_ID
+
+MODEL_ID_ALIASES = {
+    "current": ELDER_FORCE_MODEL_ID,
+    "legacy_pre_45c9b2d": VALUE_REVERSAL_MODEL_ID,
+}
 
 
 @dataclass(frozen=True)
@@ -811,13 +816,13 @@ def legacy_calc_exits(
 
 
 _MODELS: dict[str, TradingModel] = {
-    CURRENT_MODEL_ID: TradingModel(
+    ELDER_FORCE_MODEL_ID: TradingModel(
         spec=TradingModelSpec(
-            id=CURRENT_MODEL_ID,
-            label="Force 回调 + EMA 穿透触发",
-            description="当前代码中的模型：日线用 2 日 Force Index 识别顺周线方向的回调/反弹，盘中以日线 EMA 穿透价优先、前一日突破价备选。",
-            weekly_model="MACD slope with impulse-system direction gate",
-            daily_model="2-day Force Index pullback/rally setup",
+            id=ELDER_FORCE_MODEL_ID,
+            label="Elder Force 回调模型",
+            description="Elder 三重滤网风格模型：周线用 MACD 斜率配合动力系统方向门控，日线用 2 日 Force Index 识别顺周线趋势的短线回调/反弹，盘中以日线 EMA 穿透价优先、前一日突破价备选。",
+            weekly_model="Elder impulse-system gate with MACD slope",
+            daily_model="Elder 2-day Force Index pullback/rally setup",
             intraday_trigger="Daily EMA penetration entry first, previous-day break as alternate trigger",
             exit_model="SafeZone/Nick initial stop; weekly value-zone target when available; daily ATR 1x trailing stop",
         ),
@@ -826,11 +831,11 @@ _MODELS: dict[str, TradingModel] = {
         use_weekly_value_target=True,
         use_planned_daily_entry=True,
     ),
-    LEGACY_MODEL_ID: TradingModel(
+    VALUE_REVERSAL_MODEL_ID: TradingModel(
         spec=TradingModelSpec(
-            id=LEGACY_MODEL_ID,
-            label="价值带转向 + 小时突破触发",
-            description="45c9b2d 之前一直使用的模型：日线看回到 13EMA 价值带、Histogram 转向和结构完整，盘中用上一根小时 K 高低点 trailing stop 触发。",
+            id=VALUE_REVERSAL_MODEL_ID,
+            label="价值带转向模型",
+            description="偏保守的价值带回调模型：周线看 MACD Histogram 与 13EMA 同向，日线等待回到 13EMA 价值带、Histogram 转向且结构完整，盘中用上一根已收盘小时 K 高低点 trailing stop 触发。",
             weekly_model="MACD histogram delta with EMA13 alignment",
             daily_model="Value-zone pullback/rally plus histogram reversal",
             intraday_trigger="Trailing buy-stop/sell-stop from the previous closed hourly bar",
@@ -848,8 +853,16 @@ def list_models() -> list[dict[str, Any]]:
     return [model.to_dict() for model in _MODELS.values()]
 
 
+def list_model_ids(include_aliases: bool = False) -> list[str]:
+    ids = list(_MODELS)
+    if include_aliases:
+        ids.extend(MODEL_ID_ALIASES)
+    return ids
+
+
 def normalize_model_id(model_id: str | None) -> str:
     value = (model_id or DEFAULT_MODEL_ID).strip()
+    value = MODEL_ID_ALIASES.get(value, value)
     return value if value in _MODELS else DEFAULT_MODEL_ID
 
 

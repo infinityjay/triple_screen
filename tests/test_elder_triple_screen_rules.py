@@ -81,7 +81,7 @@ class ElderTripleScreenRuleTests(unittest.TestCase):
         self.assertEqual(detail["reference_date"], "2026-04-03")
         self.assertEqual(round(detail["stop"], 2), 97.99)
 
-    def test_current_model_hourly_plan_exposes_storage_breakout_flags(self) -> None:
+    def test_elder_force_model_hourly_plan_exposes_storage_breakout_flags(self) -> None:
         index = pd.date_range("2026-04-01 13:00", periods=20, freq="h")
         hourly = pd.DataFrame(
             {
@@ -99,7 +99,7 @@ class ElderTripleScreenRuleTests(unittest.TestCase):
         daily.iloc[-1, daily.columns.get_loc("close")] = 110.0
         daily.iloc[-1, daily.columns.get_loc("volume")] = 1_000_000
 
-        plan = trading_models.get_model("current").build_intraday_plan(
+        plan = trading_models.get_model("elder_force").build_intraday_plan(
             direction="LONG",
             daily_frame=daily,
             weekly_frame=daily,

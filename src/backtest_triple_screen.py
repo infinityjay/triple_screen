@@ -161,7 +161,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--model",
         type=str,
         default="",
-        choices=[item["id"] for item in trading_models.list_models()],
+        choices=trading_models.list_model_ids(include_aliases=True),
         help="Trading model to run. Defaults to trading_model.active in config.",
     )
     parser.add_argument(

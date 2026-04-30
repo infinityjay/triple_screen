@@ -173,7 +173,7 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
             exclude_symbols_containing=list(universe_raw.get("exclude_symbols_containing", ["."])),
         ),
         trading_model=TradingModelConfig(
-            active=str(trading_model_raw.get("active", "legacy_pre_45c9b2d")),
+            active=str(trading_model_raw.get("active", "value_reversal")),
         ),
         strategy=StrategyConfig(
             weekly=WeeklyStrategyConfig(
