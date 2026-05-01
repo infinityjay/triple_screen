@@ -172,7 +172,7 @@ sudo systemctl enable --now journal.service
 当前 service 的执行命令是：
 
 ```ini
-ExecStart=/home/ec2-user/triple_screen/.venv/bin/python src/scanner.py --once
+ExecStart=/home/ubuntu/triple_screen/.venv/bin/python src/scanner.py --once
 ```
 
 这与当前项目结构一致，不需要再改成包形式入口。
@@ -209,6 +209,7 @@ http://<EC2_PUBLIC_IP>:8100/
 
 - `16:10` 执行一次收盘候选池构建
 - 下一交易日 `09:30` 到 `15:30` 每小时只扫描上一交易日候选池
+- 如果 service 在美东 `16:45` 之后被误触发，`--mode auto` 会直接跳过，不会重复发送 EOD Telegram
 - 如果上一交易日候选池缺失，盘中扫描会直接退出并记录告警，不会自动回退成全市场重建
 
 ## 验证部署

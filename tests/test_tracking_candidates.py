@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
 
 from scan_engine import HISTORY_SESSION_LIMIT, TripleScreenScanner, TRACKING_SESSION_LIMIT
 
@@ -83,6 +85,27 @@ class TrackingCandidateTests(unittest.TestCase):
 
         self.assertEqual([candidate["symbol"] for candidate in candidates], ["AAPL"])
         self.assertEqual(candidates[0]["history"]["prior_appearance_count"], 1)
+
+    def test_auto_mode_only_runs_eod_during_close_window_and_skips_afterward(self) -> None:
+        scanner = TripleScreenScanner.__new__(TripleScreenScanner)
+        scanner.market_timezone = ZoneInfo("America/New_York")
+        scanner.market_open_time = time(hour=9, minute=30)
+        scanner.market_close_time = time(hour=16, minute=0)
+        scanner.eod_auto_cutoff_time = time(hour=16, minute=45)
+        calls: list[str] = []
+
+        scanner.run_end_of_day_scan = lambda: calls.append("eod") or []
+        scanner.run_intraday_scan = lambda: calls.append("intraday") or []
+        scanner._market_now = lambda: datetime(2026, 4, 30, 16, 10, tzinfo=ZoneInfo("America/New_York"))
+
+        scanner.run_scan("auto")
+        self.assertEqual(calls, ["eod"])
+
+        scanner._market_now = lambda: datetime(2026, 4, 30, 17, 30, tzinfo=ZoneInfo("America/New_York"))
+
+        result = scanner.run_scan("auto")
+        self.assertEqual(result, [])
+        self.assertEqual(calls, ["eod"])
 
 
 if __name__ == "__main__":

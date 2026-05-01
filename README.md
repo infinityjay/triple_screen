@@ -253,6 +253,7 @@ AWS EC2 + systemd 的部署模板已经放在 [deploy/aws/README.md](/Users/jay/
 
 - `16:10` 跑 `--mode eod`，更新当天候选池
 - 次日盘中每小时跑 `--mode intraday`，只扫描上一已收盘交易日候选池里的股票
+- `--mode auto` 只会在盘中执行 intraday，并只在美东 `16:00` 到 `16:45` 的收盘窗口执行 EOD；其他时间会直接跳过
 
 ## 当前实现说明
 

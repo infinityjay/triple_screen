@@ -55,6 +55,7 @@ class TripleScreenScanner:
         self.market_timezone = ZoneInfo(settings.app.timezone)
         self.market_open_time = clock_time(hour=9, minute=30)
         self.market_close_time = clock_time(hour=16, minute=0)
+        self.eod_auto_cutoff_time = clock_time(hour=16, minute=45)
 
     def _is_recently_alerted(self, symbol: str, direction: str) -> bool:
         row = self.storage.get_last_alert(symbol)
@@ -766,6 +767,7 @@ class TripleScreenScanner:
         now_local = self._market_now()
         if self._is_market_open(now_local):
             return self.run_intraday_scan()
-        if now_local.weekday() < 5 and now_local.time() >= self.market_close_time:
+        if now_local.weekday() < 5 and self.market_close_time <= now_local.time() <= self.eod_auto_cutoff_time:
             return self.run_end_of_day_scan()
-        return self.run_intraday_scan()
+        logger.info("auto scan skipped outside market hours and EOD window: %s", now_local.isoformat())
+        return []
