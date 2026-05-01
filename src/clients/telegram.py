@@ -420,10 +420,13 @@ class TelegramNotifier:
             status_label = self._status_label(signal)
             weekly_trend = "向上" if signal['weekly'].get('trend') == "LONG" else "向下"
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
+            priority_tags = [_html_text(str(tag)) for tag in signal.get("priority_tags", [])]
+            tag_line = f"   标签：{' / '.join(priority_tags)}\n" if priority_tags else ""
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
                 f"   周线：{weekly_trend} · 日线：{daily_state}\n"
+                f"{tag_line}"
             )
 
         if stop_update_summary:

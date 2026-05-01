@@ -17,7 +17,8 @@ from storage.sqlite import SQLiteStorage
 
 logger = logging.getLogger(__name__)
 
-TRACKING_SESSION_LIMIT = 3
+TRACKING_SESSION_LIMIT = 1
+HISTORY_SESSION_LIMIT = 3
 
 
 def _utc_now() -> datetime:
@@ -99,9 +100,11 @@ class TripleScreenScanner:
         return result.get("trend", "UNKNOWN")
 
     @staticmethod
-    def _candidate_sort_key(item: dict) -> tuple[float, int, int]:
-        status_priority = 0 if item["opportunity_status"] == "TRIGGERED" else 1
-        return (-item.get("candidate_score", item.get("signal_score", 0.0)), -int(bool(item.get("strong_divergence"))), status_priority)
+    def _candidate_sort_key(item: dict) -> tuple[float, int, int, int]:
+        status_priority = 0 if item.get("opportunity_status") == "TRIGGERED" else 1
+        history_count = int(item.get("history", {}).get("appearance_count", 1) or 1)
+        rank_score = float(item.get("candidate_rank_score", item.get("candidate_score", item.get("signal_score", 0.0))) or 0.0)
+        return (-rank_score, -int(bool(item.get("strong_divergence"))), -history_count, status_priority)
 
     @staticmethod
     def _triggered_sort_key(item: dict) -> tuple[float, int]:
@@ -114,6 +117,60 @@ class TripleScreenScanner:
         ordered = sorted(set(session_dates))
         return ordered[0] if len(ordered) == 1 else f"{ordered[0]} ~ {ordered[-1]}"
 
+    def _apply_history_enhancement(
+        self,
+        candidates: list[dict],
+        current_session_date: str,
+        historical_candidates: list[dict] | None = None,
+    ) -> None:
+        historical_items = (
+            historical_candidates
+            if historical_candidates is not None
+            else self.storage.get_recent_qualified_candidates(session_limit=HISTORY_SESSION_LIMIT)
+        )
+        sessions: dict[str, set[tuple[str, str]]] = {}
+        candidate_sessions: dict[tuple[str, str], set[str]] = {}
+        for item in historical_items:
+            stored_session = item.get("stored_session_date", item.get("source_session_date"))
+            if not stored_session or stored_session == current_session_date:
+                continue
+            key = (item["symbol"], item["direction"])
+            session_key = str(stored_session)
+            sessions.setdefault(session_key, set()).add(key)
+            candidate_sessions.setdefault(key, set()).add(session_key)
+
+        prior_session_dates = sorted(sessions.keys(), reverse=True)[: max(HISTORY_SESSION_LIMIT - 1, 0)]
+        lookback_sessions = min(HISTORY_SESSION_LIMIT, 1 + len(prior_session_dates))
+        for candidate in candidates:
+            key = (candidate["symbol"], candidate["direction"])
+            prior_dates = sorted(candidate_sessions.get(key, set()), reverse=True)
+            consecutive_sessions = 1
+            for session_date in prior_session_dates:
+                if key not in sessions.get(session_date, set()):
+                    break
+                consecutive_sessions += 1
+
+            appearance_count = 1 + len(prior_dates)
+            history_bonus = round(min(len(prior_dates), HISTORY_SESSION_LIMIT - 1) * 0.25 + max(consecutive_sessions - 1, 0) * 0.15, 2)
+            base_score = float(candidate.get("candidate_score", candidate.get("signal_score", 0.0)) or 0.0)
+            tags = list(candidate.get("priority_tags", []))
+            if consecutive_sessions >= 2:
+                tags.append(f"连续{consecutive_sessions}次入选")
+            elif appearance_count >= 2:
+                tags.append(f"近{lookback_sessions}次入选{appearance_count}次")
+            tags = list(dict.fromkeys(tags))
+
+            candidate["history"] = {
+                "lookback_sessions": lookback_sessions,
+                "appearance_count": appearance_count,
+                "prior_appearance_count": len(prior_dates),
+                "consecutive_sessions": consecutive_sessions,
+                "session_dates": [current_session_date, *prior_dates],
+            }
+            candidate["history_score_bonus"] = history_bonus
+            candidate["candidate_rank_score"] = round(base_score + history_bonus, 2)
+            candidate["priority_tags"] = tags
+
     def _load_tracking_candidates(self) -> tuple[list[dict], str]:
         recent_candidates = self.storage.get_recent_qualified_candidates(session_limit=TRACKING_SESSION_LIMIT)
         deduped: dict[tuple[str, str], dict] = {}
@@ -124,7 +181,12 @@ class TripleScreenScanner:
                 continue
             session_dates.append(candidate.get("stored_session_date", candidate.get("source_session_date", "UNKNOWN")))
             deduped[key] = candidate
-        return list(deduped.values()), self._format_session_label(session_dates)
+        candidates = list(deduped.values())
+        if candidates and session_dates:
+            historical_candidates = self.storage.get_recent_qualified_candidates(session_limit=HISTORY_SESSION_LIMIT)
+            self._apply_history_enhancement(candidates, max(session_dates), historical_candidates)
+            candidates.sort(key=self._candidate_sort_key)
+        return candidates, self._format_session_label(session_dates)
 
     def _classify_earnings_event(self, symbol: str, session_date: date, raw_event: dict | None) -> dict:
         if not raw_event or not raw_event.get("report_date"):
@@ -556,6 +618,7 @@ class TripleScreenScanner:
                 if result:
                     candidates.append(result)
 
+        self._apply_history_enhancement(candidates, session_date.isoformat())
         candidates.sort(key=self._candidate_sort_key)
         self.storage.replace_qualified_candidates(session_date.isoformat(), candidates)
         if self.dry_run:

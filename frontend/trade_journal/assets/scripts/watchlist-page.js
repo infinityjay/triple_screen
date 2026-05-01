@@ -267,6 +267,7 @@ function renderRail() {
         earnings.warning ? "财报临近" : "",
         String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "已触发" : "",
         String(item.opportunity_status || "").toUpperCase() === "MONITOR" ? "监测中" : "",
+        ...(item.priority_tags || []),
       ].filter(Boolean);
 
       return `

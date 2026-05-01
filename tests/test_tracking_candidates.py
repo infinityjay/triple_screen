@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+import unittest
+
+from scan_engine import HISTORY_SESSION_LIMIT, TripleScreenScanner, TRACKING_SESSION_LIMIT
+
+
+class _FakeCandidateStorage:
+    def __init__(self) -> None:
+        self.session_limits: list[int] = []
+
+    def get_recent_qualified_candidates(self, session_limit: int = 5) -> list[dict]:
+        self.session_limits.append(session_limit)
+        latest = [
+            {
+                "symbol": "AAPL",
+                "direction": "LONG",
+                "opportunity_status": "WATCHLIST",
+                "candidate_score": 8.0,
+                "priority_tags": [],
+                "source_session_date": "2026-04-30",
+                "stored_session_date": "2026-04-30",
+            }
+        ]
+        if session_limit == TRACKING_SESSION_LIMIT:
+            return latest
+        return [
+            *latest,
+            {
+                "symbol": "AAPL",
+                "direction": "LONG",
+                "opportunity_status": "WATCHLIST",
+                "candidate_score": 7.8,
+                "priority_tags": [],
+                "source_session_date": "2026-04-29",
+                "stored_session_date": "2026-04-29",
+            },
+            {
+                "symbol": "TSLA",
+                "direction": "SHORT",
+                "opportunity_status": "WATCHLIST",
+                "candidate_score": 7.5,
+                "priority_tags": [],
+                "source_session_date": "2026-04-29",
+                "stored_session_date": "2026-04-29",
+            },
+        ]
+
+
+class TrackingCandidateTests(unittest.TestCase):
+    def test_intraday_tracking_uses_only_latest_candidate_session(self) -> None:
+        scanner = TripleScreenScanner.__new__(TripleScreenScanner)
+        storage = _FakeCandidateStorage()
+        scanner.storage = storage
+
+        candidates, label = scanner._load_tracking_candidates()
+
+        self.assertEqual(TRACKING_SESSION_LIMIT, 1)
+        self.assertEqual(storage.session_limits, [TRACKING_SESSION_LIMIT, HISTORY_SESSION_LIMIT])
+        self.assertEqual(label, "2026-04-30")
+        self.assertEqual([candidate["symbol"] for candidate in candidates], ["AAPL"])
+        self.assertEqual(candidates[0]["history"]["appearance_count"], 2)
+        self.assertEqual(candidates[0]["history"]["consecutive_sessions"], 2)
+        self.assertIn("连续2次入选", candidates[0]["priority_tags"])
+        self.assertGreater(candidates[0]["candidate_rank_score"], candidates[0]["candidate_score"])
+
+    def test_history_enhancement_keeps_old_symbols_out_of_latest_candidates(self) -> None:
+        scanner = TripleScreenScanner.__new__(TripleScreenScanner)
+        storage = _FakeCandidateStorage()
+        scanner.storage = storage
+
+        candidates = [
+            {
+                "symbol": "AAPL",
+                "direction": "LONG",
+                "opportunity_status": "WATCHLIST",
+                "candidate_score": 8.0,
+                "priority_tags": [],
+            }
+        ]
+
+        scanner._apply_history_enhancement(candidates, "2026-04-30", storage.get_recent_qualified_candidates(HISTORY_SESSION_LIMIT))
+
+        self.assertEqual([candidate["symbol"] for candidate in candidates], ["AAPL"])
+        self.assertEqual(candidates[0]["history"]["prior_appearance_count"], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

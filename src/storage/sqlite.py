@@ -603,7 +603,13 @@ class SQLiteStorage:
                 (target_session,),
             ).fetchall()
 
-        return [json.loads(row["candidate_json"]) for row in rows]
+        items = [json.loads(row["candidate_json"]) for row in rows]
+
+        def sort_key(item: dict) -> tuple[float, str]:
+            score = item.get("candidate_rank_score", item.get("candidate_score", item.get("signal_score", 0.0)))
+            return (-float(score or 0.0), item.get("symbol", ""))
+
+        return sorted(items, key=sort_key)
 
     def get_recent_qualified_candidates(self, session_limit: int = 5) -> list[dict]:
         capped_limit = max(int(session_limit), 1)
