@@ -89,12 +89,12 @@ class EarningsCalendarClient:
         if self.storage:
             updated_at = self.storage.get_latest_earnings_update_time()
             if updated_at and _utc_now() - updated_at <= timedelta(hours=12):
-                if len(cached) == len(unique_symbols):
-                    return cached
+                if len(cached_with_future_event) == len(unique_symbols):
+                    return cached_with_future_event
 
         payload = self._request_calendar()
         if not payload:
-            return cached
+            return cached_with_future_event
 
         reader = csv.DictReader(io.StringIO(payload))
         events_by_symbol: dict[str, dict] = {}
@@ -122,4 +122,8 @@ class EarningsCalendarClient:
 
         merged = self._load_from_cache(unique_symbols)
         merged.update(events_by_symbol)
-        return merged
+        return {
+            symbol: event
+            for symbol, event in merged.items()
+            if self._has_future_report_date(event, effective_session_date)
+        }

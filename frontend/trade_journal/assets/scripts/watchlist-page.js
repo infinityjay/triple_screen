@@ -44,6 +44,29 @@ function getStatusBadge(status) {
   return `<span class="badge badge-${tone}">${escapeHtml(label)}</span>`;
 }
 
+function isPastDate(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  date.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+}
+
+function getEarningsDisplay(earnings = {}) {
+  if (isPastDate(earnings.report_date)) {
+    return {
+      label: "财报未知",
+      reason: `缓存财报日 ${formatDateLabel(earnings.report_date)} 已过期，等待财报日更新。`,
+    };
+  }
+  return {
+    label: earnings.report_date ? `财报 ${formatDateLabel(earnings.report_date)}` : "财报未知",
+    reason: earnings.reason || "未提供财报信息",
+  };
+}
+
 function truncateText(value, length = 92) {
   const text = String(value || "").trim();
   if (!text) return "—";
@@ -261,6 +284,7 @@ function renderRail() {
       const daily = item.daily || {};
       const hourly = item.hourly || {};
       const earnings = item.earnings || {};
+      const earningsDisplay = getEarningsDisplay(earnings);
       const entryPlan = hourly.entry_plan || daily.entry_plan || {};
       const tags = [
         item.strong_divergence ? "强背离" : "",
@@ -297,7 +321,7 @@ function renderRail() {
             </div>
             <div class="watchlist-rail-footer">
               <span>${escapeHtml(entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? `EMA穿透 ${formatCurrency(entryPlan.ema_penetration_entry, 3)}` : buildExecutionPlan(item))}</span>
-              <span>${earnings.report_date ? `财报 ${escapeHtml(formatDateLabel(earnings.report_date))}` : "财报未知"}</span>
+              <span>${escapeHtml(earningsDisplay.label)}</span>
             </div>
           </div>
         </article>
@@ -328,6 +352,7 @@ function renderTable() {
       const hourly = item.hourly || {};
       const exits = item.exits || {};
       const earnings = item.earnings || {};
+      const earningsDisplay = getEarningsDisplay(earnings);
       const divergence = item.divergence || {};
 
       const tags = [
@@ -357,8 +382,8 @@ function renderTable() {
             ${getReasonBlock("触发价监测", hourly.trigger_score, hourly.reason || buildExecutionPlan(item))}
           </td>
           <td class="reason-cell">
-            <strong>${earnings.report_date ? `财报 ${escapeHtml(formatDateLabel(earnings.report_date))}` : "财报未知"}</strong>
-            <p>${escapeHtml(earnings.reason || "未提供财报信息")}</p>
+            <strong>${escapeHtml(earningsDisplay.label)}</strong>
+            <p>${escapeHtml(earningsDisplay.reason)}</p>
           </td>
           <td class="reason-cell">
             <strong>周线：${divergence.weekly?.detected ? "有背离" : "无背离"} / 日线：${divergence.daily?.detected ? "有背离" : "无背离"}</strong>

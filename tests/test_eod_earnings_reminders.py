@@ -28,6 +28,29 @@ class _FakeEarningsCalendar:
 
 
 class EodEarningsReminderTests(unittest.TestCase):
+    def test_past_earnings_date_is_not_treated_as_next_report(self) -> None:
+        scanner = TripleScreenScanner.__new__(TripleScreenScanner)
+        scanner.settings = SimpleNamespace(
+            qualification=SimpleNamespace(
+                earnings_block_days_before=2,
+                earnings_block_days_after=1,
+                earnings_warn_days_before=5,
+            )
+        )
+
+        earnings = scanner._classify_earnings_event(
+            "AAPL",
+            date(2026, 5, 1),
+            {"report_date": "2026-04-22", "estimate": "1.23"},
+        )
+
+        self.assertEqual(earnings["status"], "UNKNOWN")
+        self.assertIsNone(earnings["report_date"])
+        self.assertFalse(earnings["blocked"])
+        self.assertFalse(earnings["warning"])
+        self.assertIn("已早于当前交易日", earnings["reason"])
+        self.assertNotIn("下一次财报日", earnings["reason"])
+
     def test_open_position_earnings_summary_only_keeps_nearby_reports(self) -> None:
         scanner = TripleScreenScanner.__new__(TripleScreenScanner)
         scanner.settings = SimpleNamespace(

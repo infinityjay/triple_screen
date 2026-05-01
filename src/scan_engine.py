@@ -201,8 +201,32 @@ class TripleScreenScanner:
                 "reason": "未获取到财报日期",
             }
 
-        report_date = datetime.fromisoformat(str(raw_event["report_date"])).date()
+        try:
+            report_date = datetime.fromisoformat(str(raw_event["report_date"])).date()
+        except ValueError:
+            return {
+                "symbol": symbol,
+                "report_date": None,
+                "status": "UNKNOWN",
+                "blocked": False,
+                "warning": False,
+                "days_until": None,
+                "reason": f"财报日期格式无效：{raw_event.get('report_date')}",
+                "estimate": raw_event.get("estimate"),
+            }
         days_until = (report_date - session_date).days
+        if days_until < 0:
+            return {
+                "symbol": symbol,
+                "report_date": None,
+                "status": "UNKNOWN",
+                "blocked": False,
+                "warning": False,
+                "days_until": None,
+                "reason": f"缓存财报日 {report_date.isoformat()} 已早于当前交易日，等待财报日更新",
+                "estimate": raw_event.get("estimate"),
+            }
+
         blocked = -self.settings.qualification.earnings_block_days_after <= days_until <= self.settings.qualification.earnings_block_days_before
         warning = (
             not blocked
