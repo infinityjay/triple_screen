@@ -26,7 +26,7 @@ function getReasonBlock(label, score, reason) {
   return `
     <div class="stage-block">
       <strong>${escapeHtml(label)}${score === null || score === undefined ? "" : ` · ${escapeHtml(formatNumber(score, 2))}`}</strong>
-      <p>${escapeHtml(reason || "暂无说明")}</p>
+      <p>${escapeHtml(reason || "No notes yet")}</p>
     </div>
   `;
 }
@@ -36,14 +36,14 @@ function getStatusBadge(status) {
   const tone = normalized === "TRIGGERED" ? "safe" : normalized === "TOUCHED_ENTRY_PRICE" ? "warn" : normalized === "WATCHLIST" ? "info" : normalized === "MONITOR" ? "warn" : "warn";
   const label =
     normalized === "TRIGGERED"
-      ? "已触发"
+      ? "Triggered"
       : normalized === "TOUCHED_ENTRY_PRICE"
-        ? "已触碰"
+        ? "Touched"
       : normalized === "WATCHLIST"
-        ? "待触发"
+        ? "Waiting"
         : normalized === "MONITOR"
-          ? "监测中"
-          : normalized || "未知";
+          ? "Monitor"
+          : normalized || "Unknown";
   return `<span class="badge badge-${tone}">${escapeHtml(label)}</span>`;
 }
 
@@ -60,13 +60,13 @@ function isPastDate(value) {
 function getEarningsDisplay(earnings = {}) {
   if (isPastDate(earnings.report_date)) {
     return {
-      label: "财报未知",
-      reason: `缓存财报日 ${formatDateLabel(earnings.report_date)} 已过期，等待财报日更新。`,
+      label: "Earnings unknown",
+      reason: `Cached earnings date ${formatDateLabel(earnings.report_date)} is stale. Waiting for an updated earnings date.`,
     };
   }
   return {
-    label: earnings.report_date ? `财报 ${formatDateLabel(earnings.report_date)}` : "财报未知",
-    reason: earnings.reason || "未提供财报信息",
+    label: earnings.report_date ? `Earnings ${formatDateLabel(earnings.report_date)}` : "Earnings unknown",
+    reason: earnings.reason || "No earnings data provided",
   };
 }
 
@@ -121,21 +121,21 @@ function buildExecutionPlan(item) {
   const target = exits.take_profit ?? exits.weekly_value_target?.target_price;
   if ((emaEntry !== undefined && emaEntry !== null) || (breakoutEntry !== undefined && breakoutEntry !== null)) {
     return [
-      emaEntry !== undefined && emaEntry !== null ? `EMA穿透 ${formatCurrency(emaEntry, 3)}` : "",
-      breakoutEntry !== undefined && breakoutEntry !== null ? `前日突破 ${formatCurrency(breakoutEntry, 3)}` : "",
-      exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null ? `尼克 ${formatCurrency(exits.initial_stop_nick, 3)}` : "",
-      target !== undefined && target !== null ? `目标 ${formatCurrency(target, 3)}` : "",
+      emaEntry !== undefined && emaEntry !== null ? `EMA penetration ${formatCurrency(emaEntry, 3)}` : "",
+      breakoutEntry !== undefined && breakoutEntry !== null ? `Previous-day break ${formatCurrency(breakoutEntry, 3)}` : "",
+      exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null ? `Nick stop ${formatCurrency(exits.initial_stop_nick, 3)}` : "",
+      target !== undefined && target !== null ? `Target ${formatCurrency(target, 3)}` : "",
     ]
       .filter(Boolean)
       .join(" · ");
   }
   return normalizeSignalDirection(item.direction) === "SHORT"
-    ? "等待日线 Force 与动力系统到位，再用 EMA 上穿透价或前日低点下方一跳监测。"
-    : "等待日线 Force 与动力系统到位，再用 EMA 下穿透价或前日高点上方一跳监测。";
+    ? "Wait for daily Force and impulse alignment, then monitor the EMA upside penetration or one tick below the previous-day low."
+    : "Wait for daily Force and impulse alignment, then monitor the EMA downside penetration or one tick above the previous-day high.";
 }
 
 function getOrderPlan(item) {
-  return item.next_day_order_plan || {};
+  return item.order_plan || item.next_day_order_plan || {};
 }
 
 function buildOrderPlanInline(item) {
@@ -146,10 +146,10 @@ function buildOrderPlanInline(item) {
   if (!primary.stop_price && !secondary.limit_price) return buildExecutionInline(item);
   return [
     `${primary.order_type || "Stop Limit"} ${primary.action || ""} Stop ${formatCurrency(primary.stop_price, 2)} Limit ${formatCurrency(primary.limit_price, 2)}`,
-    `EMA限价 ${formatCurrency(secondary.limit_price, 2)}`,
-    `初始止损 ${formatCurrency(risk.initial_stop, 2)}`,
-    `保护 ${formatCurrency(risk.protective_stop, 2)}`,
-    `止盈 ${formatCurrency(risk.take_profit, 2)}`,
+    `EMA limit ${formatCurrency(secondary.limit_price, 2)}`,
+    `Initial stop ${formatCurrency(risk.initial_stop, 2)}`,
+    `Protective stop ${formatCurrency(risk.protective_stop, 2)}`,
+    `Target ${formatCurrency(risk.take_profit, 2)}`,
     `RR ${formatNumber(risk.reward_risk_ratio_model, 2)}R`,
   ].join(" | ");
 }
@@ -167,16 +167,16 @@ function buildExecutionInline(item) {
   const emaEntry = entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? formatCurrency(entryPlan.ema_penetration_entry, 3) : "—";
   const breakoutEntry = entryPlan.breakout_entry !== undefined && entryPlan.breakout_entry !== null ? formatCurrency(entryPlan.breakout_entry, 3) : "—";
   const stop = exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
-    ? `尼克 ${formatCurrency(exits.initial_stop_nick, 3)}`
+    ? `Nick ${formatCurrency(exits.initial_stop_nick, 3)}`
     : exits.initial_stop_safezone !== undefined && exits.initial_stop_safezone !== null
       ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
-      : "待选择";
+      : "Choose manually";
   const target = exits.take_profit !== undefined && exits.take_profit !== null
     ? formatCurrency(exits.take_profit, 3)
     : exits.weekly_value_target?.target_price !== undefined && exits.weekly_value_target?.target_price !== null
       ? formatCurrency(exits.weekly_value_target.target_price, 3)
       : "—";
-  return `EMA穿透 ${emaEntry} | 前日突破 ${breakoutEntry} | ${stop} | 周线目标 ${target}`;
+  return `EMA penetration ${emaEntry} | Previous-day break ${breakoutEntry} | ${stop} | Weekly target ${target}`;
 }
 
 function getFilteredItems() {
@@ -224,10 +224,10 @@ function renderSummary() {
   $("watchlistTriggered").textContent = String(triggered.length);
   $("watchlistDirectionMix").textContent = `${longCount} / ${shortCount}`;
   $("watchlistDivergence").textContent = String(divergenceCount);
-  $("sessionHeadline").textContent = `扫描会话：${state.payload?.session_date || "—"}`;
+  $("sessionHeadline").textContent = `Scan session: ${state.payload?.session_date || "—"}`;
   $("sessionHeadlineBody").textContent = items.length
-    ? `当前会话共 ${items.length} 个候选，其中 ${triggered.length} 个已经触及参考价。`
-    : "当前会话没有合格候选。";
+    ? `${items.length} candidates in this session; ${triggered.length} have confirmed an entry trigger.`
+    : "No qualified candidates in this session.";
 }
 
 function renderSessions() {
@@ -236,10 +236,10 @@ function renderSessions() {
     ? sessions
         .map(
           (session) =>
-            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? " selected" : ""}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} 个</option>`
+            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? " selected" : ""}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`
         )
         .join("")
-    : `<option value="">暂无会话</option>`;
+    : `<option value="">No sessions</option>`;
 
   $("sessionChips").innerHTML = sessions.length
     ? sessions
@@ -248,12 +248,12 @@ function renderSessions() {
           return `
             <button class="session-chip${active}" type="button" data-session-date="${escapeHtml(session.session_date)}">
               ${escapeHtml(session.session_date)}
-              <span class="mono"> ${escapeHtml(String(session.candidate_count))} 标的 / ${escapeHtml(String(session.triggered_count || 0))} 触发</span>
+              <span class="mono"> ${escapeHtml(String(session.candidate_count))} symbols / ${escapeHtml(String(session.triggered_count || 0))} triggered</span>
             </button>
           `;
         })
         .join("")
-    : `<div class="empty-state">数据库里还没有观察列表快照。请先运行一次扫描。</div>`;
+    : `<div class="empty-state">No watchlist snapshots are stored yet. Run a scan first.</div>`;
 
   document.querySelectorAll("[data-session-date]").forEach((button) => {
     button.addEventListener("click", () => loadWatchlist(button.dataset.sessionDate));
@@ -268,30 +268,30 @@ function renderInsights() {
 
   if (pending.length) {
     insights.push([
-      "盘后候选默认先看周 / 日",
-      `当前有 ${pending.length} 个标的还未触及参考价。第二天盘中优先盯 EMA 穿透价和前日高/低点外一跳。`,
+      "EOD candidates are order-plan drafts",
+      `${pending.length} candidates have not confirmed an entry yet. Next session, prioritize the stop-limit breakout level and EMA penetration limit.`,
     ]);
   }
   if (triggered.length) {
     insights.push([
-      "已有参考价触发",
-      `当前有 ${triggered.length} 个标的已经触及参考价，可以直接对照入场价、止损和周线目标评估执行优先级。`,
+      "Entry level confirmed",
+      `${triggered.length} candidates have confirmed an entry level. Compare entry, stop, and target before execution.`,
     ]);
   }
   if (items.some((item) => item.earnings?.warning || item.earnings?.blocked)) {
     insights.push([
-      "注意财报窗口",
-      "部分候选接近财报日，哪怕技术面成立，也要先确认是否仍符合你的事件风控规则。",
+      "Check earnings windows",
+      "Some candidates are close to earnings. Confirm event-risk rules before using the order plan.",
     ]);
   }
   if (items.some((item) => item.strong_divergence)) {
     insights.push([
-      "强背离优先复核",
-      "强背离不一定否定 setup，但说明趋势衰竭风险升高，执行上要更保守。",
+      "Review strong divergence first",
+      "Strong divergence does not automatically cancel the setup, but it raises exhaustion risk.",
     ]);
   }
   if (!insights.length) {
-    insights.push(["暂无特殊提醒", "当前候选池相对干净，可以按正常节奏执行筛选。"]);
+    insights.push(["No special notes", "This candidate set is clean enough for the normal review workflow."]);
   }
 
   $("watchlistInsights").innerHTML = insights
@@ -301,10 +301,10 @@ function renderInsights() {
 
 function renderRail() {
   const items = getFilteredItems();
-  $("watchlistRailCount").textContent = `${items.length} 张卡片`;
+  $("watchlistRailCount").textContent = `${items.length} cards`;
 
   if (!items.length) {
-    $("watchlistRailContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有可展示的观察卡片。</div>`;
+    $("watchlistRailContainer").innerHTML = `<div class="empty-state">No candidate cards match the current filters.</div>`;
     return;
   }
 
@@ -320,11 +320,11 @@ function renderRail() {
       const primaryOrder = orderPlan.primary_order || {};
       const manualOrder = getPlannedOrderFor(item);
       const tags = [
-        item.strong_divergence ? "强背离" : "",
-        earnings.warning ? "财报临近" : "",
-        String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "已触发" : "",
-        String(item.opportunity_status || "").toUpperCase() === "MONITOR" ? "监测中" : "",
-        manualOrder ? `IBKR ${manualOrder.status || "已记录"}` : "",
+        item.strong_divergence ? "Strong divergence" : "",
+        earnings.warning ? "Earnings soon" : "",
+        String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "Triggered" : "",
+        String(item.opportunity_status || "").toUpperCase() === "MONITOR" ? "Monitor" : "",
+        manualOrder ? `IBKR ${manualOrder.status || "Recorded"}` : "",
         ...(item.priority_tags || []),
       ].filter(Boolean);
 
@@ -333,28 +333,28 @@ function renderRail() {
           <div class="watchlist-rail-top">
             <div>
               <h3>${escapeHtml(item.symbol || "—")}</h3>
-              <p>${escapeHtml(getSignalDirectionLabel(item.direction))} · 分数 ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</p>
+              <p>${escapeHtml(getSignalDirectionLabel(item.direction))} · Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</p>
             </div>
             ${getStatusBadge(item.opportunity_status)}
           </div>
-          <div class="watchlist-rail-tags">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("") : `<span class="tag">常规候选</span>`}</div>
+          <div class="watchlist-rail-tags">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("") : `<span class="tag">Standard candidate</span>`}</div>
           <div class="watchlist-rail-body">
             <div class="watchlist-rail-reason">
-              <strong>入选理由</strong>
+              <strong>Setup context</strong>
               <p>${escapeHtml(truncateText(item.summary || daily.reason || weekly.reason, 110))}</p>
             </div>
             <div class="watchlist-rail-split">
               <div>
-                <span>周线动力</span>
+                <span>Weekly impulse</span>
                 <strong>${escapeHtml(weekly.impulse_color || "—")} · ${escapeHtml(weekly.trend || "—")}</strong>
               </div>
               <div>
-                <span>日线 Force</span>
+                <span>Daily Force</span>
                 <strong>${escapeHtml(formatNumber(daily.force_index_ema2 ?? 0, 0))} · ${escapeHtml(daily.impulse_color || "—")}</strong>
               </div>
             </div>
             <div class="watchlist-rail-footer">
-              <span>${escapeHtml(primaryOrder.stop_price !== undefined && primaryOrder.stop_price !== null ? `Stop ${formatCurrency(primaryOrder.stop_price, 2)} / Limit ${formatCurrency(primaryOrder.limit_price, 2)}` : entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? `EMA穿透 ${formatCurrency(entryPlan.ema_penetration_entry, 3)}` : buildExecutionPlan(item))}</span>
+              <span>${escapeHtml(primaryOrder.stop_price !== undefined && primaryOrder.stop_price !== null ? `Stop ${formatCurrency(primaryOrder.stop_price, 2)} / Limit ${formatCurrency(primaryOrder.limit_price, 2)}` : entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? `EMA penetration ${formatCurrency(entryPlan.ema_penetration_entry, 3)}` : buildExecutionPlan(item))}</span>
               <span>${escapeHtml(earningsDisplay.label)}</span>
             </div>
           </div>
@@ -375,7 +375,7 @@ function renderRail() {
 function renderTable() {
   const items = getFilteredItems();
   if (!items.length) {
-    $("watchlistTableContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有观察列表项目。</div>`;
+    $("watchlistTableContainer").innerHTML = `<div class="empty-state">No watchlist items match the current filters.</div>`;
     return;
   }
 
@@ -391,9 +391,9 @@ function renderTable() {
       const manualOrder = getPlannedOrderFor(item);
 
       const tags = [
-        item.strong_divergence ? "强背离" : "",
-        earnings.warning ? "财报临近" : "",
-        earnings.blocked ? "财报黑窗" : "",
+        item.strong_divergence ? "Strong divergence" : "",
+        earnings.warning ? "Earnings soon" : "",
+        earnings.blocked ? "Earnings blocked" : "",
         ...(item.priority_tags || []),
       ].filter(Boolean);
 
@@ -401,38 +401,38 @@ function renderTable() {
         <tr>
           <td class="symbol-cell">
             <strong>${escapeHtml(item.symbol || "—")}</strong>
-            <span>${escapeHtml(getSignalDirectionLabel(item.direction))} · 分数 ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span>
+            <span>${escapeHtml(getSignalDirectionLabel(item.direction))} · Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span>
           </td>
           <td>
             ${getStatusBadge(item.opportunity_status)}
-            <div style="margin-top:8px">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join(" ") : `<span class="tag">常规候选</span>`}</div>
+            <div style="margin-top:8px">${tags.length ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join(" ") : `<span class="tag">Standard candidate</span>`}</div>
           </td>
           <td class="reason-cell">
-            ${getReasonBlock(`周线动力 ${weekly.impulse_color || "—"}`, weekly.trend_score, weekly.reason)}
+            ${getReasonBlock(`Weekly impulse ${weekly.impulse_color || "—"}`, weekly.trend_score, weekly.reason)}
           </td>
           <td class="reason-cell">
-            ${getReasonBlock(`日线 Force ${formatNumber(daily.force_index_ema2 ?? 0, 0)}`, daily.setup_score, daily.reason)}
+            ${getReasonBlock(`Daily Force ${formatNumber(daily.force_index_ema2 ?? 0, 0)}`, daily.setup_score, daily.reason)}
           </td>
           <td class="reason-cell">
-            ${getReasonBlock("触发价监测", hourly.trigger_score, hourly.reason || buildExecutionPlan(item))}
+            ${getReasonBlock("Entry monitor", hourly.trigger_score, hourly.reason || buildExecutionPlan(item))}
           </td>
           <td class="reason-cell">
             <strong>${escapeHtml(earningsDisplay.label)}</strong>
             <p>${escapeHtml(earningsDisplay.reason)}</p>
           </td>
           <td class="reason-cell">
-            <strong>周线：${divergence.weekly?.detected ? "有背离" : "无背离"} / 日线：${divergence.daily?.detected ? "有背离" : "无背离"}</strong>
+            <strong>Weekly: ${divergence.weekly?.detected ? "Divergence" : "None"} / Daily: ${divergence.daily?.detected ? "Divergence" : "None"}</strong>
             <p>${escapeHtml(
               divergence.daily?.reason ||
                 divergence.weekly?.reason ||
-                "暂无背离说明"
+                "No divergence notes"
             )}</p>
           </td>
           <td class="execution-cell">
             <span class="execution-inline-text">${escapeHtml(buildOrderPlanInline(item))}</span>
             <div class="mini-action-row">
-              <button class="btn btn-secondary btn-mini" type="button" data-fill-order="${escapeHtml(item.symbol || "")}">填入记录</button>
-              ${manualOrder ? `<span class="tag">IBKR ${escapeHtml(manualOrder.status || "已记录")}</span>` : `<span class="tag">未记录挂单</span>`}
+              <button class="btn btn-secondary btn-mini" type="button" data-fill-order="${escapeHtml(item.symbol || "")}">Fill Record</button>
+              ${manualOrder ? `<span class="tag">IBKR ${escapeHtml(manualOrder.status || "Recorded")}</span>` : `<span class="tag">No manual order</span>`}
             </div>
           </td>
         </tr>
@@ -446,14 +446,14 @@ function renderTable() {
       <table class="watchlist-detail-table">
         <thead>
           <tr>
-            <th>标的</th>
-            <th>状态 / 标签</th>
-            <th>周线过滤</th>
-            <th>日线 Force</th>
-            <th>触发价监测</th>
-            <th>财报风险</th>
-            <th>背离提醒</th>
-            <th>执行参数</th>
+            <th>Symbol</th>
+            <th>Status / Tags</th>
+            <th>Weekly Filter</th>
+            <th>Daily Force</th>
+            <th>Entry Monitor</th>
+            <th>Earnings Risk</th>
+            <th>Divergence</th>
+            <th>Execution Plan</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -488,7 +488,7 @@ function renderPlannedOrders() {
   const orders = state.payload?.planned_orders || [];
   $("orderSessionDate").value = state.payload?.session_date || "";
   if (!orders.length) {
-    $("plannedOrdersContainer").innerHTML = `<div class="empty-state compact-empty">当前会话还没有手工订单记录。</div>`;
+    $("plannedOrdersContainer").innerHTML = `<div class="empty-state compact-empty">No manual order records for this session yet.</div>`;
     return;
   }
   $("plannedOrdersContainer").innerHTML = `
@@ -501,7 +501,7 @@ function renderPlannedOrders() {
             <span>Qty ${escapeHtml(formatNumber(order.quantity, 0))}</span>
             <span>Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}</span>
             <span class="tag">${escapeHtml(order.status || "SUBMITTED")}</span>
-            <button class="btn btn-secondary btn-mini" type="button" data-delete-order="${escapeHtml(order.id)}">删除</button>
+            <button class="btn btn-secondary btn-mini" type="button" data-delete-order="${escapeHtml(order.id)}">Delete</button>
           </div>
         `)
         .join("")}
@@ -534,14 +534,14 @@ async function loadWatchlist(sessionDate = "") {
 
 async function bootApp() {
   syncShell("watchlist");
-  setScreenState("boot", "检查本地 Journal API，并加载观察列表…");
+  setScreenState("boot", "Checking the local Journal API and loading the watchlist...");
   try {
     const health = await ensureApiReady();
-    renderConnectionStatus(true, `本地 API 已连接 · ${health.server.host}:${health.server.port}`);
+    renderConnectionStatus(true, `Local API connected · ${health.server.host}:${health.server.port}`);
     setScreenState("app");
     await loadWatchlist();
   } catch (error) {
-    renderConnectionStatus(false, "本地 API 不可用");
+    renderConnectionStatus(false, "Local API unavailable");
     $("configError").textContent = error.message || String(error);
     setScreenState("config");
   }

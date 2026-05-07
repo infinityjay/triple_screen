@@ -309,19 +309,19 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
                 execution_summary = (
                     f"当前执行口径：优先关注 EMA 穿透参考价 {suggested_entry if suggested_entry is not None else '—'}；"
                     f"替代触发价为前一日高/低点外一跳 {entry_plan.get('breakout_entry', '—')}。"
-                    f" 初始止损仍需在 SafeZone / 尼克止损法之间手动选择。"
+                    f" Initial Stop仍需在 SafeZone / 尼克止损法之间手动选择。"
                 )
                 execution_metrics = [
                     _metric("EMA 穿透参考价", suggested_entry, "accent"),
                     _metric("前日突破参考价", _safe_round(entry_plan.get("breakout_entry")), "accent"),
                     _metric("明日EMA估算", _safe_round(entry_plan.get("projected_next_ema"))),
                     _metric("平均穿透", _safe_round(entry_plan.get("average_penetration"))),
-                    _metric("SafeZone 初始止损", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
+                    _metric("SafeZone Initial Stop", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
                     _metric("尼克止损", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
                     _metric("尼克参考日期", execution_exits.get("initial_stop_nick_reference_date")),
                     _metric("ATR 1x 移动止损", suggested_stop, "warn"),
                     _metric("ATR 2x 移动止损", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
-                    _metric("周线价值区间目标", suggested_target),
+                    _metric("周线价值区间Target", suggested_target),
                     _metric(
                         "周线价值区间",
                         (
@@ -352,18 +352,18 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             suggested_target = _safe_round(execution_exits.get("take_profit"))
             execution_summary = (
                 f"当前执行口径：建议关注触发价 {suggested_entry if suggested_entry is not None else '—'}，"
-                f"初始止损需在 SafeZone / 尼克止损法之间手动选择；"
+                f"Initial Stop需在 SafeZone / 尼克止损法之间手动选择；"
                 f"ATR 1x 移动止损参考位 {suggested_stop if suggested_stop is not None else '—'}。"
                 f" {execution_hourly.get('reason', '')}"
             )
             execution_metrics = [
-                _metric("建议入场价", suggested_entry, "accent"),
-                _metric("SafeZone 初始止损", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
+                _metric("建议Entry价", suggested_entry, "accent"),
+                _metric("SafeZone Initial Stop", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
                 _metric("尼克止损", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
                 _metric("ATR 1x 移动止损", suggested_stop, "warn"),
                 _metric("ATR 2x 移动止损", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
-                _metric("首个目标位", suggested_target),
-                _metric("小时线状态", execution_hourly.get("status")),
+                _metric("首个Target位", suggested_target),
+                _metric("小时线Status", execution_hourly.get("status")),
                 _metric("当前价", _safe_round(execution_hourly.get("close"))),
                 _metric("信号K高点", _safe_round(execution_hourly.get("signal_bar_high"))),
                 _metric("信号K低点", _safe_round(execution_hourly.get("signal_bar_low"))),
@@ -374,8 +374,8 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             execution_summary = execution_hourly.get("reason") or "当前无法生成执行价位。"
             execution_metrics = [
                 _metric("建议买入价", None),
-                _metric("当前保护止损", None),
-                _metric("小时线状态", execution_hourly.get("status")),
+                _metric("Current Protective Stop", None),
+                _metric("小时线Status", execution_hourly.get("status")),
             ]
 
     weekly_metrics = [
@@ -411,7 +411,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             ),
         ),
         _check(
-            "周线价值区间目标可用",
+            "周线价值区间Target可用",
             bool(weekly.get("weekly_value_target", {}).get("available")),
             (
                 f"周线 EMA13/EMA26 价值区间 "
@@ -447,7 +447,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
         _metric("距价值带", _safe_round(daily.get("value_band_gap"))),
         _metric(daily.get("correction_counter_label", "近8日修正收盘数"), daily.get("correction_count")),
         _metric("结构防守位", _safe_round(daily.get("structure_break_level"))),
-        _metric("最新收盘", latest_close),
+        _metric("Latest Close", latest_close),
         _metric("自定义K线确认", "成立" if daily.get("custom_kline_confirmation") else "未成立"),
         _metric("收盘相对昨收", "满足" if daily.get("custom_close_rule_pass") else "未满足"),
         _metric("K线影线占比", f"{_safe_round(daily.get('custom_wick_ratio_pct'), 2)}%"),
@@ -514,8 +514,8 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
     ]
     key_levels = [
         _metric("最新日线日期", latest_bar_at),
-        _metric("最新收盘", latest_close),
-        _metric("SafeZone 初始止损", _safe_round(safezone_stop)),
+        _metric("Latest Close", latest_close),
+        _metric("SafeZone Initial Stop", _safe_round(safezone_stop)),
         _metric("尼克止损", _safe_round(nick_stop)),
         _metric("ATR 移动止损 1x", _safe_round(atr_stop_1x)),
         _metric("ATR 移动止损 2x", _safe_round(atr_stop_2x)),
@@ -529,7 +529,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             "code": method.get("code"),
             "label": method.get("label"),
             "raw_price": _safe_round(method.get("price"), 4) if method.get("price") is not None else None,
-            "price": "需手工判断" if method.get("price") is None else str(_safe_round(method.get("price"), 4)),
+            "price": "需Manual" if method.get("price") is None else str(_safe_round(method.get("price"), 4)),
             "reference": method.get("reference"),
             "suitable_for": method.get("suitable_for"),
             "detail": method.get("detail"),
@@ -544,7 +544,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
     trailing_stop_methods = [method for method in stop_method_cards if method.get("group") == "trailing"]
 
     summary = (
-        f"系统结论：{followup['label']}。"
+        f"System Decision：{followup['label']}。"
         f" 周线：{weekly.get('reason', '暂无说明')}"
         f" 日线：{daily.get('reason', '暂无说明')}"
     )
@@ -568,7 +568,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             "raw": weekly,
         },
         "daily": {
-            "title": "日线 / Setup",
+            "title": "Daily / Setup",
             "subtitle": model.spec.daily_model,
             "reason": daily.get("reason"),
             "pass": daily.get("pass", False),
@@ -604,7 +604,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
         },
         "stop_methods": {
             "title": "Elder 止损方法",
-            "summary": "先看初始止损怎么定义风险，再看持仓后的跟踪止损怎么推进。",
+            "summary": "先看Initial Stop怎么定义风险，再看持仓后的跟踪止损怎么推进。",
             "initial_methods": initial_stop_methods,
             "trailing_methods": trailing_stop_methods,
             "methods": stop_method_cards,
@@ -616,7 +616,7 @@ def _prompt_outline() -> list[str]:
     return [
         "周线看动力系统颜色、MACD 斜率、EMA 斜率、确认 bars；动力系统只做禁止规则。",
         "日线核心看 2日 Force Index EMA：做多等待跌破 0，做空等待升破 0 且不是几周新高；RSI 与 Histogram 仅作辅助说明。",
-        "给出系统当前执行价位：EMA 穿透参考价、前一日高/低点外一跳的替代触发价、当前保护止损、周线价值区间目标。",
+        "给出系统当前执行价位：EMA 穿透参考价、前一日高/低点外一跳的替代触发价、Current Protective Stop、周线价值区间Target。",
         "补充看周线/日线背离；当前止损口径先收敛为 SafeZone、尼克止损法，以及日线 ATR 1x/2x 移动止损。",
         "明确写出系统建议与你的 AI 建议一致或不一致的地方。",
     ]
@@ -630,7 +630,7 @@ def _build_ai_messages(system_analysis: dict[str, Any]) -> list[dict[str, str]]:
     symbol = system_analysis["symbol"]
 
     user_prompt = {
-        "task": "基于给定的系统技术面数据，对单只股票给出你的独立周线/日线技术分析和观察建议。",
+        "task": "基于给定的System Technicals数据，对单只股票给出你的独立周线/日线技术分析和观察建议。",
         "requirements": _prompt_outline(),
         "symbol": symbol,
         "system_recommendation": recommendation,
@@ -686,7 +686,7 @@ def _build_ai_messages(system_analysis: dict[str, Any]) -> list[dict[str, str]]:
             "role": "system",
             "content": (
                 "你是一名偏交易执行视角的技术分析助手。"
-                "你需要按周线和日线分开输出，并且显式比较你与系统规则结论的差异。"
+                "你需要按周线和日线分开输出，并且显式比较你与System Rules结论的差异。"
             ),
         },
         {"role": "user", "content": json.dumps(user_prompt, ensure_ascii=False)},
@@ -717,9 +717,9 @@ def _request_ai_analysis(system_analysis: dict[str, Any]) -> dict[str, Any]:
         return {
             "enabled": False,
             "status": "UNAVAILABLE",
-            "model": config.model or "未配置",
+            "model": config.model or "Not Configured",
             "outline": _prompt_outline(),
-            "message": "AI 模型尚未配置。请设置 TECH_ANALYSIS_AI_API_KEY / TECH_ANALYSIS_AI_MODEL，或使用 OPENAI_API_KEY / OPENAI_MODEL。",
+            "message": "AI 模型尚Not Configured。请设置 TECH_ANALYSIS_AI_API_KEY / TECH_ANALYSIS_AI_MODEL，或使用 OPENAI_API_KEY / OPENAI_MODEL。",
         }
 
     response = requests.post(
@@ -750,7 +750,7 @@ def _request_ai_analysis(system_analysis: dict[str, Any]) -> dict[str, Any]:
             "model": config.model,
             "outline": _prompt_outline(),
             "raw_text": content,
-            "message": "AI 已返回结果，但未能解析成结构化 JSON，当前按原文展示。",
+            "message": "AI 已返回Result，但未能解析成结构化 JSON，当前按原文展示。",
         }
 
     return {
@@ -765,12 +765,12 @@ def _request_ai_analysis(system_analysis: dict[str, Any]) -> dict[str, Any]:
 def analyze_symbol(symbol: str, include_ai: bool = True, model_id: str | None = None) -> dict[str, Any]:
     normalized_symbol = _normalize_symbol(symbol)
     if not normalized_symbol:
-        raise TechnicalAnalysisError("请输入有效的股票代码。")
+        raise TechnicalAnalysisError("Enter a valid ticker.")
 
     try:
         system_analysis = _build_system_analysis(normalized_symbol, model_id=model_id)
     except Exception as exc:
-        raise TechnicalAnalysisError(f"系统分析失败：{exc}") from exc
+        raise TechnicalAnalysisError(f"System analysis failed: {exc}") from exc
 
     ai_analysis: dict[str, Any]
     if include_ai:
@@ -781,14 +781,14 @@ def analyze_symbol(symbol: str, include_ai: bool = True, model_id: str | None = 
                 "enabled": True,
                 "status": "ERROR",
                 "outline": _prompt_outline(),
-                "message": f"AI 分析调用失败：{exc}",
+                "message": f"AI 分析Call Failed：{exc}",
             }
     else:
         ai_analysis = {
             "enabled": False,
             "status": "SKIPPED",
             "outline": _prompt_outline(),
-            "message": "本次请求未启用 AI 分析。",
+            "message": "本次请求Disabled AI 分析。",
         }
 
     return {

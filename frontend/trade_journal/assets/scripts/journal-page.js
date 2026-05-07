@@ -46,20 +46,20 @@ import {
 
 const REVIEW_TEMPLATES = {
   plan: [
-    "交易计划",
-    "1. 周 / 日 / 小时结构是否一致：",
-    "2. 具体入场触发条件：",
-    "3. 初始止损与失效条件：",
-    "4. 目标位 / 减仓计划：",
-    "5. 今天最需要提醒自己的执行点：",
+    "Trade Plan",
+    "1. Are weekly / daily / hourly structures aligned:",
+    "2. Exact entry trigger:",
+    "3. Initial stop and invalidation:",
+    "4. Target / scale-out plan:",
+    "5. Execution reminder for today:",
   ].join("\n"),
   review: [
-    "交易复盘",
-    "1. 这笔交易最好的地方：",
-    "2. 最大的问题：",
-    "3. 有没有按计划执行：",
-    "4. 情绪是否干扰了决策：",
-    "5. 下次遇到类似 setup 要怎么做：",
+    "Trade Review",
+    "1. Best part of this trade:",
+    "2. Biggest problem:",
+    "3. Did I follow the plan:",
+    "4. Did emotion interfere:",
+    "5. What to do next time this setup appears:",
   ].join("\n"),
 };
 
@@ -323,51 +323,51 @@ function renderSummary(includeCapturePreview = false) {
   const overdue = getOverdueIncompleteTrades();
   const { singleStop, monthBudget, totalStopPct, openUsed, remaining, pct } = getRiskNumbers(includeCapturePreview);
 
-  $("summaryTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "未设置";
+  $("summaryTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "Not Set";
   $("summarySingleStop").textContent = settings.total ? formatCurrency(singleStop, 2) : "—";
   $("summaryMonthBudget").textContent = settings.total ? formatCurrency(monthBudget, 2) : "—";
   $("summaryRemaining").textContent = settings.total ? formatCurrency(remaining, 2) : "—";
   $("summaryClosedResult").textContent = closedTrades.length ? formatCurrency(netClosed, 2) : "—";
   $("summaryClosedResult").className = `summary-value ${netClosed >= 0 ? "accent-safe" : "accent-danger"}`;
   $("summaryClosedResultSub").textContent = closedTrades.length
-    ? `${closedTrades.length} 笔已结 · ${wins.length} 胜 / ${closedTrades.length - wins.length} 负 · 占总资金 ${closedPct === null ? "—" : formatPercent(closedPct, 2)
+    ? `${closedTrades.length} closed · ${wins.length} wins / ${closedTrades.length - wins.length} losses · of capital ${closedPct === null ? "—" : formatPercent(closedPct, 2)
     }`
-    : "本月暂无已结交易";
+    : "No closed trades this month";
   $("summaryOpenCount").textContent = String(openTrades.length);
   $("summaryUsedPct").textContent = closedPct === null ? "—" : formatPercent(closedPct, 2);
   $("summaryUsedText").textContent = closedTrades.length
     ? `本月已结净盈亏 ${formatCurrency(netClosed, 2)} / 总资金 ${formatCurrency(settings.total, 0)}`
-    : "本月暂无已结交易";
-  $("summaryCompleteness").textContent = completionRate === null ? "暂无样本" : formatPercent(completionRate, 0);
+    : "No closed trades this month";
+  $("summaryCompleteness").textContent = completionRate === null ? "No sample" : formatPercent(completionRate, 0);
   $("summaryCompletenessSub").textContent = overdue.length
-    ? `${overdue.length} 笔超过 3 个月仍未补全`
-    : "本月和历史记录都比较完整";
+    ? `${overdue.length} trades older than 3 months are still incomplete`
+    : "This month and history are reasonably complete";
   $("summarySingleStopSub").textContent = settings.total
-    ? `${formatPercent(settings.singleStop, 1)} 规则已启用`
-    : "先在设置里填总资金";
+    ? `${formatPercent(settings.singleStop, 1)} rule enabled`
+    : "Set total capital first";
   $("summaryMonthBudgetSub").textContent = settings.total
-    ? `${formatPercent(totalStopPct, 1)} 总止损额度，只统计当前持仓`
-    : "总止损额度尚未设定";
-  $("summaryRemainingSub").textContent = `当前持仓占用 ${formatCurrency(openUsed, 2)} · 剩余 ${formatCurrency(remaining, 2)}`;
+    ? `${formatPercent(totalStopPct, 1)} total stop budget, current positions only`
+    : "Total stop budget is not set";
+  $("summaryRemainingSub").textContent = `Current position usage ${formatCurrency(openUsed, 2)} · remaining ${formatCurrency(remaining, 2)}`;
   $("summaryOpenCountSub").textContent = openTrades.length
-    ? `其中 ${openTrades.filter((trade) => normalizeDirection(trade.direction) === "short").length} 笔做空`
-    : "当前没有月末持仓";
+    ? `including ${openTrades.filter((trade) => normalizeDirection(trade.direction) === "short").length} shorts`
+    : "No month-end positions";
   $("summaryRiskFill").style.width = `${Math.max(0, Math.min(100, Math.abs(closedPct ?? 0)))}%`;
 
-  $("monthHeadline").textContent = `当前查看月份：${month}`;
-  $("monthHeadlineBody").textContent = `${closedTrades.length} 笔已结，净结果 ${closedTrades.length ? formatCurrency(netClosed, 2) : "—"}，${openTrades.length} 笔持仓当前占用止损 ${formatCurrency(openUsed, 2)}。`;
-  $("journalMonthCurrent").textContent = `当前查看月份：${month}`;
-  $("statsMonthCurrent").textContent = `当前查看月份：${month}`;
+  $("monthHeadline").textContent = `Current Month: ${month}`;
+  $("monthHeadlineBody").textContent = `${closedTrades.length} closed，Net Result ${closedTrades.length ? formatCurrency(netClosed, 2) : "—"}，${openTrades.length} open positions currently use stop budget ${formatCurrency(openUsed, 2)}。`;
+  $("journalMonthCurrent").textContent = `Current Month: ${month}`;
+  $("statsMonthCurrent").textContent = `Current Month: ${month}`;
 
   const notes = [];
-  if (!settings.total) notes.push("先在设置里填写总资金和风险比例，系统才能给出仓位建议。");
-  if (remaining <= 0) notes.push("当前持仓止损额度已经用尽，建议暂停新开仓，先处理现有仓位。");
-  else if (pct >= 75) notes.push("当前持仓止损额度占用偏高，新仓要更严格筛选。");
-  if (overdue.length) notes.push(`有 ${overdue.length} 笔旧交易还没补完整，统计结论会受影响。`);
-  if (!closedTrades.length) notes.push("本月还没有已结交易，先聚焦执行质量和记录完整度。");
+  if (!settings.total) notes.push("Set total capital and risk percentages before the system can suggest position size.");
+  if (remaining <= 0) notes.push("Current positions have used the stop budget; pause new entries and manage existing positions first.");
+  else if (pct >= 75) notes.push("Current stop-budget usage is elevated; filter new entries more strictly.");
+  if (overdue.length) notes.push(`有 ${overdue.length} old trades are incomplete, which will affect statistics.`);
+  if (!closedTrades.length) notes.push("No closed trades this month; focus on execution quality and record completeness.");
   $("heroNotes").innerHTML = notes.length
     ? notes.map((item) => `<div class="status-pill">${escapeHtml(item)}</div>`).join("")
-    : `<div class="status-pill">本月记录完整，继续按节奏维护交易日志。</div>`;
+    : `<div class="status-pill">This month is complete; keep maintaining the journal at the same rhythm.</div>`;
 }
 
 function renderOverview() {
@@ -379,8 +379,8 @@ function renderOverview() {
     .slice(0, 5);
 
   $("reminderSummary").innerHTML = overdue.length
-    ? `超过 3 个月仍待补的交易共有 <strong>${overdue.length}</strong> 笔，建议先补交易计划、复盘和价格区间。`
-    : "没有超过 3 个月仍未补完整的记录。";
+    ? `There are <strong>${overdue.length}</strong> trades，建议先补Trade Plan、复盘和价格区间。`
+    : "No trades older than 3 months remain incomplete.";
 
   $("reminderList").innerHTML = overdue.length
     ? overdue
@@ -390,15 +390,15 @@ function renderOverview() {
         return `
             <div class="reminder-item">
               <strong>${escapeHtml(trade.stock || "—")} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
-              <p>${formatDateLabel(trade.buy_date || trade.created_at)} 建立，距今 ${getTradeAgeInDays(trade) || 0} 天，待补：${escapeHtml(gaps.join("、"))}</p>
+              <p>${formatDateLabel(trade.buy_date || trade.created_at)} opened, ${getTradeAgeInDays(trade) || 0} days old; missing: ${escapeHtml(gaps.join("、"))}</p>
               <div class="btn-row" style="margin-top:12px">
-                <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">继续补录</button>
+                <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">Continue Editing</button>
               </div>
             </div>
           `;
       })
       .join("")
-    : `<div class="empty-state">目前没有长期未补完整的交易。</div>`;
+    : `<div class="empty-state">No long-running incomplete trades.</div>`;
 
   const focusItems = openTrades.length ? openTrades.slice(0, 5) : recentTrades;
   $("focusList").innerHTML = focusItems.length
@@ -409,25 +409,25 @@ function renderOverview() {
         return `
             <div class="focus-item">
               <strong>${escapeHtml(trade.stock || "—")} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
-              <p>${escapeHtml(meta.label)} · 入场 ${formatCurrency(trade.buy_price, 3)} · 股数 ${formatShares(trade.shares)} · ${pnl === null ? "等待平仓结果" : `净结果 ${formatCurrency(pnl, 2)}`}</p>
+              <p>${escapeHtml(meta.label)} · Entry ${formatCurrency(trade.buy_price, 3)} · Shares ${formatShares(trade.shares)} · ${pnl === null ? "Waiting for close result" : `Net Result ${formatCurrency(pnl, 2)}`}</p>
               <div class="btn-row" style="margin-top:12px">
-                <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">编辑</button>
+                <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">Edit</button>
               </div>
             </div>
           `;
       })
       .join("")
-    : `<div class="empty-state">还没有交易，先录入第一笔。</div>`;
+    : `<div class="empty-state">No trades yet; enter the first one.</div>`;
 
   const month = getCurrentMonth();
   const closedTrades = getClosedTradesForMonth(month);
   const insights = [];
   const { pct, remaining, openUsed } = getRiskNumbers();
-  if (remaining <= 0) insights.push(["当前持仓止损额度已触顶", "未平仓风险已经耗尽总止损额度，先暂停新增仓位。"]);
-  else if (pct >= 75) insights.push(["当前持仓止损占用偏高", `持仓占用 ${formatCurrency(openUsed, 2)}，新仓要缩量。`]);
-  if (openTrades.length) insights.push(["先盯住仍在持仓的仓位", `当前有 ${openTrades.length} 笔持仓，优先保证止损和跟踪记录及时更新。`]);
-  if (!closedTrades.length) insights.push(["本月样本偏少", "已结交易太少时，不要过度解读胜率和净结果。"]);
-  if (!insights.length) insights.push(["节奏正常", "风险、样本数和记录完整度都在可接受范围内。"]);
+  if (remaining <= 0) insights.push(["Current Stop Budget Is Maxed", "Open risk has consumed the total stop budget; pause new positions."]);
+  else if (pct >= 75) insights.push(["Current Stop Usage Is Elevated", `Position usage ${formatCurrency(openUsed, 2)}，Reduce size for new positions.`]);
+  if (openTrades.length) insights.push(["Prioritize Open Positions", `There are ${openTrades.length} open，优先保证止损和跟踪记录及时更新。`]);
+  if (!closedTrades.length) insights.push(["Small Monthly Sample", "已结交易太少时，不要过度解读wins率和Net Result。"]);
+  if (!insights.length) insights.push(["Process On Track", "Risk, sample size, and record completeness are all acceptable."]);
   $("monthInsights").innerHTML = insights
     .map(([title, body]) => `<div class="insight-item"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(body)}</p></div>`)
     .join("");
@@ -435,7 +435,7 @@ function renderOverview() {
 
 function renderJournalRail(list) {
   if (!list.length) {
-    $("journalRailContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有交易卡片。</div>`;
+    $("journalRailContainer").innerHTML = `<div class="empty-state">No trade cards match the current filters.</div>`;
     return;
   }
 
@@ -449,7 +449,7 @@ function renderJournalRail(list) {
       const isClosed = isTradeClosed(trade);
       const initialStop = getTradeInitialStop(trade);
       const currentStop = getTradeCurrentStop(trade);
-      const primaryNote = trade.stop_reason || trade.sell_reason || trade.review || "这笔交易还没有补充说明。";
+      const primaryNote = trade.stop_reason || trade.sell_reason || trade.review || "No notes have been added for this trade yet.";
 
       return `
         <article class="journal-rail-item">
@@ -462,34 +462,34 @@ function renderJournalRail(list) {
           </div>
           <div class="journal-rail-metrics">
             <div>
-              <span>入场</span>
+              <span>Entry</span>
               <strong>${formatCurrency(trade.buy_price, 3)}</strong>
             </div>
             <div>
-              <span>${isClosed ? "已结结果" : "风险占用"}</span>
+              <span>${isClosed ? "Closed Result" : "Risk Usage"}</span>
               <strong class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${isClosed ? formatCurrency(pnl, 2) : formatCurrency(usedStop, 2)}</strong>
             </div>
             <div>
-              <span>目标</span>
+              <span>Target</span>
               <strong>${formatCurrency(target, 3)}</strong>
             </div>
             <div>
-              <span>当前保护止损</span>
+              <span>Current Protective Stop</span>
               <strong>${formatCurrency(currentStop, 3)}</strong>
             </div>
             <div>
-              <span>结果</span>
-              <strong class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "持仓中" : formatCurrency(pnl, 2)}</strong>
+              <span>Result</span>
+              <strong class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "Open" : formatCurrency(pnl, 2)}</strong>
             </div>
           </div>
           <div class="journal-rail-body">
             <div class="journal-rail-block">
-              <strong>计划 / 原因</strong>
+              <strong>Plan / Reason</strong>
               <p>${escapeHtml(truncateText(primaryNote, 120))}</p>
             </div>
             <div class="journal-rail-footer">
-              <span>${gaps.length ? `待补 ${escapeHtml(gaps.join("、"))}` : "记录已完整"}</span>
-              <span>${formatShares(trade.shares)} · 初始止损 ${formatCurrency(initialStop, 3)} · 当前保护止损 ${formatCurrency(currentStop, 3)}</span>
+              <span>${gaps.length ? `Missing ${escapeHtml(gaps.join("、"))}` : "Record complete"}</span>
+              <span>${formatShares(trade.shares)} · Initial Stop ${formatCurrency(initialStop, 3)} · Current Protective Stop ${formatCurrency(currentStop, 3)}</span>
             </div>
           </div>
         </article>
@@ -506,7 +506,7 @@ function renderJournalRail(list) {
 
 function renderJournalTable(list) {
   if (!list.length) {
-    $("journalTableContainer").innerHTML = `<div class="empty-state">当前筛选条件下没有交易记录。</div>`;
+    $("journalTableContainer").innerHTML = `<div class="empty-state">No trade records match the current filters.</div>`;
     return;
   }
 
@@ -532,15 +532,15 @@ function renderJournalTable(list) {
           <td>${formatCurrency(currentStop, 3)}</td>
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${riskOrResult}</td>
           <td>${formatCurrency(getTradeTargetPrice(trade), 3)}</td>
-          <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "持仓中" : formatCurrency(pnl, 2)}</td>
+          <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "Open" : formatCurrency(pnl, 2)}</td>
           <td class="reason-cell">${escapeHtml(trade.stop_reason || "—")}</td>
           <td class="reason-cell">${escapeHtml(trade.sell_reason || "—")}</td>
-          <td class="reason-cell">${escapeHtml(gaps.length ? gaps.join("、") : "已完整")}</td>
+          <td class="reason-cell">${escapeHtml(gaps.length ? gaps.join("、") : "Complete")}</td>
           <td class="reason-cell">${escapeHtml((trade.review || "").slice(0, 120) || "—")}</td>
           <td>
             <div class="inline-actions">
-              <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">编辑</button>
-              <button class="btn btn-secondary" type="button" data-delete-trade="${escapeHtml(String(trade.id))}">删除</button>
+              <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">Edit</button>
+              <button class="btn btn-secondary" type="button" data-delete-trade="${escapeHtml(String(trade.id))}">Delete</button>
             </div>
           </td>
         </tr>
@@ -553,21 +553,21 @@ function renderJournalTable(list) {
       <table class="journal-ledger-table">
         <thead>
           <tr>
-            <th>标的</th>
-            <th>状态</th>
-            <th>入场日期</th>
-            <th>入场价</th>
-            <th>股数</th>
-            <th>初始止损价</th>
-            <th>当前保护止损</th>
-            <th>风险/结果</th>
-            <th>目标价</th>
-            <th>净结果</th>
-            <th>交易计划</th>
-            <th>平仓原因</th>
-            <th>待补字段</th>
-            <th>复盘摘要</th>
-            <th>操作</th>
+            <th>Symbol</th>
+            <th>Status</th>
+            <th>Entry日期</th>
+            <th>Entry价</th>
+            <th>Shares</th>
+            <th>Initial Stop价</th>
+            <th>Current Protective Stop</th>
+            <th>风险/Result</th>
+            <th>Target价</th>
+            <th>Net Result</th>
+            <th>Trade Plan</th>
+            <th>Exit Reason</th>
+            <th>Missing Fields</th>
+            <th>Review Summary</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -578,7 +578,7 @@ function renderJournalTable(list) {
 
 function renderJournal() {
   const list = getFilteredTrades();
-  $("journalCountLabel").textContent = `${list.length} 笔`;
+  $("journalCountLabel").textContent = `${list.length} trades`;
   renderJournalRail(list);
   renderJournalTable(list);
 }
@@ -607,45 +607,45 @@ function renderStats() {
   const risk = getRiskNumbers();
   const netPct = getSettings().total > 0 ? (net / getSettings().total) * 100 : null;
 
-  let leadTitle = "本月结论";
-  let leadBody = "继续保持记录质量，先看风险，再看结果。";
+  let leadTitle = "Monthly Takeaway";
+  let leadBody = "继续保持记录质量，先看风险，再看Result。";
   if (!closed.length) {
-    leadTitle = "样本不足，先看执行";
-    leadBody = "本月还没有足够的已结交易样本，先确保计划、止损和复盘记录都完整。";
+    leadTitle = "Sample Too Small; Review Execution First";
+    leadBody = "There are not enough closed trades this month; make sure plan, stops, and reviews are complete first.";
   } else if (risk.remaining <= 0) {
-    leadTitle = "当前持仓止损额度已触顶";
-    leadBody = "未平仓风险已经耗尽总止损额度，先停止新开仓，优先处理现有仓位。";
+    leadTitle = "Current Stop Budget Is Maxed";
+    leadBody = "Open risk has consumed the total stop budget; stop adding positions and manage existing positions first.";
   } else if (net < 0) {
-    leadTitle = "净结果偏弱，先收紧风险";
-    leadBody = "本月已结交易净结果为负，优先复盘亏损交易的执行偏差，而不是急着扩大样本。";
+    leadTitle = "Net Result偏弱，先收紧风险";
+    leadBody = "本月已结交易Net Result为losses，优先复盘亏损交易的执行偏差，而不是急着扩大样本。";
   } else if (risk.pct >= 75) {
-    leadTitle = "当前持仓止损占用偏高";
-    leadBody = "未平仓风险占用偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
+    leadTitle = "Current Stop Usage Is Elevated";
+    leadBody = "未平仓Risk Usage偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
   } else if ((completionRate || 0) < 70) {
-    leadTitle = "结果先放一边，先补数据";
-    leadBody = "记录完整度偏低会直接影响统计质量，先把旧交易补全。";
+    leadTitle = "Result先放一边，先补数据";
+    leadBody = "Low record completeness directly hurts statistics; complete old trades first.";
   }
 
   $("statsLeadTitle").textContent = leadTitle;
   $("statsLeadBody").textContent = leadBody;
   $("statsLeadPills").innerHTML = [
-    `<div class="stat-pill">已结 ${closed.length} 笔</div>`,
-    `<div class="stat-pill">持仓 ${open.length} 笔</div>`,
-    `<div class="stat-pill">胜率 ${closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"}</div>`,
-    `<div class="stat-pill">完整度 ${completionRate === null ? "—" : formatPercent(completionRate, 0)}</div>`,
+    `<div class="stat-pill">Closed ${closed.length} trades</div>`,
+    `<div class="stat-pill">Open ${open.length} trades</div>`,
+    `<div class="stat-pill">wins率 ${closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"}</div>`,
+    `<div class="stat-pill">Completeness ${completionRate === null ? "—" : formatPercent(completionRate, 0)}</div>`,
   ].join("");
 
   $("statsGrid").innerHTML = [
-    ["净结果", closed.length ? formatCurrency(net, 2) : "—"],
-    ["占总资金", netPct === null ? "—" : formatPercent(netPct, 2)],
-    ["胜率", closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"],
-    ["平均盈利", avgWin === null ? "—" : formatCurrency(avgWin, 2)],
-    ["平均亏损", avgLoss === null ? "—" : formatCurrency(avgLoss, 2)],
-    ["持仓止损占用", formatPercent(risk.pct, 0)],
-    ["当前持仓止损", formatCurrency(risk.openUsed, 2)],
-    ["当前剩余额度", formatCurrency(risk.remaining, 2)],
-    ["已记录交易", String(all.length)],
-    ["完整记录", completionRate === null ? "—" : formatPercent(completionRate, 0)],
+    ["Net Result", closed.length ? formatCurrency(net, 2) : "—"],
+    ["of capital", netPct === null ? "—" : formatPercent(netPct, 2)],
+    ["wins率", closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"],
+    ["Average Win", avgWin === null ? "—" : formatCurrency(avgWin, 2)],
+    ["Average Loss", avgLoss === null ? "—" : formatCurrency(avgLoss, 2)],
+    ["Open Stop Usage", formatPercent(risk.pct, 0)],
+    ["Current Open Stops", formatCurrency(risk.openUsed, 2)],
+    ["当前remaining额度", formatCurrency(risk.remaining, 2)],
+    ["Recorded Trades", String(all.length)],
+    ["Complete Records", completionRate === null ? "—" : formatPercent(completionRate, 0)],
   ]
     .map(
       ([label, value]) => `
@@ -658,10 +658,10 @@ function renderStats() {
     .join("");
 
   const suggestions = [];
-  if (risk.remaining <= 0) suggestions.push(["暂停新仓", "当前持仓止损额度已经耗尽，优先处理现有持仓。"]);
-  if (losses.length > wins.length && closed.length >= 4) suggestions.push(["复盘亏损共性", "检查是否总在同一类 setup 或同一执行环节上出错。"]);
-  if ((completionRate || 0) < 70) suggestions.push(["补齐旧记录", "先把未填写的计划、平仓原因和复盘补完，再看统计。"]);
-  if (!suggestions.length) suggestions.push(["延续当前流程", "继续按照现在的节奏维护交易日志，并关注持仓止损更新。"]);
+  if (risk.remaining <= 0) suggestions.push(["Pause New Positions", "Current Open Stops额度已经耗尽，优先处理现有持仓。"]);
+  if (losses.length > wins.length && closed.length >= 4) suggestions.push(["Review Loss Patterns", "Check whether mistakes cluster around the same setup type or execution step."]);
+  if ((completionRate || 0) < 70) suggestions.push(["Complete Old Records", "先把未填写的计划、Exit Reason和复盘补完，再看统计。"]);
+  if (!suggestions.length) suggestions.push(["Continue Current Process", "Keep maintaining the journal at the current rhythm and watch protective-stop updates."]);
 
   $("statsNarrative").innerHTML = suggestions
     .slice(0, 3)
@@ -671,12 +671,12 @@ function renderStats() {
 
 function updateCaptureHeader() {
   const editing = state.editingId !== null;
-  $("captureTitle").textContent = editing ? "编辑交易" : "录入新交易";
+  $("captureTitle").textContent = editing ? "Edit交易" : "New Trade";
   $("captureSubtitle").textContent = editing
-    ? "你正在修改一笔已有交易，保存后会直接更新 SQLite。"
-    : "录入新交易时，系统会实时计算风险和目标位。";
+    ? "You are editing an existing trade; saving updates SQLite directly."
+    : "New Trade时，系统会实时计算风险和Target位。";
   $("captureCancelBtn").classList.toggle("hidden", !editing);
-  $("captureSaveBtn").textContent = editing ? "保存修改" : "保存交易";
+  $("captureSaveBtn").textContent = editing ? "Save Changes" : "Save Trade";
 }
 
 function clearCaptureForm() {
@@ -833,7 +833,7 @@ function computeCapture() {
   $("calcUsedStop").textContent = usedStop === null ? "—" : formatCurrency(usedStop, 2);
   $("calcRecommendedShares").textContent = recommendedShares === null ? "—" : formatNumber(recommendedShares, 0);
   $("calcTargetPrice").textContent = targetPrice === null ? "—" : formatCurrency(targetPrice, 3);
-  $("calcLivePnl").textContent = netPnl === null ? "持仓中" : formatCurrency(netPnl, 2);
+  $("calcLivePnl").textContent = netPnl === null ? "Open" : formatCurrency(netPnl, 2);
   $("calcLivePnl").className = netPnl === null ? "" : netPnl >= 0 ? "accent-safe" : "accent-danger";
 
   let stopText = "—";
@@ -845,8 +845,8 @@ function computeCapture() {
   $("calcStopState").textContent = stopText;
   $("calcExecutionHint").textContent = recommendedShares === null
     ? stopStatus?.type === "breakeven" || stopStatus?.type === "locked"
-      ? "当前保护止损已到保本/盈利侧，这笔持仓新增风险占用为 0"
-      : "先填写入场价、止损价和总资金"
+      ? "Current Protective Stop已到保本/盈利侧，这open新增Risk Usage为 0"
+      : "先填写Entry价、止损价和总资金"
     : `当前规则建议 ${formatNumber(recommendedShares, 0)} 股，方向为 ${getDirectionLabel(direction)}`;
   $("fillSharesBtn").disabled = recommendedShares === null;
   $("fillSharesInlineBtn").disabled = recommendedShares === null;
@@ -854,7 +854,7 @@ function computeCapture() {
   if (previewRisk.singleStop > 0 && previewRisk.remaining < 0 && getCapturePreviewTrade()) {
     showAlert(
       "captureAlert",
-      `这笔交易会让当前持仓止损超出剩余额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`,
+      `这笔交易会让Current Open Stops超出remaining额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后remaining额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`,
       "warn"
     );
   } else {
@@ -942,10 +942,10 @@ function getCapturePayload() {
 
 function validateCapturePayload(payload) {
   if (!payload.stock) return "请填写股票代码";
-  if (payload.buy_price === null) return "请填写入场价";
+  if (payload.buy_price === null) return "请填写Entry价";
   if (payload.stop_loss === null) return "请填写止损价";
-  if (payload.shares === null) return "请填写股数";
-  if (getRiskPerShare(payload.buy_price, payload.initial_stop_loss, payload.direction) === 0) return "初始止损价需要位于风险有效的一侧";
+  if (payload.shares === null) return "请填写Shares";
+  if (getRiskPerShare(payload.buy_price, payload.initial_stop_loss, payload.direction) === 0) return "Initial Stop价需要位于风险有效的一侧";
   if (hasPartialSellInfo(payload.sell_price, payload.sell_date)) return payload.sell_price === null ? "填写平仓日期时，也请填写平仓价" : "填写平仓价时，也请填写平仓日期";
   return "";
 }
@@ -960,7 +960,7 @@ async function saveTrade() {
 
   const previewRisk = getRiskNumbers(true);
   if (previewRisk.singleStop > 0 && previewRisk.remaining < 0) {
-    showAlert("captureAlert", `这笔交易会让当前持仓止损超出总额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后剩余额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`, "warn");
+    showAlert("captureAlert", `这笔交易会让Current Open Stops超出总额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后remaining额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`, "warn");
   }
 
   const button = $("captureSaveBtn");
@@ -984,7 +984,7 @@ async function saveTrade() {
     showAlert("captureAlert", error.message || String(error), "danger");
   } finally {
     button.disabled = false;
-    button.textContent = state.editingId ? "保存修改" : "保存交易";
+    button.textContent = state.editingId ? "Save Changes" : "Save Trade";
     updateCaptureHeader();
   }
 }
@@ -992,14 +992,14 @@ async function saveTrade() {
 async function deleteTrade(id) {
   const trade = state.trades.find((item) => String(item.id) === String(id));
   if (!trade) return;
-  if (!window.confirm(`确认删除 ${trade.stock} 这笔交易吗？`)) return;
+  if (!window.confirm(`确认Delete ${trade.stock} 这笔交易吗？`)) return;
 
   try {
     await apiRequest(`/trades/${encodeURIComponent(id)}`, { method: "DELETE" });
     await loadTrades();
     if (String(state.editingId) === String(id)) clearCaptureForm();
     refreshAll();
-    showGlobalAlert("交易已删除", "success");
+    showGlobalAlert("交易已Delete", "success");
   } catch (error) {
     showGlobalAlert(error.message || String(error), "danger");
   }
@@ -1094,7 +1094,7 @@ function exportData() {
 }
 
 async function clearAll() {
-  if (!window.confirm("确认清空全部交易数据吗？这个操作无法恢复。")) return;
+  if (!window.confirm("确认清空全部交易数据吗？这个Actions无法恢复。")) return;
   try {
     await apiRequest("/trades", { method: "DELETE" });
     await loadTrades();
@@ -1112,14 +1112,14 @@ async function bootApp() {
 
   try {
     const health = await ensureApiReady();
-    renderConnectionStatus(true, `本地 API 已连接 · ${health.server.host}:${health.server.port}`);
+    renderConnectionStatus(true, `Local API connected · ${health.server.host}:${health.server.port}`);
     setScreenState("app");
     await Promise.all([loadSettings(), loadTrades()]);
     syncMonthInputs();
     clearCaptureForm();
     refreshAll();
   } catch (error) {
-    renderConnectionStatus(false, "本地 API 不可用");
+    renderConnectionStatus(false, "Local API unavailable");
     $("configError").textContent = error.message || String(error);
     setScreenState("config");
   }

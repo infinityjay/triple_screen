@@ -79,77 +79,77 @@ class TelegramNotifier:
 
     @staticmethod
     def _bool_text(value: Any) -> str:
-        return "是" if bool(value) else "否"
+        return "Yes" if bool(value) else "No"
 
     @staticmethod
     def _status_label(signal: dict) -> str:
         if signal.get("opportunity_status") == "TRIGGERED":
-            return "已触发"
+            return "Triggered"
         if signal.get("opportunity_status") == "TOUCHED_ENTRY_PRICE":
-            return "已触碰参考价"
+            return "Touched entry level"
         if signal.get("opportunity_status") == "MONITOR":
-            return "监测中"
-        return "观察中"
+            return "Monitoring"
+        return "Watching"
 
     @staticmethod
     def _daily_state_label(state: str) -> str:
         labels = {
-            "RECOVERING": "超卖后回升",
-            "ROLLING_OVER": "超买后回落",
-            "OVERSOLD": "超卖",
-            "OVERBOUGHT": "超买",
-            "OVERSOLD_WAIT": "超卖中等待拐头",
-            "OVERBOUGHT_WAIT": "超买中等待拐头",
-            "POST_OVERSOLD_WATCH": "超卖后观察",
-            "POST_OVERBOUGHT_WATCH": "超买后观察",
-            "PULLBACK_WATCH": "回调观察",
-            "RALLY_WATCH": "反弹观察",
-            "NO_PULLBACK": "未形成清晰回调",
-            "NO_RALLY": "未形成清晰反弹",
-            "STRUCTURE_BROKEN": "结构被破坏",
-            "ACCELERATING_PULLBACK": "回调仍在加速",
-            "ACCELERATING_RALLY": "反弹仍在加速",
-            "PULLBACK_WAIT_VALUE_BAND": "等待回到 13EMA 价值带",
-            "RALLY_WAIT_VALUE_BAND": "等待回到 13EMA 价值带",
-            "PULLBACK_WAIT_HISTOGRAM": "已回到价值带，等待 Histogram 回升",
-            "RALLY_WAIT_HISTOGRAM": "已回到价值带，等待 Histogram 回落",
-            "PULLBACK_HISTOGRAM_TURNED": "价值带内 Histogram 已回升",
-            "RALLY_HISTOGRAM_TURNED": "价值带内 Histogram 已回落",
-            "NEUTRAL": "中性",
-            "PULLBACK_WAIT_FORCE_BELOW_ZERO": "等待 Force 跌破 0",
-            "PULLBACK_FORCE_READY_WAIT_IMPULSE": "Force 到位，等待日线动力",
-            "PULLBACK_FORCE_BELOW_ZERO": "Force 跌破 0",
-            "RALLY_WAIT_FORCE_ABOVE_ZERO": "等待 Force 升破 0",
-            "RALLY_FORCE_READY_WAIT_IMPULSE": "Force 到位，等待日线动力",
-            "RALLY_FORCE_ABOVE_ZERO": "Force 升破 0",
+            "RECOVERING": "Recovering from oversold",
+            "ROLLING_OVER": "Rolling over from overbought",
+            "OVERSOLD": "Oversold",
+            "OVERBOUGHT": "Overbought",
+            "OVERSOLD_WAIT": "Oversold, waiting for turn",
+            "OVERBOUGHT_WAIT": "Overbought, waiting for turn",
+            "POST_OVERSOLD_WATCH": "Post-oversold watch",
+            "POST_OVERBOUGHT_WATCH": "Post-overbought watch",
+            "PULLBACK_WATCH": "Pullback watch",
+            "RALLY_WATCH": "Rally watch",
+            "NO_PULLBACK": "No clean pullback",
+            "NO_RALLY": "No clean rally",
+            "STRUCTURE_BROKEN": "Structure broken",
+            "ACCELERATING_PULLBACK": "Pullback still accelerating",
+            "ACCELERATING_RALLY": "Rally still accelerating",
+            "PULLBACK_WAIT_VALUE_BAND": "Waiting for 13EMA value band",
+            "RALLY_WAIT_VALUE_BAND": "Waiting for 13EMA value band",
+            "PULLBACK_WAIT_HISTOGRAM": "In value band, waiting for histogram turn up",
+            "RALLY_WAIT_HISTOGRAM": "In value band, waiting for histogram turn down",
+            "PULLBACK_HISTOGRAM_TURNED": "Histogram turned up in value band",
+            "RALLY_HISTOGRAM_TURNED": "Histogram turned down in value band",
+            "NEUTRAL": "Neutral",
+            "PULLBACK_WAIT_FORCE_BELOW_ZERO": "Waiting for Force below zero",
+            "PULLBACK_FORCE_READY_WAIT_IMPULSE": "Force ready, waiting for daily impulse",
+            "PULLBACK_FORCE_BELOW_ZERO": "Force below zero",
+            "RALLY_WAIT_FORCE_ABOVE_ZERO": "Waiting for Force above zero",
+            "RALLY_FORCE_READY_WAIT_IMPULSE": "Force ready, waiting for daily impulse",
+            "RALLY_FORCE_ABOVE_ZERO": "Force above zero",
         }
         return labels.get(state, state)
 
     @staticmethod
     def _hourly_status_label(status: str) -> str:
         labels = {
-            "TRIGGERED": "已触发",
-            "WAITING_BREAKOUT": "等待向上突破",
-            "WAITING_BREAKDOWN": "等待向下跌破",
-            "WAITING_ENTRY_PRICE": "等待参考价触发",
-            "TOUCHED_ENTRY_PRICE": "已触碰，等待小时确认",
-            "WAITING_NEXT_BAR": "等待下一根小时K开始跟踪",
-            "NEUTRAL": "中性",
+            "TRIGGERED": "Triggered",
+            "WAITING_BREAKOUT": "Waiting for upside break",
+            "WAITING_BREAKDOWN": "Waiting for downside break",
+            "WAITING_ENTRY_PRICE": "Waiting for entry level",
+            "TOUCHED_ENTRY_PRICE": "Touched, waiting for hourly confirmation",
+            "WAITING_NEXT_BAR": "Waiting for next hourly bar",
+            "NEUTRAL": "Neutral",
         }
         return labels.get(status, status)
 
     @staticmethod
     def _stop_basis_label(stop_basis: str) -> str:
         labels = {
-            "SAFEZONE": "SafeZone 初始止损",
-            "SIGNAL_BAR": "小时信号K止损",
-            "NICK": "尼克止损法",
-            "ATR_1X": "ATR 移动止损 1x",
-            "ATR_2X": "ATR 移动止损 2x",
-            "CHOICE_REQUIRED": "待手动选择",
-            "PULLBACK_PIVOT": "日线回调摆点止损",
-            "MANUAL": "手动录入止损",
-            "UNKNOWN": "保护止损",
+            "SAFEZONE": "SafeZone initial stop",
+            "SIGNAL_BAR": "Hourly signal-bar stop",
+            "NICK": "Nick stop",
+            "ATR_1X": "ATR trailing stop 1x",
+            "ATR_2X": "ATR trailing stop 2x",
+            "CHOICE_REQUIRED": "Manual choice required",
+            "PULLBACK_PIVOT": "Daily pullback pivot stop",
+            "MANUAL": "Manual stop",
+            "UNKNOWN": "Protective stop",
         }
         return labels.get(stop_basis, stop_basis)
 
@@ -171,28 +171,28 @@ class TelegramNotifier:
 
     def _format_stop_methods(self, methods: list[dict[str, Any]] | None) -> str:
         if not methods:
-            return "暂无多止损方法明细"
+            return "No stop-method details"
 
         initial_methods = [method for method in methods if method.get("group") == "initial"]
         trailing_methods = [method for method in methods if method.get("group") == "trailing"]
 
         def build_lines(title: str, items: list[dict[str, Any]]) -> list[str]:
             if not items:
-                return [f"{title}：暂无"]
+                return [f"{title}: none"]
             lines = [title]
             for method in items[:4]:
-                price = "需手工判断" if method.get("price") is None else self._fmt_num(method.get("price"), 2)
-                reference = f"；参考 {method.get('reference')}" if method.get("reference") else ""
+                price = "Manual review" if method.get("price") is None else self._fmt_num(method.get("price"), 2)
+                reference = f"; reference {method.get('reference')}" if method.get("reference") else ""
                 lines.append(
-                    f"• {method.get('label', '止损方法')}：<code>{price}</code>{reference} {method.get('suitable_for', '')}"
+                    f"• {method.get('label', 'Stop method')}: <code>{price}</code>{reference} {method.get('suitable_for', '')}"
                 )
             return lines
 
-        return "\n".join(build_lines("初始止损", initial_methods) + build_lines("跟踪止损", trailing_methods))
+        return "\n".join(build_lines("Initial stops", initial_methods) + build_lines("Trailing stops", trailing_methods))
 
     def _entry_option_label(self, option: dict[str, Any]) -> str:
-        label = option.get("label") or option.get("code") or "入场参考价"
-        status = "已触发" if option.get("triggered") else "未触发"
+        label = option.get("label") or option.get("code") or "Entry reference"
+        status = "Triggered" if option.get("triggered") else "Not triggered"
         return f"{label}（{status}）"
 
     def _format_entry_options(self, options: list[dict] | None) -> str:
@@ -203,10 +203,10 @@ class TelegramNotifier:
             exits = option.get("exits") or {}
             label = _html_text(self._entry_option_label(option))
             lines.append(
-                f"• {label}：入场 <code>{self._fmt_num(option.get('price'), 2)}</code>  "
-                f"模型止损 <code>{self._fmt_num(exits.get('initial_stop_model_loss'), 2)}</code>  "
-                f"保护止损 <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code>  "
-                f"止盈 <code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  "
+                f"• {label}：Entry <code>{self._fmt_num(option.get('price'), 2)}</code>  "
+                f"Model stop <code>{self._fmt_num(exits.get('initial_stop_model_loss'), 2)}</code>  "
+                f"Protective stop <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code>  "
+                f"Target <code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  "
                 f"RR <code>{self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R</code>"
             )
         return "\n".join(lines)
@@ -217,12 +217,12 @@ class TelegramNotifier:
         parts: list[str] = []
         for option in options:
             exits = option.get("exits") or {}
-            label = option.get("label") or option.get("code") or "入场"
-            status = "已触发" if option.get("triggered") else "未触发"
+            label = option.get("label") or option.get("code") or "Entry"
+            status = "Triggered" if option.get("triggered") else "Not triggered"
             parts.append(
                 f"{label}({status}) {self._fmt_num(option.get('price'), 2)} / "
-                f"止损 {self._fmt_num(exits.get('initial_stop_model_loss'), 2)} / "
-                f"止盈 {self._fmt_num(exits.get('take_profit'), 2)} / "
+                f"Stop {self._fmt_num(exits.get('initial_stop_model_loss'), 2)} / "
+                f"Target {self._fmt_num(exits.get('take_profit'), 2)} / "
                 f"RR {self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R"
             )
         return "；".join(parts)
@@ -241,8 +241,8 @@ class TelegramNotifier:
     def _format_trigger_reason(self, signal: dict[str, Any]) -> str:
         hourly = signal.get("hourly") or {}
         labels = {
-            "EMA_PENETRATION": "EMA穿透",
-            "PREVIOUS_DAY_BREAK": "前日突破",
+            "EMA_PENETRATION": "EMA penetration",
+            "PREVIOUS_DAY_BREAK": "Previous-day break",
         }
         trigger_sources = hourly.get("trigger_sources") or []
         if trigger_sources:
@@ -250,7 +250,7 @@ class TelegramNotifier:
         trigger_source = hourly.get("trigger_source")
         if trigger_source:
             return labels.get(trigger_source, str(trigger_source))
-        return str(hourly.get("reason") or "触发")
+        return str(hourly.get("reason") or "Trigger")
 
     def format_signal_message(self, signal: dict) -> str:
         direction = signal["direction"]
@@ -269,11 +269,11 @@ class TelegramNotifier:
         entry_options = hourly.get("entry_options") or []
         weekly_target = exits.get("weekly_value_target") or weekly.get("weekly_value_target") or {}
         entry_options_block = self._format_entry_options(entry_options) or (
-            f"入场：<code>{self._fmt_num(exits.get('entry'), 2)}</code>"
+            f"Entry：<code>{self._fmt_num(exits.get('entry'), 2)}</code>"
         )
 
         dir_emoji = "🚀" if direction == "LONG" else "🔻"
-        dir_label = "做多" if direction == "LONG" else "做空"
+        dir_label = "Long" if direction == "LONG" else "Short"
         daily_state_label = self._daily_state_label(daily["rsi_state"])
         hourly_status_label = self._hourly_status_label(hourly["status"])
         stop_basis_label = self._stop_basis_label(exits.get("stop_basis", "UNKNOWN"))
@@ -291,81 +291,81 @@ class TelegramNotifier:
         if direction == "LONG":
             if signal.get("opportunity_status") == "TRIGGERED":
                 if trigger_source in {"EMA_PENETRATION", "PREVIOUS_DAY_BREAK"}:
-                    breakout_line = f"触发来源：{_html_text(trigger_source)}  当前价：{hourly_close}  触发价：{entry_price}"
+                    breakout_line = f"Trigger source: {_html_text(trigger_source)}  Current: {hourly_close}  Trigger: {entry_price}"
                 else:
-                    breakout_line = f"上一根已收盘高点：{signal_bar_high}  当前价：{hourly_close}  触发价：{entry_price}"
+                    breakout_line = f"Previous closed hourly high: {signal_bar_high}  Current: {hourly_close}  Trigger: {entry_price}"
             else:
-                breakout_line = f"当前跟踪 stop：{entry_price}  当前小时高点：{current_high}  当前价：{hourly_close}"
+                breakout_line = f"Current tracked stop: {entry_price}  Current hourly high: {current_high}  Current: {hourly_close}"
         else:
             if signal.get("opportunity_status") == "TRIGGERED":
                 if trigger_source in {"EMA_PENETRATION", "PREVIOUS_DAY_BREAK"}:
-                    breakout_line = f"触发来源：{_html_text(trigger_source)}  当前价：{hourly_close}  触发价：{entry_price}"
+                    breakout_line = f"Trigger source: {_html_text(trigger_source)}  Current: {hourly_close}  Trigger: {entry_price}"
                 else:
-                    breakout_line = f"上一根已收盘低点：{signal_bar_low}  当前价：{hourly_close}  触发价：{entry_price}"
+                    breakout_line = f"Previous closed hourly low: {signal_bar_low}  Current: {hourly_close}  Trigger: {entry_price}"
             else:
-                breakout_line = f"当前跟踪 stop：{entry_price}  当前小时低点：{current_low}  当前价：{hourly_close}"
+                breakout_line = f"Current tracked stop: {entry_price}  Current hourly low: {current_low}  Current: {hourly_close}"
 
-        title = f"{dir_emoji} <b>{symbol} · {dir_label}机会</b>"
+        title = f"{dir_emoji} <b>{symbol} · {dir_label}Opportunity</b>"
         if rank is not None and total_ranked is not None:
             rank_prefix = "Triggered" if rank_group == "TRIGGERED" else "Top"
             title = f"🏁 <b>{rank_prefix} {rank}/{total_ranked}</b>\n{title}"
         if signal.get("strong_divergence"):
-            title = f"🚨 <b>强背离提醒</b>\n{title}"
+            title = f"🚨 <b>Strong divergence alert</b>\n{title}"
 
         return (
             f"{title}\n"
-            f"状态：<b>{self._status_label(signal)}</b>\n"
-            f"综合评分：{self._score_stars(score)} <code>{score:.1f}/10</code>\n"
+            f"Status: <b>{self._status_label(signal)}</b>\n"
+            f"Composite score: {self._score_stars(score)} <code>{score:.1f}/10</code>\n"
             f"{'─' * 32}\n"
-            f"<b>第一重 · 周线动力系统</b>\n"
-            f"方向：<b>{_html_text(weekly.get('trend'))}</b>\n"
-            f"动力颜色：<b>{_html_text(weekly.get('impulse_color'))}</b>  MACD斜率：<code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
+            f"<b>Screen 1 · Weekly impulse system</b>\n"
+            f"Direction: <b>{_html_text(weekly.get('trend'))}</b>\n"
+            f"Impulse color: <b>{_html_text(weekly.get('impulse_color'))}</b>  MACD slope：<code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
             f"MACD：<code>{self._fmt_num(weekly.get('macd'), 4)}</code>  Signal：<code>{self._fmt_num(weekly.get('macd_signal'), 4)}</code>\n"
-            f"Histogram：<code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  变化：<code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
-            f"13EMA：<code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  斜率：<code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
-            f"连续同向 bars：<code>{weekly.get('confirmed_bars', '—')}</code> / 禁止规则通过：<b>{self._bool_text(weekly.get('impulse_allows_direction'))}</b>\n"
-            f"周线结论：{_html_text(weekly.get('reason'))}\n"
+            f"Histogram：<code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  Change: <code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
+            f"13EMA：<code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  Slope: <code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
+            f"Consecutive aligned bars: <code>{weekly.get('confirmed_bars', '—')}</code> / Impulse gate passed: <b>{self._bool_text(weekly.get('impulse_allows_direction'))}</b>\n"
+            f"Weekly conclusion: {_html_text(weekly.get('reason'))}\n"
             f"{'─' * 32}\n"
-            f"<b>第二重 · 日线 Force Index</b>\n"
-            f"日线阶段：<b>{daily_state_label}</b>  核心信号：<code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 3)}</code>\n"
-            f"2日Force EMA：<code>{self._fmt_num(daily.get('force_index_ema2_prev'), 0, signed=True)}</code> → <code>{self._fmt_num(daily.get('force_index_ema2'), 0, signed=True)}</code>\n"
-            f"日线动力颜色：<b>{_html_text(daily.get('impulse_color'))}</b>  同向/不反向：<b>{self._bool_text(daily.get('same_impulse_or_trend'))}</b>\n"
-            f"辅助RSI：<code>{self._fmt_num(daily.get('rsi'), 2)}</code>  Histogram变化：<code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
-            f"13EMA价值带：<code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  距离价值带：<code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
-            f"{daily.get('correction_counter_label', '近8日修正收盘数')}：<code>{daily.get('correction_count', 0)}</code>  结构防守位：<code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
-            f"Force信号：<b>{self._bool_text(daily.get('force_signal'))}</b>  结构完整：<b>{self._bool_text(daily.get('structure_intact'))}</b>\n"
-            f"辅助K线确认：<b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  收盘相对昨收：<b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
-            f"影线比例：<code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  收盘位置：<code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
-            f"日线结论：{_html_text(daily.get('reason'))}\n"
+            f"<b>Screen 2 · Daily Force Index</b>\n"
+            f"Daily state: <b>{daily_state_label}</b>  Core signals: <code>{daily.get('elder_core_signal_count', 0)}/{daily.get('elder_core_signal_total', 3)}</code>\n"
+            f"2-day Force EMA: <code>{self._fmt_num(daily.get('force_index_ema2_prev'), 0, signed=True)}</code> → <code>{self._fmt_num(daily.get('force_index_ema2'), 0, signed=True)}</code>\n"
+            f"Daily impulse color: <b>{_html_text(daily.get('impulse_color'))}</b>  Aligned or non-opposing: <b>{self._bool_text(daily.get('same_impulse_or_trend'))}</b>\n"
+            f"Aux RSI: <code>{self._fmt_num(daily.get('rsi'), 2)}</code>  HistogramChange: <code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
+            f"13EMA value band: <code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  Value-band gap: <code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
+            f"{daily.get('correction_counter_label', 'Recent correction closes')}：<code>{daily.get('correction_count', 0)}</code>  Structure defense: <code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
+            f"Force signal: <b>{self._bool_text(daily.get('force_signal'))}</b>  Structure intact: <b>{self._bool_text(daily.get('structure_intact'))}</b>\n"
+            f"Aux candle confirmation: <b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  Close vs previous close: <b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
+            f"Wick ratio: <code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  Close location: <code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
+            f"Daily conclusion: {_html_text(daily.get('reason'))}\n"
             f"{'─' * 32}\n"
-            f"<b>第三重 · 触发价监测</b>\n"
-            f"EMA穿透参考价：<code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  前日突破参考价：<code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
-            f"明日EMA估算：<code>{self._fmt_num(entry_plan.get('projected_next_ema'), 2)}</code>  平均穿透：<code>{self._fmt_num(entry_plan.get('average_penetration'), 2)}</code>\n"
+            f"<b>Screen 3 · Entry monitor</b>\n"
+            f"EMA penetration reference：<code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  Previous-day break reference：<code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
+            f"Projected next EMA: <code>{self._fmt_num(entry_plan.get('projected_next_ema'), 2)}</code>  Average penetration: <code>{self._fmt_num(entry_plan.get('average_penetration'), 2)}</code>\n"
             f"{breakout_line}\n"
-            f"突破强度：[{breakout_bar}] {self._fmt_num(hourly.get('breakout_strength'), 2)}xATR\n"
+            f"Breakout strength: [{breakout_bar}] {self._fmt_num(hourly.get('breakout_strength'), 2)}xATR\n"
             f"ATR：<code>{self._fmt_num(hourly.get('atr'), 4)}</code>\n"
-            f"触发状态：<b>{hourly_status_label}</b>\n"
-            f"小时线结论：{_html_text(hourly.get('reason'))}\n"
+            f"TriggerStatus: <b>{hourly_status_label}</b>\n"
+            f"Hourly conclusion: {_html_text(hourly.get('reason'))}\n"
             f"{'─' * 32}\n"
-            f"<b>入场方案</b>\n"
+            f"<b>Entry plan</b>\n"
             f"{entry_options_block}\n"
-            f"初始止损：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
-            f"SafeZone 初始止损：<code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  尼克止损：<code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
-            f"ATR 移动止损 1x：<code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x：<code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
-            f"后续保护止损：<code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}，持仓后单向推进)\n"
-            f"当前激活止损：<code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
-            f"可选止损清单：\n{self._format_stop_methods(exits.get('stop_methods'))}\n"
-            f"首个止盈：<code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  周线价值区间：<code>{self._fmt_num(weekly_target.get('value_zone_low'), 2)}</code> ~ <code>{self._fmt_num(weekly_target.get('value_zone_high'), 2)}</code>\n"
-            f"日线 ATR：<code>{self._fmt_num(exits.get('daily_atr'), 2)}</code>  Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  投影基准：{self._fmt_num(exits.get('target_reference'), 2)}\n"
-            f"每股风险：{self._fmt_num(exits.get('risk_per_share'), 2)}  预估盈亏比：{self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"
-            f"内部模型风险：{self._fmt_num(exits.get('risk_per_share_model'), 2)}  内部模型 RR：{self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R\n"
+            f"Initial stops：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
+            f"SafeZone initial stop：<code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  Nick stop：<code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
+            f"ATR trailing stop 1x：<code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x：<code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
+            f"Next protective stop: <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}, one-way after entry)\n"
+            f"Active stop: <code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
+            f"Stop-method list:\n{self._format_stop_methods(exits.get('stop_methods'))}\n"
+            f"First target: <code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  Weekly value zone: <code>{self._fmt_num(weekly_target.get('value_zone_low'), 2)}</code> ~ <code>{self._fmt_num(weekly_target.get('value_zone_high'), 2)}</code>\n"
+            f"Daily ATR: <code>{self._fmt_num(exits.get('daily_atr'), 2)}</code>  Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  Projection base: {self._fmt_num(exits.get('target_reference'), 2)}\n"
+            f"Risk per share: {self._fmt_num(exits.get('risk_per_share'), 2)}  Estimated R/R: {self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"
+            f"Model risk: {self._fmt_num(exits.get('risk_per_share_model'), 2)}  Model R/R: {self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R\n"
             f"{'─' * 32}\n"
-            f"<b>候选池标签</b>\n"
-            f"候选日期：<code>{signal.get('source_session_date', 'UNKNOWN')}</code>\n"
-            f"财报状态：<b>{_html_text(earnings.get('status', 'UNKNOWN'))}</b>  {_html_text(earnings.get('reason', '未获取到财报信息'))}\n"
-            f"周线背离：{'是' if divergence.get('weekly', {}).get('detected') else '否'}  "
-            f"日线背离：{'是' if divergence.get('daily', {}).get('detected') else '否'}\n"
-            f"{'强提醒：' + _html_text(divergence.get('daily', {}).get('exhaustion_reason', '')) if signal.get('strong_divergence') else '强提醒：无'}\n"
+            f"<b>Candidate tags</b>\n"
+            f"Candidate date: <code>{signal.get('source_session_date', 'UNKNOWN')}</code>\n"
+            f"Earnings status: <b>{_html_text(earnings.get('status', 'UNKNOWN'))}</b>  {_html_text(earnings.get('reason', 'No earnings data'))}\n"
+            f"Weekly divergence: {'Yes' if divergence.get('weekly', {}).get('detected') else 'No'}  "
+            f"Daily divergence: {'Yes' if divergence.get('daily', {}).get('detected') else 'No'}\n"
+            f"{'Strong alert: ' + _html_text(divergence.get('daily', {}).get('exhaustion_reason', '')) if signal.get('strong_divergence') else 'Strong alert: none'}\n"
             f"{'─' * 32}\n"
             f"<i>{_utc_datetime_label()}</i>"
         )
@@ -385,8 +385,8 @@ class TelegramNotifier:
     ) -> str:
         if total_candidates <= 0:
             message = (
-                "🔍 <b>本轮收盘后未发现符合条件的交易候选</b>\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
+                "🔍 <b>No qualified EOD candidates found</b>\n"
+                f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
             if stop_update_summary:
                 message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
@@ -397,9 +397,9 @@ class TelegramNotifier:
             return message
         if not qualified_signals:
             message = (
-                f"📘 <b>{session_date} 候选池更新完成</b>\n"
-                f"共筛出 {total_candidates} 个合格标的，但当前展示条数配置为 0\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
+                f"📘 <b>{session_date} candidate pool updated</b>\n"
+                f"Found {total_candidates} qualified candidates，but display limit is set to 0\n"
+                f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
             if stop_update_summary:
                 message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
@@ -411,38 +411,38 @@ class TelegramNotifier:
 
         strong_divergence_count = sum(1 for signal in qualified_signals if signal.get("strong_divergence"))
         lines = [
-            f"📘 <b>{session_date} 候选池更新完成</b>\n",
-            f"共筛出 {total_candidates} 个合格标的，本消息展示前 {len(qualified_signals)} 个\n",
-            f"强背离提醒 {strong_divergence_count} 个\n",
+            f"📘 <b>{session_date} candidate pool updated</b>\n",
+            f"Found {total_candidates} qualified candidates, showing top {len(qualified_signals)} \n",
+            f"Strong divergence alert {strong_divergence_count} \n",
             f"{'─' * 24}\n",
         ]
 
         for index, signal in enumerate(qualified_signals, start=1):
-            direction = "做多" if signal["direction"] == "LONG" else "做空"
-            divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
+            direction = "Long" if signal["direction"] == "LONG" else "Short"
+            divergence_badge = " 🚨 divergence" if signal.get("strong_divergence") else ""
             status_label = self._status_label(signal)
-            weekly_trend = "向上" if signal['weekly'].get('trend') == "LONG" else "向下"
+            weekly_trend = "Up" if signal['weekly'].get('trend') == "LONG" else "Down"
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             priority_tags = [_html_text(str(tag)) for tag in signal.get("priority_tags", [])]
-            tag_line = f"   标签：{' / '.join(priority_tags)}\n" if priority_tags else ""
+            tag_line = f"   Tags: {' / '.join(priority_tags)}\n" if priority_tags else ""
             order_plan = signal.get("next_day_order_plan") or {}
             primary_order = order_plan.get("primary_order") or {}
             risk = order_plan.get("risk") or {}
             order_line = ""
             if primary_order.get("stop_price") is not None:
                 order_line = (
-                    f"   次日单：{_html_text(primary_order.get('order_type', 'Stop Limit'))} "
+                    f"   Next-session order: {_html_text(primary_order.get('order_type', 'Stop Limit'))} "
                     f"{_html_text(primary_order.get('action', ''))} "
                     f"Stop <code>{self._fmt_num(primary_order.get('stop_price'), 2)}</code> "
                     f"Limit <code>{self._fmt_num(primary_order.get('limit_price'), 2)}</code> "
-                    f"止损 <code>{self._fmt_num(risk.get('initial_stop'), 2)}</code> "
-                    f"目标 <code>{self._fmt_num(risk.get('take_profit'), 2)}</code> "
+                    f"Stop <code>{self._fmt_num(risk.get('initial_stop'), 2)}</code> "
+                    f"Target <code>{self._fmt_num(risk.get('take_profit'), 2)}</code> "
                     f"RR <code>{self._fmt_num(risk.get('reward_risk_ratio_model'), 2)}R</code>\n"
                 )
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
-                f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   周线：{weekly_trend} · 日线：{daily_state}\n"
+                f"Candidate score {self._candidate_score(signal):.1f}{divergence_badge}\n"
+                f"   Weekly: {weekly_trend} · Daily: {daily_state}\n"
                 f"{order_line}"
                 f"{tag_line}"
             )
@@ -453,7 +453,7 @@ class TelegramNotifier:
             lines.append(f"\n{self.format_open_position_earnings_section(open_position_earnings_summary)}")
         if open_position_exit_alert_summary:
             lines.append(f"\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}")
-        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
+        lines.append(f"\n<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
     def format_stop_update_section(self, stop_update_summary: dict[str, Any]) -> str:
@@ -464,16 +464,16 @@ class TelegramNotifier:
         updates = list(stop_update_summary.get("updates", []))
 
         lines = [
-            "🛡 <b>持仓保护止损更新</b>\n",
-            f"持仓 {total_positions} 笔 · 更新 {updated_count} 笔 · 未变 {unchanged_count} 笔 · 失败 {error_count} 笔\n",
+            "🛡 <b>Open-position protective stop update</b>\n",
+            f"Positions: {total_positions}  · Updated: {updated_count}  · Unchanged: {unchanged_count}  · Failed: {error_count} \n",
         ]
 
         display_items = [item for item in updates if item.get("status") in {"UPDATED", "UNCHANGED"}][:8]
         if not display_items and total_positions == 0:
-            lines.append("当前没有未平仓交易需要更新。\n")
+            lines.append("No open trades need stop updates.\n")
             return "".join(lines)
         if not display_items and total_positions > 0:
-            lines.append("本轮没有变化的 ATR 移动止损建议。\n")
+            lines.append("No ATR trailing-stop changes this run.\n")
             return "".join(lines)
 
         for index, item in enumerate(display_items, start=1):
@@ -481,13 +481,13 @@ class TelegramNotifier:
             atr_1x_stop = item.get("proposed_stop_loss")
             atr_2x_stop = item.get("proposed_stop_loss_atr_2x")
             applied_stop = item.get("applied_stop_loss")
-            status = "更新" if item.get("status") == "UPDATED" else "维持"
+            status = "Updated" if item.get("status") == "UPDATED" else "Unchanged"
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
-                f"当前止损 <code>{self._fmt_num(current_stop, 2)}</code> · "
+                f"Current stop <code>{self._fmt_num(current_stop, 2)}</code> · "
                 f"ATR 1x <code>{self._fmt_num(atr_1x_stop, 2)}</code> · "
                 f"ATR 2x <code>{self._fmt_num(atr_2x_stop, 2)}</code> · "
-                f"建议止损 <code>{self._fmt_num(applied_stop, 2)}</code> · {status}\n"
+                f"Suggested stop <code>{self._fmt_num(applied_stop, 2)}</code> · {status}\n"
             )
         return "".join(lines)
 
@@ -498,23 +498,23 @@ class TelegramNotifier:
         items = list(earnings_summary.get("items", []))
 
         lines = [
-            "📅 <b>持仓临近财报提醒</b>\n",
-            f"持仓 {total_positions} 笔 · 未来 {window_days} 天内需留意 {reminder_count} 笔\n",
+            "📅 <b>Open-position earnings reminders</b>\n",
+            f"Positions: {total_positions}  · next {window_days} days: {reminder_count} \n",
         ]
         if total_positions == 0:
-            lines.append("当前没有未平仓交易。\n")
+            lines.append("No open positions.\n")
             return "".join(lines)
         if not items:
-            lines.append(f"当前没有持仓在未来 {window_days} 天内进入财报窗口。\n")
+            lines.append(f"No positions enter the earnings window in the next {window_days} days.\n")
             return "".join(lines)
 
         for index, item in enumerate(items[:8], start=1):
             days_until = int(item.get("days_until", 0) or 0)
-            countdown = "今天" if days_until == 0 else f"{days_until} 天后"
+            countdown = "today" if days_until == 0 else f"{days_until} days"
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
-                f"财报日 <code>{item.get('report_date', 'UNKNOWN')}</code> ({countdown})\n"
-                "   建议检查是否需要提前卖出或减仓，避免财报跳空风险\n"
+                f"Earnings date <code>{item.get('report_date', 'UNKNOWN')}</code> ({countdown})\n"
+                "   Review whether to reduce or exit before earnings gap risk\n"
             )
         return "".join(lines)
 
@@ -523,26 +523,26 @@ class TelegramNotifier:
         alert_count = int(exit_summary.get("alert_count", 0) or 0)
         items = list(exit_summary.get("items", []))
         lines = [
-            "⚠️ <b>模型提示重大亏损风险</b>\n",
-            f"持仓 {total_positions} 笔 · 需重点复核 {alert_count} 笔\n",
+            "⚠️ <b>Model-driven loss-risk alert</b>\n",
+            f"Positions: {total_positions}  · review required: {alert_count} \n",
         ]
         if total_positions == 0:
-            lines.append("当前没有未平仓交易。\n")
+            lines.append("No open positions.\n")
             return "".join(lines)
         if not items:
-            lines.append("当前持仓未发现模型驱动的风险反转。\n")
+            lines.append("No model-driven reversal risk found in open positions.\n")
             return "".join(lines)
         for index, item in enumerate(items[:8], start=1):
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} "
-                f"周线 {_html_text(item.get('weekly_impulse_color'))} / 日线 {_html_text(item.get('daily_impulse_color'))}\n"
-                f"   {_html_text(item.get('reason', '需要检查是否平仓'))}\n"
+                f"Weekly {_html_text(item.get('weekly_impulse_color'))} / Daily {_html_text(item.get('daily_impulse_color'))}\n"
+                f"   {_html_text(item.get('reason', 'Review whether this position should be closed'))}\n"
             )
         return "".join(lines)
 
     @staticmethod
     def get_direction_text(value: str | None) -> str:
-        return "做空" if str(value or "").strip().lower() == "short" else "做多"
+        return "Short" if str(value or "").strip().lower() == "short" else "Long"
 
     def format_trigger_summary_message(
         self,
@@ -553,21 +553,21 @@ class TelegramNotifier:
     ) -> str:
         if not triggered_signals:
             return (
-                f"⏱ <b>盘中触发扫描完成</b>\n"
-                f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n"
-                "本轮暂无满足条件的触发机会\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
+                f"⏱ <b>Intraday trigger scan complete</b>\n"
+                f"Tracking candidate date: <code>{session_date}</code> · active candidates {total_candidates}\n"
+                "No actionable entry triggers this run\n"
+                f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
 
         lines = [
-            f"🏁 <b>Triggered 机会（{len(triggered_signals)}）</b>\n",
-            f"跟踪候选日期：<code>{session_date}</code> · 活跃候选总数 {total_candidates}\n",
-            f"* = 已触发\n",
+            f"🏁 <b>Triggered Opportunity（{len(triggered_signals)}）</b>\n",
+            f"Tracking candidate date: <code>{session_date}</code> · active candidates {total_candidates}\n",
+            f"* = Triggered\n",
             f"{'─' * 24}\n",
         ]
         for index, signal in enumerate(triggered_signals, start=1):
-            direction = "做多" if signal["direction"] == "LONG" else "做空"
-            divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
+            direction = "Long" if signal["direction"] == "LONG" else "Short"
+            divergence_badge = " 🚨 divergence" if signal.get("strong_divergence") else ""
             exits = signal["exits"]
             hourly = signal.get("hourly", {})
             status_label = self._status_label(signal)
@@ -576,16 +576,16 @@ class TelegramNotifier:
             breakout_option = self._entry_option_by_code(entry_options, "PREVIOUS_DAY_BREAK")
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
-                f"{status_label} 现价 {self._fmt_num(hourly.get('close'), 2)}{divergence_badge}\n"
-                f"   建议买入价：<code>{self._fmt_num(exits.get('entry'), 2)}</code>  "
-                f"原因：{_html_text(self._format_trigger_reason(signal))}\n"
+                f"{status_label} Current {self._fmt_num(hourly.get('close'), 2)}{divergence_badge}\n"
+                f"   Suggested entry: <code>{self._fmt_num(exits.get('entry'), 2)}</code>  "
+                f"Reason: {_html_text(self._format_trigger_reason(signal))}\n"
                 f"   Entry：EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
-                f"突破 <code>{self._format_entry_option_price(breakout_option)}</code>\n"
-                f"   止损：SafeZone <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  "
-                f"尼克 <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
+                f"Breakout <code>{self._format_entry_option_price(breakout_option)}</code>\n"
+                f"   Stop：SafeZone <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  "
+                f"Nick <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
             )
 
-        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
+        lines.append(f"\n<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
     def format_premarket_review_summary(
@@ -596,18 +596,18 @@ class TelegramNotifier:
     ) -> str:
         if not review_items:
             return (
-                f"🌅 <b>盘前订单复核完成</b>\n"
-                f"候选日期：<code>{session_date}</code>\n"
-                "没有可复核的候选订单计划。\n"
-                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
+                f"🌅 <b>Premarket order review complete</b>\n"
+                f"Candidate date: <code>{session_date}</code>\n"
+                "No candidate order plans to review.\n"
+                f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
             )
 
         ready_count = sum(1 for item in review_items if item.get("status") == "READY")
         review_count = sum(1 for item in review_items if item.get("status") == "REVIEW")
         blocked_count = sum(1 for item in review_items if item.get("status") == "BLOCKED")
         lines = [
-            f"🌅 <b>盘前订单复核</b>\n",
-            f"候选日期：<code>{session_date}</code> · Ready {ready_count} / 需复核 {review_count} / 阻断 {blocked_count}\n",
+            f"🌅 <b>Premarket order review</b>\n",
+            f"Candidate date: <code>{session_date}</code> · Ready {ready_count} / Review {review_count} / Blocked {blocked_count}\n",
             f"{'─' * 24}\n",
         ]
         for index, item in enumerate(review_items[:12], start=1):
@@ -615,17 +615,17 @@ class TelegramNotifier:
             checks = item.get("checks") or []
             warnings = [check for check in checks if check.get("severity") in {"WARN", "BLOCK"}]
             status = item.get("status", "REVIEW")
-            status_label = "可执行" if status == "READY" else "阻断" if status == "BLOCKED" else "需复核"
+            status_label = "Ready" if status == "READY" else "Blocked" if status == "BLOCKED" else "Review"
             lines.append(
                 f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} · {status_label}\n"
                 f"   Stop <code>{self._fmt_num(order.get('stop_price'), 2)}</code> "
                 f"Limit <code>{self._fmt_num(order.get('limit_price'), 2)}</code> "
-                f"参考价 <code>{self._fmt_num(item.get('current_reference_price'), 2)}</code> "
-                f"偏离 <code>{self._fmt_num(item.get('gap_pct'), 2)}%</code>\n"
+                f"Reference <code>{self._fmt_num(item.get('current_reference_price'), 2)}</code> "
+                f"Gap <code>{self._fmt_num(item.get('gap_pct'), 2)}%</code>\n"
             )
             for warning in warnings[:2]:
-                lines.append(f"   {_html_text(warning.get('message', '需要人工确认'))}\n")
-        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
+                lines.append(f"   {_html_text(warning.get('message', 'Manual review required'))}\n")
+        lines.append(f"\n<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
     def send_premarket_review_summary(
@@ -676,12 +676,12 @@ class TelegramNotifier:
 
     def send_no_opportunity(self, scan_time_sec: float) -> bool:
         return self._send(
-            "🔍 <b>本轮扫描未发现符合条件的交易机会</b>\n"
-            f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
+            "🔍 <b>No qualified trading opportunities found</b>\n"
+            f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
         )
 
     def send_error(self, error_message: str) -> bool:
         return self._send(
-            f"❗ <b>系统错误</b>\n<code>{error_message}</code>\n"
+            f"❗ <b>System error</b>\n<code>{error_message}</code>\n"
             f"<i>{_utc_clock_label()}</i>"
         )

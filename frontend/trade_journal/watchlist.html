@@ -14,21 +14,21 @@
   <div id="bootScreen" class="gate-screen">
     <div class="gate-card">
       <div class="eyebrow">Watchlist Boot</div>
-      <h1>正在加载观察列表</h1>
-      <p id="bootMessage">读取最近扫描结果，并生成动力系统 / Force Index / 触发价监测看板。</p>
+      <h1>Loading Watchlist</h1>
+      <p id="bootMessage">Loading recent scan results, impulse-system context, Force Index setup data, and order-plan levels.</p>
     </div>
   </div>
 
   <div id="configGate" class="gate-screen" style="display:none">
     <div class="gate-card">
       <div class="eyebrow">Local API</div>
-      <h1>观察列表暂时无法连接本地服务</h1>
-      <p>请先启动 `triple_screen` 的 Journal API，然后重试。</p>
+      <h1>The Watchlist Cannot Reach The Local API</h1>
+      <p>Start the `triple_screen` Journal API, then try again.</p>
       <div class="gate-stack">
-        <div id="configError" class="alert danger">当前无法连接到 `/api/watchlist`。</div>
+        <div id="configError" class="alert danger">Cannot connect to `/api/watchlist`.</div>
         <div class="btn-row">
-          <button class="btn btn-primary" id="retryConnectBtn" type="button">重新连接</button>
-          <a class="btn btn-secondary" href="/journal">先看交易日志</a>
+          <button class="btn btn-primary" id="retryConnectBtn" type="button">Reconnect</button>
+          <a class="btn btn-secondary" href="/journal">Open Journal</a>
         </div>
       </div>
     </div>
@@ -41,18 +41,18 @@
           <div class="brand-mark">∿</div>
           <div class="brand-copy">
             <strong>Triple Screen Atlas</strong>
-          <span>观察列表与触发价监测看板</span>
+          <span>Watchlist and order-plan monitor</span>
           </div>
         </div>
         <nav class="topbar-nav">
-          <a class="nav-link" data-app-link="journal" href="/journal">交易日志</a>
-          <a class="nav-link" data-app-link="watchlist" href="/watchlist">观察列表</a>
-          <a class="nav-link" data-app-link="analysis" href="/analysis">技术分析</a>
+          <a class="nav-link" data-app-link="journal" href="/journal">Journal</a>
+          <a class="nav-link" data-app-link="watchlist" href="/watchlist">Watchlist</a>
+          <a class="nav-link" data-app-link="analysis" href="/analysis">Analysis</a>
         </nav>
         <div class="topbar-meta">
           <div class="status-pill">
             <span class="status-dot" id="connectionDot"></span>
-            <span id="connectionLabel">正在连接…</span>
+            <span id="connectionLabel">Connecting...</span>
           </div>
           <div class="status-pill mono" id="shellDate">—</div>
         </div>
@@ -63,16 +63,16 @@
           <div class="hero-grid watchlist-hero-grid">
             <div class="page-head">
               <div class="eyebrow">Watchlist</div>
-              <h1>观察列表先看全局，再看动力系统和触发价</h1>
-              <p>这页先把候选股票压成可快速浏览的横向速览，再把完整的周线动力系统、日线 Force Index 和参考触发价保留在下方宽表中。</p>
+              <h1>Scan Candidates, Then Review Execution Plans</h1>
+              <p>Review candidate quality, order-plan levels, manual IBKR order records, and intraday touch status in one workflow.</p>
             </div>
             <div class="side-card watchlist-session-card">
               <div class="eyebrow">Session</div>
-              <h3 id="sessionHeadline">最新扫描会话：—</h3>
-              <p id="sessionHeadlineBody">切换不同扫描日，回看当时哪些股票入选，以及当时的执行前提。</p>
+              <h3 id="sessionHeadline">Latest scan session: -</h3>
+              <p id="sessionHeadlineBody">Switch sessions to review the candidates and execution assumptions from each EOD scan.</p>
               <div class="toolbar watchlist-session-toolbar">
                 <select class="select" id="sessionSelect"></select>
-                <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">刷新</button>
+                <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">Refresh</button>
               </div>
             </div>
           </div>
@@ -80,24 +80,24 @@
 
         <section class="watchlist-summary-grid">
           <div class="summary-card">
-            <div class="summary-label">候选总数</div>
+            <div class="summary-label">Candidates</div>
             <div class="summary-value" id="watchlistCount">0</div>
-            <div class="summary-sub">当前会话里进入观察列表的标的数量。</div>
+            <div class="summary-sub">Symbols in the selected scan session.</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">已触发机会</div>
+            <div class="summary-label">Triggered</div>
             <div class="summary-value accent-safe" id="watchlistTriggered">0</div>
-            <div class="summary-sub">已经触及 EMA 穿透价或前日突破价的机会。</div>
+            <div class="summary-sub">Candidates that touched or confirmed an entry level.</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">方向分布</div>
+            <div class="summary-label">Direction Mix</div>
             <div class="summary-value" id="watchlistDirectionMix">—</div>
-            <div class="summary-sub">做多 / 做空的数量对比。</div>
+            <div class="summary-sub">Long / short candidate count.</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">强背离提示</div>
+            <div class="summary-label">Divergence Alerts</div>
             <div class="summary-value accent-warn" id="watchlistDivergence">0</div>
-            <div class="summary-sub">需要优先警惕衰竭风险的标的。</div>
+            <div class="summary-sub">Candidates with elevated exhaustion risk.</div>
           </div>
         </section>
 
@@ -105,28 +105,28 @@
           <div class="section-head watchlist-rail-head">
             <div>
               <div class="eyebrow">Quick Scan</div>
-              <h2>横向快速浏览候选</h2>
-              <p>固定卡片宽度，先扫股票、状态和核心入选理由；左右滑动可继续看更多标的。</p>
+              <h2>Quick Candidate Rail</h2>
+              <p>Scan symbols, status, core setup context, and the key stop-limit levels before opening the full table.</p>
             </div>
             <div class="toolbar ledger-toolbar">
               <select class="select" style="max-width:180px" id="statusFilter">
-                <option value="all">全部状态</option>
-                <option value="watchlist">仅待触发</option>
-                <option value="touched">仅已触碰</option>
-                <option value="monitor">仅监测中</option>
-                <option value="triggered">仅已触发</option>
+                <option value="all">All statuses</option>
+                <option value="watchlist">Waiting only</option>
+                <option value="touched">Touched only</option>
+                <option value="monitor">Monitor only</option>
+                <option value="triggered">Triggered only</option>
               </select>
               <select class="select" style="max-width:180px" id="directionFilter">
-                <option value="all">全部方向</option>
-                <option value="LONG">仅做多</option>
-                <option value="SHORT">仅做空</option>
+                <option value="all">All directions</option>
+                <option value="LONG">Long only</option>
+                <option value="SHORT">Short only</option>
               </select>
-              <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="搜索股票、理由、财报、状态…">
+              <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="Search symbol, reason, earnings, status...">
             </div>
           </div>
           <div class="watchlist-rail-meta">
-            <div class="status-pill mono" id="watchlistRailCount">0 张卡片</div>
-            <div class="watchlist-scroll-hint">拖动下方横向滑条可快速看完整个候选池</div>
+            <div class="status-pill mono" id="watchlistRailCount">0 cards</div>
+            <div class="watchlist-scroll-hint">Use the horizontal scrollbar to scan the full candidate set.</div>
           </div>
           <div id="watchlistRailContainer"></div>
         </section>
@@ -136,8 +136,8 @@
             <div class="card-head">
               <div>
                 <div class="eyebrow">Recent Sessions</div>
-                <h3>最近扫描会话</h3>
-                <p>快速切回最近几次收盘扫描，比较候选池变化。</p>
+                <h3>Recent Scan Sessions</h3>
+                <p>Switch between recent EOD scans and compare candidate changes.</p>
               </div>
             </div>
             <div class="session-chip-list" id="sessionChips"></div>
@@ -147,8 +147,8 @@
             <div class="card-head">
               <div>
                 <div class="eyebrow">Execution Lens</div>
-                <h3>执行提示</h3>
-                <p>这里保留你真正需要优先盯住的执行提醒，不再铺太多解释性文案。</p>
+                <h3>Execution Notes</h3>
+                <p>Focused reminders for order planning, manual review, and risk checks.</p>
               </div>
             </div>
             <div class="insight-list" id="watchlistInsights"></div>
@@ -159,16 +159,16 @@
           <div class="card-head">
             <div>
               <div class="eyebrow">IBKR Manual Orders</div>
-              <h3>手工挂单记录</h3>
-              <p>系统生成 Stop Limit 计划后，你可以把 IBKR 里的订单编号、数量和状态录进来，盘前复核会用它检查是否已有挂单。</p>
+              <h3>Manual IBKR Order Records</h3>
+              <p>After placing the generated Stop Limit order in IBKR, record the order ID, quantity, and status here for premarket review.</p>
             </div>
           </div>
           <form class="order-form-grid" id="plannedOrderForm">
             <input type="hidden" id="orderSessionDate">
             <input class="input" id="orderSymbol" placeholder="Symbol">
             <select class="select" id="orderDirection">
-              <option value="LONG">做多</option>
-              <option value="SHORT">做空</option>
+              <option value="LONG">Long</option>
+              <option value="SHORT">Short</option>
             </select>
             <select class="select" id="orderType">
               <option value="Stop Limit">Stop Limit</option>
@@ -186,7 +186,7 @@
               <option value="CANCELLED">Cancelled</option>
               <option value="REJECTED">Rejected</option>
             </select>
-            <button class="btn btn-primary" type="submit">保存记录</button>
+            <button class="btn btn-primary" type="submit">Save Record</button>
           </form>
           <div id="plannedOrdersContainer"></div>
         </section>
@@ -195,8 +195,8 @@
           <div class="section-head watchlist-detail-head">
             <div>
               <div class="eyebrow">Deep Dive</div>
-              <h2>完整三层监测宽表</h2>
-              <p>保留全部筛选理由、Force Index、动力系统颜色和执行参考价，适合横向深看。</p>
+              <h2>Full Triple-Screen Table</h2>
+              <p>Review the full setup context, Force Index state, impulse color, order plan, and manual order status.</p>
             </div>
           </div>
           <div id="watchlistTableContainer"></div>

@@ -132,7 +132,7 @@ class JournalManager:
                         "session_date": target_session,
                         "status": "ERROR",
                         "changed": False,
-                        "note": "缺少交易 ID 或股票代码，无法更新止损。",
+                        "note": "Missing trade ID or ticker; cannot update stop.",
                     }
                 )
                 continue
@@ -146,7 +146,7 @@ class JournalManager:
                         "session_date": target_session,
                         "status": "ERROR",
                         "changed": False,
-                        "note": "缺少入场价或股数，无法计算保护性止损。",
+                        "note": "缺少Entry价或Shares，无法计算保护性止损。",
                     }
                 )
                 continue
@@ -154,7 +154,7 @@ class JournalManager:
             try:
                 daily_frame = self.market_data.get_daily_bars(symbol)
                 if daily_frame is None or daily_frame.empty:
-                    raise ValueError("日线数据不足")
+                    raise ValueError("Insufficient daily data")
 
                 atr_stops, _ = indicators.calc_atr_stops(daily_frame, direction, atr_period=14)
                 proposed_stop = _to_float(atr_stops.get(1.0))
@@ -165,7 +165,7 @@ class JournalManager:
                     applied_stop is not None and abs(float(applied_stop) - float(monotonic_anchor)) > 1e-9
                 )
                 status = "UPDATED" if changed else "UNCHANGED"
-                note = "建议止损已按单向规则更新" if changed else "建议止损维持不变"
+                note = "Suggested stop updated using the one-way rule" if changed else "Suggested stop unchanged"
                 stop_basis = "ATR_1X" if proposed_stop is not None else "UNKNOWN"
 
                 if apply_changes:

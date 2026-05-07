@@ -64,8 +64,8 @@
           <div class="hero-grid analysis-hero-grid">
             <div class="page-head">
               <div class="eyebrow">Single Symbol Analysis</div>
-              <h1>输入股票代码，一次看完系统技术面</h1>
-              <p>这页只看系统当前监测所需的周线动力系统、日线 Force Index、触发价和止损目标。</p>
+              <h1>输入股票代码，一次看完System Technicals</h1>
+              <p>这页只看系统当前监测所需的周线动力系统、日线 Force Index、触发价和止损Target。</p>
               <form class="analysis-form" id="analysisForm">
                 <input class="input mono analysis-symbol-input" id="symbolInput" type="text" placeholder="例如 AAPL / MSFT / NVDA" autocomplete="off" spellcheck="false">
                 <select class="input" id="modelSelect"></select>
@@ -75,7 +75,7 @@
                   <span>同时请求 AI 对照分析</span>
                 </label>
                 -->
-                <button class="btn btn-primary" id="analyzeBtn" type="submit">开始分析</button>
+                <button class="btn btn-primary" id="analyzeBtn" type="submit">Start Analysis</button>
               </form>
             </div>
             <div class="side-card analysis-focus-card">
@@ -94,24 +94,24 @@
             <div class="summary-sub">当前分析对象。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">最新收盘</div>
+            <div class="summary-label">Latest Close</div>
             <div class="summary-value" id="summaryClose">—</div>
             <div class="summary-sub">来自最新一根日线。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">系统结论</div>
+            <div class="summary-label">System Decision</div>
             <div class="summary-value" id="summarySystemDecision">—</div>
-            <div class="summary-sub" id="summarySystemReason">等待分析结果。</div>
+            <div class="summary-sub" id="summarySystemReason">Waiting for analysis results.</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">参考入场价</div>
+            <div class="summary-label">参考Entry价</div>
             <div class="summary-value" id="summaryEntry">—</div>
-            <div class="summary-sub" id="summaryEntryReason">等待执行价位。</div>
+            <div class="summary-sub" id="summaryEntryReason">Waiting for execution levels.</div>
           </div>
           <div class="summary-card">
             <div class="summary-label">当前止损价</div>
             <div class="summary-value" id="summaryStop">—</div>
-            <div class="summary-sub" id="summaryStopReason">等待止损价位。</div>
+            <div class="summary-sub" id="summaryStopReason">Waiting for stop levels.</div>
           </div>
           <!-- AI summary temporarily disabled to avoid API costs.
           <div class="summary-card">
@@ -132,7 +132,7 @@
               </div>
               <div id="systemDecisionBadge"></div>
             </div>
-            <div id="systemSummary" class="alert info">输入股票代码后，这里会显示系统结论。</div>
+            <div id="systemSummary" class="alert info">输入股票代码后，这里会显示System Decision。</div>
             <div class="stack" id="systemDifference"></div>
           </article>
 
@@ -146,7 +146,7 @@
               </div>
               <div id="aiStatusBadge"></div>
             </div>
-            <div id="aiSummary" class="alert info">勾选 AI 对照后，分析结果会显示在这里。</div>
+            <div id="aiSummary" class="alert info">勾选 AI 对照后，分析Result会显示在这里。</div>
             <div class="stack" id="aiDifference"></div>
           </article>
           -->
@@ -157,8 +157,8 @@
             <div class="card-head">
               <div>
                 <div class="eyebrow">Weekly</div>
-                <h3 id="weeklyTitle">周线 / 趋势</h3>
-                <p id="weeklySubtitle">等待分析结果。</p>
+                <h3 id="weeklyTitle">Weekly / Trend</h3>
+                <p id="weeklySubtitle">Waiting for analysis results.</p>
               </div>
             </div>
             <div class="analysis-metric-grid" id="weeklyMetrics"></div>
@@ -173,8 +173,8 @@
             <div class="card-head">
               <div>
                 <div class="eyebrow">Daily</div>
-                <h3 id="dailyTitle">日线 / Setup</h3>
-                <p id="dailySubtitle">等待分析结果。</p>
+                <h3 id="dailyTitle">Daily / Setup</h3>
+                <p id="dailySubtitle">Waiting for analysis results.</p>
               </div>
             </div>
             <div class="analysis-metric-grid" id="dailyMetrics"></div>
@@ -190,7 +190,7 @@
               <div>
                 <div class="eyebrow">Execution</div>
                 <h3 id="executionTitle">执行计划 / 触发价与止损</h3>
-                <p id="executionSubtitle">等待分析结果。</p>
+                <p id="executionSubtitle">Waiting for analysis results.</p>
               </div>
             </div>
             <div class="analysis-metric-grid" id="executionMetrics"></div>
@@ -222,7 +222,7 @@
               <div>
                 <div class="eyebrow">Levels</div>
                 <h3>关键价位与波动读数</h3>
-                <p>把入场参考价、SafeZone、摆点防守位和温度读数集中展示。</p>
+                <p>把Entry参考价、SafeZone、摆点防守位和温度读数集中展示。</p>
               </div>
             </div>
             <div class="analysis-metric-grid" id="keyLevelMetrics"></div>
@@ -241,8 +241,8 @@
               <p id="stopMethodsSummary">—</p>
             </div>
             <div class="stage-block analysis-reason-block">
-              <strong>初始止损</strong>
-              <p>定义刚入场时的最大风险。</p>
+              <strong>Initial Stop</strong>
+              <p>定义刚Entry时的最大风险。</p>
             </div>
             <div class="analysis-check-list" id="initialStopMethodsList"></div>
             <div class="stage-block analysis-reason-block">

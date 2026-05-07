@@ -64,7 +64,7 @@
             <div class="page-head">
               <div class="eyebrow">Trading Journal</div>
               <h1>交易日志先看节奏，再看每一笔的计划、风险和复盘</h1>
-              <p>页面结构改成更清楚的白底分层。你可以先从月度风险和交易速览判断全局状态，再下钻到完整 ledger、录入、统计和设置。</p>
+              <p>页面结构改成更清楚的白底分层。你可以先从月度风险和交易速览判断全局Status，再下钻到完整 ledger、录入、统计和设置。</p>
               <div class="btn-row" style="margin-top:18px">
                 <input class="input mono" style="max-width:180px" type="month" id="heroMonthPicker">
                 <button class="btn btn-primary" id="newTradeBtn" type="button">+ 新建交易</button>
@@ -74,8 +74,8 @@
             </div>
             <div class="side-card journal-focus-card">
               <div class="eyebrow">Month Focus</div>
-              <h3 id="monthHeadline">当前查看月份：—</h3>
-              <p id="monthHeadlineBody">本月预算、结果和优先处理顺序会一起更新。</p>
+              <h3 id="monthHeadline">Current Month: —</h3>
+              <p id="monthHeadlineBody">本月预算、Result和优先处理顺序会一起更新。</p>
               <div class="stack" id="heroNotes" style="margin-top:16px"></div>
             </div>
           </div>
@@ -98,14 +98,14 @@
             <div class="summary-sub" id="summaryMonthBudgetSub">按总资金 6% 计算，只看当前持仓。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">当前剩余止损额度</div>
+            <div class="summary-label">当前remaining止损额度</div>
             <div class="summary-value accent-safe" id="summaryRemaining">—</div>
-            <div class="summary-sub" id="summaryRemainingSub">只按当前持仓止损占用计算。</div>
+            <div class="summary-sub" id="summaryRemainingSub">只按当前Open Stop Usage计算。</div>
           </div>
           <div class="summary-card">
-            <div class="summary-label">本月已结净结果</div>
+            <div class="summary-label">本月已结Net Result</div>
             <div class="summary-value" id="summaryClosedResult">—</div>
-            <div class="summary-sub" id="summaryClosedResultSub">0 笔已结交易。</div>
+            <div class="summary-sub" id="summaryClosedResultSub">0 closed交易。</div>
           </div>
           <div class="summary-card">
             <div class="summary-label">当前持仓</div>
@@ -137,7 +137,7 @@
             <div class="subnav">
               <button class="subnav-btn active" type="button" data-section-tab="overview">概览</button>
               <button class="subnav-btn" type="button" data-section-tab="ledger">日志</button>
-              <button class="subnav-btn" type="button" data-section-tab="capture">录入 / 编辑</button>
+              <button class="subnav-btn" type="button" data-section-tab="capture">录入 / Edit</button>
               <button class="subnav-btn" type="button" data-section-tab="stats">统计</button>
               <button class="subnav-btn" type="button" data-section-tab="settings">设置</button>
             </div>
@@ -162,7 +162,7 @@
                   <div class="card-head">
                     <div>
                       <h3>当前最该处理</h3>
-                      <p>优先展示持仓中的仓位，其次是最近需要复盘的记录。</p>
+                      <p>优先展示Open的仓位，其次是最近需要复盘的记录。</p>
                     </div>
                   </div>
                   <div class="focus-list" id="focusList"></div>
@@ -171,7 +171,7 @@
                   <div class="card-head">
                     <div>
                       <h3>本月快照</h3>
-                      <p>这里把风险、结果和执行提醒压缩成几条可操作结论。</p>
+                      <p>这里把风险、Result和执行提醒压缩成几条可Actions结论。</p>
                     </div>
                   </div>
                   <div class="insight-list" id="monthInsights"></div>
@@ -186,24 +186,24 @@
                 <div>
                   <div class="eyebrow">Quick Ledger</div>
                   <h2>横向快速浏览交易</h2>
-                  <p>先扫每笔交易的状态、风险占用、计划和复盘缺口，再决定要不要深入看完整台账。</p>
+                  <p>先扫每笔交易的Status、Risk Usage、计划和复盘缺口，再决定要不要深入看完整台账。</p>
                 </div>
                 <div class="toolbar ledger-toolbar">
                   <input class="input mono" style="max-width:180px" type="month" id="journalMonthPicker">
                   <select class="select" style="max-width:180px" id="journalStatusFilter">
-                    <option value="all">全部状态</option>
-                    <option value="open">持仓中</option>
+                    <option value="all">全部Status</option>
+                    <option value="open">Open</option>
                     <option value="closed">已结交易</option>
                     <option value="win">盈利</option>
                     <option value="loss">亏损</option>
                     <option value="planned">计划完整</option>
                   </select>
-                  <input class="input" style="min-width:260px" type="search" id="journalSearchInput" placeholder="搜索股票、方向、计划、平仓原因、复盘关键词…">
+                  <input class="input" style="min-width:260px" type="search" id="journalSearchInput" placeholder="搜索股票、方向、计划、Exit Reason、复盘关键词…">
                 </div>
               </div>
               <div class="toolbar ledger-meta">
-                <div class="status-pill mono" id="journalMonthCurrent">当前查看月份：—</div>
-                <div class="status-pill mono" id="journalCountLabel">0 笔</div>
+                <div class="status-pill mono" id="journalMonthCurrent">Current Month: —</div>
+                <div class="status-pill mono" id="journalCountLabel">0 trades</div>
                 <div class="ledger-scroll-hint">先横向扫卡片，再往下确认完整字段</div>
               </div>
               <div id="journalRailContainer"></div>
@@ -214,7 +214,7 @@
                 <div>
                   <div class="eyebrow">Deep Ledger</div>
                   <h2>完整交易台账</h2>
-                  <p>保留全部字段和操作入口，适合横向深入查看计划、执行、平仓原因与复盘摘要。</p>
+                  <p>保留全部字段和Actions入口，适合横向深入查看计划、执行、Exit Reason与Review Summary。</p>
                 </div>
               </div>
               <div id="journalTableContainer"></div>
@@ -227,30 +227,30 @@
                 <div class="card-head">
                   <div>
                     <div class="eyebrow">Capture</div>
-                    <h3 id="captureTitle">录入新交易</h3>
+                    <h3 id="captureTitle">New Trade</h3>
                     <p id="captureSubtitle">边填边看风险、建议仓位和利润预览。</p>
                   </div>
                 </div>
                 <div id="captureAlert"></div>
                 <div class="metric-grid" style="margin-top:14px">
                   <div class="metric-row"><span>最大可损</span><strong id="calcMaxLoss">—</strong></div>
-                  <div class="metric-row"><span>初始止损</span><strong id="calcInitialStopDisplay">—</strong></div>
-                  <div class="metric-row"><span>当前保护止损</span><strong id="calcCurrentStopDisplay">—</strong></div>
+                  <div class="metric-row"><span>Initial Stop</span><strong id="calcInitialStopDisplay">—</strong></div>
+                  <div class="metric-row"><span>Current Protective Stop</span><strong id="calcCurrentStopDisplay">—</strong></div>
                   <div class="metric-row"><span>当前建议止损</span><strong id="calcSuggestedStopDisplay">—</strong></div>
-                  <div class="metric-row"><span>止损状态</span><strong id="calcStopState">—</strong></div>
+                  <div class="metric-row"><span>止损Status</span><strong id="calcStopState">—</strong></div>
                   <div class="metric-row"><span>每股风险</span><strong id="calcRiskPerShare">—</strong></div>
                   <div class="metric-row">
-                    <span>建议仓位股数</span>
+                    <span>建议仓位Shares</span>
                     <strong id="calcRecommendedShares">—</strong>
                   </div>
                   <div class="metric-row"><span>占用止损额度</span><strong id="calcUsedStop">—</strong></div>
-                  <div class="metric-row"><span>目标价</span><strong id="calcTargetPrice">—</strong></div>
-                  <div class="metric-row"><span>净利润预览</span><strong id="calcLivePnl">持仓中</strong></div>
-                  <div class="metric-row"><span>执行提示</span><strong id="calcExecutionHint">先填写入场价、止损价和股数</strong></div>
+                  <div class="metric-row"><span>Target价</span><strong id="calcTargetPrice">—</strong></div>
+                  <div class="metric-row"><span>净利润预览</span><strong id="calcLivePnl">Open</strong></div>
+                  <div class="metric-row"><span>执行提示</span><strong id="calcExecutionHint">先填写Entry价、止损价和Shares</strong></div>
                 </div>
                 <div class="btn-row" style="margin-top:16px">
-                  <button class="btn btn-secondary" type="button" id="fillSharesBtn">使用建议股数</button>
-                  <button class="btn btn-secondary hidden" type="button" id="captureCancelBtn">取消编辑</button>
+                  <button class="btn btn-secondary" type="button" id="fillSharesBtn">使用建议Shares</button>
+                  <button class="btn btn-secondary hidden" type="button" id="captureCancelBtn">取消Edit</button>
                 </div>
               </div>
 
@@ -258,8 +258,8 @@
                 <div class="form-card">
                   <div class="card-head">
                     <div>
-                      <h3>1. 入场计划</h3>
-                      <p>记录方向、入场位、风险和预期目标。</p>
+                      <h3>1. Entry计划</h3>
+                      <p>记录方向、Entry位、风险和预期Target。</p>
                     </div>
                   </div>
                   <div class="field-grid">
@@ -275,19 +275,19 @@
                       </select>
                     </div>
                     <div class="field-group span-4">
-                      <label>入场日期</label>
+                      <label>Entry日期</label>
                       <input class="input mono" id="f_buyDate" type="date">
                     </div>
                     <div class="field-group span-4">
-                      <label>入场价 *</label>
+                      <label>Entry价 *</label>
                       <input class="input" id="f_buyPrice" type="number" step="0.001">
                     </div>
                     <div class="field-group span-4">
-                      <label>初始止损</label>
+                      <label>Initial Stop</label>
                       <input class="input" id="f_initialStopLoss" type="number" step="0.001" readonly>
                     </div>
                     <div class="field-group span-4">
-                      <label>当前保护止损 *</label>
+                      <label>Current Protective Stop *</label>
                       <input class="input" id="f_stopLoss" type="number" step="0.001">
                     </div>
                     <div class="field-group span-4">
@@ -295,7 +295,7 @@
                       <input class="input" id="f_suggestedStopLoss" type="number" step="0.001" readonly>
                     </div>
                     <div class="field-group span-4">
-                      <label>股数 *</label>
+                      <label>Shares *</label>
                       <div class="field-stack">
                         <input class="input" id="f_shares" type="number" step="1">
                         <button class="btn btn-secondary" id="fillSharesInlineBtn" type="button">使用建议值</button>
@@ -306,11 +306,11 @@
                       <input class="input" id="f_stopReason" type="text" placeholder="Pullback to Value / 前低下方">
                     </div>
                     <div class="field-group span-3">
-                      <label>目标盈利比例 (%)</label>
+                      <label>Target盈利比例 (%)</label>
                       <input class="input" id="f_targetPct" type="number" step="0.1" placeholder="10">
                     </div>
                     <div class="field-group span-3">
-                      <label>盈利目标价</label>
+                      <label>盈利Target价</label>
                       <input class="input" id="f_targetPrice" type="number" step="0.001" readonly>
                     </div>
                     <div class="field-group span-3">
@@ -326,11 +326,11 @@
                       <input class="input" id="f_chanLow" type="number" step="0.001">
                     </div>
                     <div class="field-group span-3">
-                      <label>入场日最高价</label>
+                      <label>Entry日最高价</label>
                       <input class="input" id="f_dayHigh" type="number" step="0.001">
                     </div>
                     <div class="field-group span-3">
-                      <label>入场日最低价</label>
+                      <label>Entry日最低价</label>
                       <input class="input" id="f_dayLow" type="number" step="0.001">
                     </div>
                   </div>
@@ -365,8 +365,8 @@
                       <input class="input" id="f_sellLow" type="number" step="0.001">
                     </div>
                     <div class="field-group span-4">
-                      <label>平仓原因</label>
-                      <input class="input" id="f_sellReason" type="text" placeholder="触发止损 / 到达目标 / 趋势破坏">
+                      <label>Exit Reason</label>
+                      <input class="input" id="f_sellReason" type="text" placeholder="触发止损 / 到达Target / 趋势破坏">
                     </div>
                   </div>
                 </div>
@@ -388,7 +388,7 @@
                   </div>
                   <div class="btn-row">
                     <button class="btn btn-secondary" type="button" id="clearCaptureBtn">重置表单</button>
-                    <button class="btn btn-primary" type="button" id="captureSaveBtn">保存交易</button>
+                    <button class="btn btn-primary" type="button" id="captureSaveBtn">Save Trade</button>
                   </div>
                 </div>
               </div>
@@ -401,12 +401,12 @@
                 <div class="card-head">
                   <div>
                     <div class="eyebrow">Monthly Read</div>
-                    <h3 id="statsLeadTitle">本月结论</h3>
-                    <p id="statsLeadBody">这里会根据净结果、风险预算和记录完整度给出本月最关键的结论。</p>
+                    <h3 id="statsLeadTitle">Monthly Takeaway</h3>
+                    <p id="statsLeadBody">这里会根据Net Result、风险预算和记录完整度给出本月最关键的结论。</p>
                   </div>
                   <div class="toolbar">
                     <input class="input mono" style="max-width:180px" type="month" id="statsMonthPicker">
-                    <div class="status-pill mono" id="statsMonthCurrent">当前查看月份：—</div>
+                    <div class="status-pill mono" id="statsMonthCurrent">Current Month: —</div>
                   </div>
                 </div>
                 <div class="btn-row" id="statsLeadPills"></div>
@@ -470,7 +470,7 @@
                 <div class="card-head">
                   <div>
                     <div class="eyebrow">Data Actions</div>
-                    <h3>数据操作</h3>
+                    <h3>数据Actions</h3>
                     <p>导出、刷新和清空数据都集中在这里。</p>
                   </div>
                 </div>
@@ -491,7 +491,7 @@
                   </div>
                   <div class="focus-item">
                     <strong class="badge-danger">清空全部交易数据</strong>
-                    <p>会删除 `trades` 表中的所有记录，无法恢复。</p>
+                    <p>会Delete `trades` 表中的所有记录，无法恢复。</p>
                     <div class="btn-row" style="margin-top:12px">
                       <button class="btn btn-danger" id="clearAllBtn" type="button">清空交易</button>
                     </div>

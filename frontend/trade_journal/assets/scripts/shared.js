@@ -91,7 +91,7 @@ export function formatInputNumber(value, decimals = null) {
 
 export function formatShares(value) {
   const num = parseNumberValue(value);
-  return num === null ? "—" : `${formatNumber(num, 0)} 股`;
+  return num === null ? "—" : `${formatNumber(num, 0)} shares`;
 }
 
 export function formatDateLabel(value) {
@@ -135,11 +135,11 @@ export function normalizeSignalDirection(value) {
 }
 
 export function getDirectionLabel(value) {
-  return normalizeDirection(value) === "short" ? "做空" : "做多";
+  return normalizeDirection(value) === "short" ? "Short" : "Long";
 }
 
 export function getSignalDirectionLabel(value) {
-  return normalizeSignalDirection(value) === "SHORT" ? "做空" : "做多";
+  return normalizeSignalDirection(value) === "SHORT" ? "Short" : "Long";
 }
 
 export function getDirectionAccent(value) {
@@ -286,13 +286,13 @@ export function getTradeAgeInDays(trade, referenceDate = new Date()) {
 
 export function getTradeCompletionGaps(trade) {
   const gaps = [];
-  if (!hasTextValue(trade?.stop_reason)) gaps.push("交易计划");
-  if (!hasTextValue(trade?.review)) gaps.push("交易心得");
-  if (!hasNumberValue(trade?.day_high) || !hasNumberValue(trade?.day_low)) gaps.push("买入日高低");
-  if (!hasNumberValue(trade?.chan_high) || !hasNumberValue(trade?.chan_low)) gaps.push("通道高低点");
+  if (!hasTextValue(trade?.stop_reason)) gaps.push("trade plan");
+  if (!hasTextValue(trade?.review)) gaps.push("trade review");
+  if (!hasNumberValue(trade?.day_high) || !hasNumberValue(trade?.day_low)) gaps.push("entry-day high/low");
+  if (!hasNumberValue(trade?.chan_high) || !hasNumberValue(trade?.chan_low)) gaps.push("channel high/low");
   if (isTradeClosed(trade)) {
-    if (!hasTextValue(trade?.sell_reason)) gaps.push("平仓原因");
-    if (!hasNumberValue(trade?.sell_high) || !hasNumberValue(trade?.sell_low)) gaps.push("平仓日高低");
+    if (!hasTextValue(trade?.sell_reason)) gaps.push("exit reason");
+    if (!hasNumberValue(trade?.sell_high) || !hasNumberValue(trade?.sell_low)) gaps.push("exit-day high/low");
   }
   return gaps;
 }
@@ -300,14 +300,14 @@ export function getTradeCompletionGaps(trade) {
 export function getStatusMeta(trade) {
   const pnl = getTradeNetPnl(trade);
   if (hasPartialSellInfo(trade?.sell_price, trade?.sell_date)) {
-    return { label: "待补平仓", tone: "warn" };
+    return { label: "Needs exit details", tone: "warn" };
   }
   if (!isTradeClosed(trade)) {
-    return { label: "持仓中", tone: "info" };
+    return { label: "Open", tone: "info" };
   }
   return pnl !== null && pnl >= 0
-    ? { label: "盈利", tone: "safe" }
-    : { label: "亏损", tone: "danger" };
+    ? { label: "Profit", tone: "safe" }
+    : { label: "Loss", tone: "danger" };
 }
 
 export function normalizeSettings(source = {}) {
@@ -377,7 +377,7 @@ export function withTimeout(promise, ms, message) {
 }
 
 export async function ensureApiReady(timeoutMs = 4000) {
-  return withTimeout(apiRequest("/health"), timeoutMs, "连接本地 Journal API 超时");
+  return withTimeout(apiRequest("/health"), timeoutMs, "Timed out while connecting to the local Journal API");
 }
 
 export function setScreenState(view, bootMessage = "") {
@@ -399,7 +399,7 @@ export function syncShell(currentPage) {
 
   const dateLabel = document.getElementById("shellDate");
   if (dateLabel) {
-    dateLabel.textContent = new Date().toLocaleDateString("zh-CN", {
+    dateLabel.textContent = new Date().toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -412,7 +412,7 @@ export function renderConnectionStatus(healthy, detail = "") {
   const dot = document.getElementById("connectionDot");
   const label = document.getElementById("connectionLabel");
   if (dot) dot.className = `status-dot ${healthy ? "healthy" : "error"}`;
-  if (label) label.textContent = healthy ? (detail || "本地 API 已连接") : (detail || "本地 API 不可用");
+  if (label) label.textContent = healthy ? (detail || "Local API connected") : (detail || "Local API unavailable");
 }
 
 export function downloadJson(filename, payload) {

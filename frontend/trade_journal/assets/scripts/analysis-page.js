@@ -28,20 +28,20 @@ function getBadge(label, tone = "info") {
 function setLoading(loading) {
   state.loading = loading;
   $("analyzeBtn").disabled = loading;
-  $("analyzeBtn").textContent = loading ? "分析中…" : "开始分析";
+  $("analyzeBtn").textContent = loading ? "Analyzing..." : "Start Analysis";
 }
 
 function renderPromptOutline(outline = []) {
   const items = outline.length
     ? outline
     : [
-        "周线看动力系统颜色、MACD 斜率、EMA 斜率和确认 bars；动力系统只负责禁止交易方向。",
-        "日线核心看 2日 Force Index EMA，RSI、Histogram、K线形态只作为辅助信息。",
-        "执行区展示 EMA 穿透参考价、前日高/低点外一跳的替代触发价、止损和周线价值区间目标。",
+        "Weekly rules check impulse-system color, MACD slope, EMA slope, and confirmed bars; the impulse system only blocks forbidden trade directions.",
+        "Daily rules focus on the 2-day Force Index EMA; RSI, histogram, and candle shape are supporting context only.",
+        "The execution section shows the EMA penetration reference price, the alternate previous-day high/low breakout trigger, stops, and weekly value-zone target.",
       ];
 
   $("analysisPromptOutline").innerHTML = items
-    .map((item) => `<div class="insight-item"><strong>系统规则</strong><p>${escapeHtml(item)}</p></div>`)
+    .map((item) => `<div class="insight-item"><strong>System Rules</strong><p>${escapeHtml(item)}</p></div>`)
     .join("");
 }
 
@@ -57,7 +57,7 @@ function renderMetrics(containerId, metrics = []) {
           `
         )
         .join("")
-    : `<div class="empty-state">暂无指标。</div>`;
+    : `<div class="empty-state">No metrics yet.</div>`;
 }
 
 function renderChecks(containerId, checks = []) {
@@ -66,14 +66,14 @@ function renderChecks(containerId, checks = []) {
         .map(
           (item) => `
             <div class="analysis-check-item">
-              ${getBadge(item.pass ? "通过" : "未通过", item.pass ? "safe" : "warn")}
+              ${getBadge(item.pass ? "Pass" : "未Pass", item.pass ? "safe" : "warn")}
               <strong>${escapeHtml(item.label || "—")}</strong>
               <p>${escapeHtml(item.detail || "—")}</p>
             </div>
           `
         )
         .join("")
-    : `<div class="empty-state">暂无检查结果。</div>`;
+    : `<div class="empty-state">No checks yet.</div>`;
 }
 
 function renderStopMethods(containerId, methods = []) {
@@ -82,17 +82,17 @@ function renderStopMethods(containerId, methods = []) {
         .map(
           (item) => `
             <div class="analysis-check-item">
-              ${getBadge(item.auto ? "可量化" : "手工判断", item.auto ? "info" : "warn")}
+              ${getBadge(item.auto ? "Quantified" : "Manual", item.auto ? "info" : "warn")}
               <strong>${escapeHtml(item.label || "—")}</strong>
-              <p>止损位：${escapeHtml(item.price || "—")}</p>
-              <p>适用：${escapeHtml(item.suitable_for || "—")}</p>
-              <p>参考：${escapeHtml(item.reference || "—")}</p>
+              <p>Stop Price: ${escapeHtml(item.price || "—")}</p>
+              <p>Use Case: ${escapeHtml(item.suitable_for || "—")}</p>
+              <p>Reference: ${escapeHtml(item.reference || "—")}</p>
               <p>${escapeHtml(item.detail || "—")}</p>
             </div>
           `
         )
         .join("")
-    : `<div class="empty-state">暂无止损方法。</div>`;
+    : `<div class="empty-state">No stop methods yet.</div>`;
 }
 
 function findMetric(metrics, label) {
@@ -109,47 +109,47 @@ function renderSystem(system) {
   const stopMethods = system?.stop_methods || {};
 
   $("summarySymbol").textContent = system?.symbol || "—";
-  $("summaryClose").textContent = findMetric(keyLevels.metrics, "最新收盘");
+  $("summaryClose").textContent = findMetric(keyLevels.metrics, "Latest Close");
   $("summarySystemDecision").textContent = recommendation.label || "—";
-  $("summarySystemReason").textContent = recommendation.reason || "等待分析结果。";
+  $("summarySystemReason").textContent = recommendation.reason || "Waiting for analysis results.";
   $("summaryEntry").textContent = execution?.entry_price ?? "—";
-  $("summaryEntryReason").textContent = execution?.summary || "等待执行价位。";
+  $("summaryEntryReason").textContent = execution?.summary || "Waiting for execution levels.";
   $("summaryStop").textContent = execution?.stop_loss ?? "—";
-  $("summaryStopReason").textContent = execution?.summary || "等待止损价位。";
-  $("systemDecisionBadge").innerHTML = getBadge(recommendation.label || "系统结论", recommendation.tone || "info");
+  $("summaryStopReason").textContent = execution?.summary || "Waiting for stop levels.";
+  $("systemDecisionBadge").innerHTML = getBadge(recommendation.label || "System Decision", recommendation.tone || "info");
   $("systemSummary").className = `alert ${recommendation.tone === "safe" ? "success" : recommendation.tone === "warn" ? "warn" : "info"}`;
-  $("systemSummary").textContent = system?.summary || "暂无系统结论。";
+  $("systemSummary").textContent = system?.summary || "暂无System Decision。";
   const model = system?.model || {};
   $("systemDifference").innerHTML = `
     <div class="insight-item">
-      <strong>模型口径</strong>
-      <p>${escapeHtml(model.label || "当前配置模型")}</p>
+      <strong>Model Definition</strong>
+      <p>${escapeHtml(model.label || "Current model")}</p>
       <p>${escapeHtml(model.description || "—")}</p>
     </div>
     <div class="insight-item">
-      <strong>系统观察建议</strong>
+      <strong>System Watch Decision</strong>
       <p>${escapeHtml(recommendation.reason || "—")}</p>
     </div>
     <div class="insight-item">
-      <strong>系统口径说明</strong>
-      <p>周线和日线判断完全复用已有后端函数，不额外混入主观筛选。</p>
+      <strong>System Method</strong>
+      <p>Weekly and daily decisions reuse the existing backend rules without adding discretionary filters.</p>
     </div>
   `;
 
-  $("weeklyTitle").textContent = weekly.title || "周线 / 趋势";
+  $("weeklyTitle").textContent = weekly.title || "Weekly / Trend";
   $("weeklySubtitle").textContent = weekly.subtitle || "—";
   $("weeklyReason").textContent = weekly.reason || "—";
   renderMetrics("weeklyMetrics", weekly.metrics);
   renderChecks("weeklyChecks", weekly.checks);
 
-  $("dailyTitle").textContent = daily.title || "日线 / Setup";
+  $("dailyTitle").textContent = daily.title || "Daily / Setup";
   $("dailySubtitle").textContent = daily.subtitle || "—";
   $("dailyReason").textContent = daily.reason || "—";
   renderMetrics("dailyMetrics", daily.metrics);
   renderChecks("dailyChecks", daily.checks);
 
-  $("executionTitle").textContent = execution.title || "执行计划 / 买入与止损";
-  $("executionSubtitle").textContent = system?.model?.intraday_trigger || "展示当前模型的触发价、止损与目标。";
+  $("executionTitle").textContent = execution.title || "Execution Plan / Entry and Stops";
+  $("executionSubtitle").textContent = system?.model?.intraday_trigger || "Shows the current model trigger, stop, and target levels.";
   $("executionReason").textContent = execution.summary || "—";
   renderMetrics("executionMetrics", execution.metrics);
 
@@ -167,41 +167,41 @@ function renderAi(ai) {
   renderPromptOutline(ai?.outline || []);
 
   if (!ai || ai.status === "SKIPPED") {
-    $("summaryAiDecision").textContent = "未启用";
-    $("summaryAiReason").textContent = ai?.message || "本次未启用 AI。";
-    $("aiStatusBadge").innerHTML = getBadge("AI 未启用", "info");
+    $("summaryAiDecision").textContent = "Disabled";
+    $("summaryAiReason").textContent = ai?.message || "本次Disabled AI。";
+    $("aiStatusBadge").innerHTML = getBadge("AI Disabled", "info");
     $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = ai?.message || "本次未启用 AI。";
+    $("aiSummary").textContent = ai?.message || "本次Disabled AI。";
     $("aiDifference").innerHTML = "";
     return;
   }
 
   if (ai.status === "UNAVAILABLE") {
-    $("summaryAiDecision").textContent = "未配置";
-    $("summaryAiReason").textContent = ai.message || "AI 模型尚未配置。";
-    $("aiStatusBadge").innerHTML = getBadge("AI 未配置", "warn");
+    $("summaryAiDecision").textContent = "Not Configured";
+    $("summaryAiReason").textContent = ai.message || "AI 模型尚Not Configured。";
+    $("aiStatusBadge").innerHTML = getBadge("AI Not Configured", "warn");
     $("aiSummary").className = "alert warn";
-    $("aiSummary").textContent = ai.message || "AI 模型尚未配置。";
+    $("aiSummary").textContent = ai.message || "AI 模型尚Not Configured。";
     $("aiDifference").innerHTML = "";
     return;
   }
 
   if (ai.status === "ERROR") {
-    $("summaryAiDecision").textContent = "调用失败";
-    $("summaryAiReason").textContent = ai.message || "AI 分析失败。";
-    $("aiStatusBadge").innerHTML = getBadge("AI 失败", "danger");
+    $("summaryAiDecision").textContent = "Call Failed";
+    $("summaryAiReason").textContent = ai.message || "AI analysis failed.";
+    $("aiStatusBadge").innerHTML = getBadge("AI Failed", "danger");
     $("aiSummary").className = "alert danger";
-    $("aiSummary").textContent = ai.message || "AI 分析失败。";
+    $("aiSummary").textContent = ai.message || "AI analysis failed.";
     $("aiDifference").innerHTML = "";
     return;
   }
 
   if (ai.status === "RAW") {
-    $("summaryAiDecision").textContent = "原文返回";
-    $("summaryAiReason").textContent = ai.message || "AI 返回了非结构化内容。";
-    $("aiStatusBadge").innerHTML = getBadge(ai.model || "AI 原文", "info");
+    $("summaryAiDecision").textContent = "Raw Response";
+    $("summaryAiReason").textContent = ai.message || "AI returned unstructured content.";
+    $("aiStatusBadge").innerHTML = getBadge(ai.model || "AI Raw", "info");
     $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = ai.raw_text || "AI 未返回可展示内容。";
+    $("aiSummary").textContent = ai.raw_text || "AI returned no displayable content.";
     $("aiDifference").innerHTML = "";
     return;
   }
@@ -213,10 +213,10 @@ function renderAi(ai) {
   const dailyAnalysis = structured.daily_analysis || {};
 
   $("summaryAiDecision").textContent = structured.watch_decision || "—";
-  $("summaryAiReason").textContent = investmentView.summary || difference.agreement || "AI 已返回结构化分析。";
-  $("aiStatusBadge").innerHTML = getBadge(`${ai.model || "AI"} · ${structured.watch_decision || "已完成"}`, "safe");
+  $("summaryAiReason").textContent = investmentView.summary || difference.agreement || "AI returned structured analysis.";
+  $("aiStatusBadge").innerHTML = getBadge(`${ai.model || "AI"} · ${structured.watch_decision || "Completed"}`, "safe");
   $("aiSummary").className = "alert success";
-  $("aiSummary").textContent = investmentView.summary || "AI 已返回结构化分析。";
+  $("aiSummary").textContent = investmentView.summary || "AI returned structured analysis.";
 
   const weeklySignals = Array.isArray(weeklyAnalysis.signals) ? weeklyAnalysis.signals : [];
   const dailySignals = Array.isArray(dailyAnalysis.signals) ? dailyAnalysis.signals : [];
@@ -226,22 +226,22 @@ function renderAi(ai) {
 
   $("aiDifference").innerHTML = `
     <div class="insight-item">
-      <strong>AI 周线观点</strong>
+      <strong>AI Weekly View</strong>
       <p>${escapeHtml(weeklyAnalysis.summary || "—")}</p>
       <p>${escapeHtml(weeklySignals.join("； ") || "—")}</p>
     </div>
     <div class="insight-item">
-      <strong>AI 日线观点</strong>
+      <strong>AI Daily View</strong>
       <p>${escapeHtml(dailyAnalysis.summary || "—")}</p>
       <p>${escapeHtml(dailySignals.join("； ") || "—")}</p>
     </div>
     <div class="insight-item">
-      <strong>与系统的差异</strong>
+      <strong>Difference vs System</strong>
       <p>${escapeHtml(difference.agreement || "—")}</p>
       <p>${escapeHtml(differences.join("； ") || "—")}</p>
     </div>
     <div class="insight-item">
-      <strong>AI 风控与关注点</strong>
+      <strong>AI Risk Controls and Focus</strong>
       <p>${escapeHtml(riskControls.join("； ") || "—")}</p>
       <p>${escapeHtml(keyLevelFocus.join("； ") || "—")}</p>
     </div>
@@ -253,8 +253,8 @@ function renderPayload(payload) {
   const system = payload?.system || {};
   const ai = payload?.ai || {};
 
-  $("analysisHeadline").textContent = `${payload?.symbol || "—"} · 系统技术面`;
-  $("analysisHeadlineBody").textContent = `生成时间：${escapeHtml(payload?.generated_at || "—")}。当前只展示系统规则分析。`;
+  $("analysisHeadline").textContent = `${payload?.symbol || "—"} · System Technicals`;
+  $("analysisHeadlineBody").textContent = `Generated At: ${escapeHtml(payload?.generated_at || "—")}。当前只展示System Rules分析。`;
   renderSystem(system);
   if (AI_ANALYSIS_ENABLED) renderAi(ai);
 }
@@ -262,10 +262,10 @@ function renderPayload(payload) {
 async function loadAnalysis(symbol) {
   setLoading(true);
   $("systemSummary").className = "alert info";
-  $("systemSummary").textContent = `正在分析 ${symbol} 的周线与日线…`;
+  $("systemSummary").textContent = `Analyzing ${symbol} weekly and daily structure...`;
   if (AI_ANALYSIS_ENABLED) {
     $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = $("includeAiToggle").checked ? "正在请求 AI 对照分析…" : "本次未启用 AI。";
+    $("aiSummary").textContent = $("includeAiToggle").checked ? "Requesting AI comparison analysis..." : "本次Disabled AI。";
   }
 
   try {
@@ -283,7 +283,7 @@ async function loadAnalysis(symbol) {
     $("systemSummary").textContent = error.message || String(error);
     if (AI_ANALYSIS_ENABLED) {
       $("aiSummary").className = "alert warn";
-      $("aiSummary").textContent = "本次没有可展示的 AI 结果。";
+      $("aiSummary").textContent = "No displayable AI result for this run.";
     }
   } finally {
     setLoading(false);
@@ -304,10 +304,10 @@ async function loadModels() {
 
 async function bootApp() {
   syncShell("analysis");
-  setScreenState("boot", "检查本地 Journal API，并准备技术分析页面…");
+  setScreenState("boot", "Checking local Journal API and preparing the technical-analysis page...");
   try {
     const health = await ensureApiReady();
-    renderConnectionStatus(true, `本地 API 已连接 · ${health.server.host}:${health.server.port}`);
+    renderConnectionStatus(true, `Local API connected · ${health.server.host}:${health.server.port}`);
     setScreenState("app");
     await loadModels();
     renderPromptOutline();
@@ -318,7 +318,7 @@ async function bootApp() {
       await loadAnalysis(initialSymbol.toUpperCase());
     }
   } catch (error) {
-    renderConnectionStatus(false, "本地 API 不可用");
+    renderConnectionStatus(false, "Local API unavailable");
     $("configError").textContent = error.message || String(error);
     setScreenState("config");
   }
@@ -332,7 +332,7 @@ function bindEvents() {
     $("symbolInput").value = symbol;
     if (!symbol) {
       $("systemSummary").className = "alert warn";
-      $("systemSummary").textContent = "请先输入股票代码。";
+      $("systemSummary").textContent = "Enter a ticker first.";
       return;
     }
     await loadAnalysis(symbol);

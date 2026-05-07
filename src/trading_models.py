@@ -205,14 +205,14 @@ def _build_entry_options(
     option_specs = [
         (
             "EMA_PENETRATION",
-            "EMA穿透参考价",
+            "EMA penetration reference",
             entry_plan.get("ema_penetration_entry"),
             primary_touched,
             primary_confirmed,
         ),
         (
             "PREVIOUS_DAY_BREAK",
-            "前日突破参考价",
+            "Previous-day break reference",
             entry_plan.get("breakout_entry"),
             breakout_touched,
             breakout_confirmed,
@@ -316,12 +316,12 @@ def _build_current_intraday_plan(
         "entry_plan": entry_plan,
         "entry_options": entry_options,
         "reason": (
-            f"价格已触及{entry_plan.get('trigger_label', '交易')}参考价：{', '.join(triggered_labels)}"
+            f"Price touched {entry_plan.get('trigger_label', 'trade')}: {', '.join(triggered_labels)}"
             if triggered
             else (
-                f"价格已触及参考价但小时K尚未确认收复/站稳：{', '.join(touched_labels)}"
+                f"Price touched the reference level, but the hourly bar has not confirmed reclaim/hold: {', '.join(touched_labels)}"
                 if touched_labels
-                else entry_plan.get("reason", "等待价格触发")
+                else entry_plan.get("reason", "Waiting for price trigger")
             )
         ),
     }
@@ -357,7 +357,7 @@ def _build_legacy_intraday_plan(
 def legacy_screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dict:
     required = settings.weekly.macd_slow + settings.weekly.macd_signal + 5
     if df_week is None or len(df_week) < required:
-        return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "周线数据不足"}
+        return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "Insufficient weekly data"}
 
     macd, signal, histogram = indicators.calc_macd(df_week, settings)
     close = df_week["close"].astype(float)
@@ -410,22 +410,22 @@ def legacy_screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig)
     if trend == "LONG":
         setup_state = "BULLISH_SLOPE"
         reason = (
-            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（回升）；"
-            f"13EMA 斜率 {ema_delta:+.4f}（{'上行' if ema_delta > 0 else '未上行'}）；"
-            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"Histogram {hist_prev:+.4f} -> {hist_now:+.4f} (rising); "
+            f"13EMA slope {ema_delta:+.4f} ({'rising' if ema_delta > 0 else 'not rising'}); "
+            f"confirmed bars {confirmed}/{settings.weekly.confirm_bars}."
         )
     elif trend == "SHORT":
         setup_state = "BEARISH_SLOPE"
         reason = (
-            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（回落）；"
-            f"13EMA 斜率 {ema_delta:+.4f}（{'下行' if ema_delta < 0 else '未下行'}）；"
-            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"Histogram {hist_prev:+.4f} -> {hist_now:+.4f} (falling); "
+            f"13EMA slope {ema_delta:+.4f} ({'falling' if ema_delta < 0 else 'not falling'}); "
+            f"confirmed bars {confirmed}/{settings.weekly.confirm_bars}."
         )
     else:
         setup_state = "NEUTRAL"
         reason = (
-            f"柱线 {hist_prev:+.4f} -> {hist_now:+.4f}（方向不清晰）；"
-            f"13EMA 斜率 {ema_delta:+.4f}；确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"Histogram {hist_prev:+.4f} -> {hist_now:+.4f} (unclear direction); "
+            f"13EMA slope {ema_delta:+.4f}; confirmed bars {confirmed}/{settings.weekly.confirm_bars}."
         )
 
     return {
@@ -475,8 +475,8 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
             "pass": False,
             "watch": False,
             "state": "REJECT",
-            "reject_reason": "日线数据不足",
-            "reason": "日线数据不足",
+            "reject_reason": "Insufficient daily data",
+            "reason": "Insufficient daily data",
             "countertrend_exists": False,
             "value_zone_reached": False,
             "reversal_evidence_count": 0,
@@ -534,7 +534,7 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
     passed = False
     watch = False
     correction_count = 0
-    correction_counter_label = "近8日修正收盘数"
+    correction_counter_label = "recent correction closes"
     structure_break_level = None
     custom_close_rule_pass = False
     custom_wick_rule_pass = False
@@ -555,7 +555,7 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
 
     if trend == "LONG":
         correction_count = down_closes
-        correction_counter_label = "近8日下跌收盘数"
+        correction_counter_label = "recent down closes"
         recent_gap_to_value_band = (recent_close - recent_value_band_high).clip(lower=0)
         latest_gap_window = recent_gap_to_value_band.tail(indicators.DAILY_REVERSAL_LOOKBACK)
         countertrend_exists = correction_in_window and (down_closes >= 2 or bool((recent_close <= recent_ema).any()))
@@ -594,15 +594,15 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
         )
         if not countertrend_exists:
             state = "REJECT"
-            reject_reason = "周线做多但日线未形成可识别回调，不属于可执行 setup"
+            reject_reason = "Weekly trend is long, but daily has no recognizable pullback setup"
             rsi_state = "NO_PULLBACK"
         elif not structure_intact:
             state = "REJECT"
-            reject_reason = "回调结构已明显跌穿防守摆点，止损边界不可定义"
+            reject_reason = "Pullback structure broke below the defensive pivot, so stop boundary is not well-defined"
             rsi_state = "STRUCTURE_BROKEN"
         elif accelerating_correction and not histogram_reversal:
             state = "REJECT"
-            reject_reason = "日线回调仍在加速，尚未出现止跌减速迹象"
+            reject_reason = "Daily pullback is still accelerating without evidence of downside deceleration"
             rsi_state = "ACCELERATING_PULLBACK"
         elif not entered_value_zone:
             state = "WATCH"
@@ -618,7 +618,7 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
             rsi_state = "PULLBACK_WAIT_HISTOGRAM"
     elif trend == "SHORT":
         correction_count = up_closes
-        correction_counter_label = "近8日上涨收盘数"
+        correction_counter_label = "recent up closes"
         recent_gap_to_value_band = (recent_value_band_low - recent_close).clip(lower=0)
         latest_gap_window = recent_gap_to_value_band.tail(indicators.DAILY_REVERSAL_LOOKBACK)
         countertrend_exists = correction_in_window and (up_closes >= 2 or bool((recent_close >= recent_ema).any()))
@@ -657,15 +657,15 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
         )
         if not countertrend_exists:
             state = "REJECT"
-            reject_reason = "周线做空但日线未形成可识别反弹，不属于可执行 setup"
+            reject_reason = "Weekly trend is short, but daily has no recognizable rally setup"
             rsi_state = "NO_RALLY"
         elif not structure_intact:
             state = "REJECT"
-            reject_reason = "反弹结构已明显突破防守摆点，止损边界不可定义"
+            reject_reason = "Rally structure broke above the defensive pivot, so stop boundary is not well-defined"
             rsi_state = "STRUCTURE_BROKEN"
         elif accelerating_correction and not histogram_reversal:
             state = "REJECT"
-            reject_reason = "日线反弹仍在加速，尚未出现滞涨转弱迹象"
+            reject_reason = "Daily rally is still accelerating without evidence of stalling weakness"
             rsi_state = "ACCELERATING_RALLY"
         elif not entered_value_zone:
             state = "WATCH"
@@ -680,38 +680,38 @@ def legacy_screen_daily(df_day: pd.DataFrame | None, trend: str, settings: Strat
             watch = True
             rsi_state = "RALLY_WAIT_HISTOGRAM"
     else:
-        reject_reason = "周线方向不明，日线不单独提供交易资格"
+        reject_reason = "Weekly direction is unclear; daily setup is not traded independently"
 
     elder_core_signal_count = int(sum(elder_core_checks))
-    direction_label = "回调" if trend == "LONG" else "反弹" if trend == "SHORT" else "修正"
+    direction_label = "pullback" if trend == "LONG" else "rally" if trend == "SHORT" else "correction"
     value_zone_label = (
-        f"{value_band_low.iloc[-1]:.2f}~{value_band_high.iloc[-1]:.2f}，最新区间 {latest_low:.2f}~{latest_high:.2f}"
+        f"{value_band_low.iloc[-1]:.2f}~{value_band_high.iloc[-1]:.2f}, latest range {latest_low:.2f}~{latest_high:.2f}"
         if trend in {"LONG", "SHORT"}
         else "—"
     )
     structure_label = (
-        f"最新低点 {latest_low:.2f} >= 防守位 {structure_break_level:.2f}"
+        f"Latest low {latest_low:.2f} >= defense level {structure_break_level:.2f}"
         if trend == "LONG" and structure_break_level is not None
-        else f"最新高点 {latest_high:.2f} <= 防守位 {structure_break_level:.2f}"
+        else f"Latest high {latest_high:.2f} <= defense level {structure_break_level:.2f}"
         if trend == "SHORT" and structure_break_level is not None
         else "—"
     )
     histogram_label = f"Histogram {macd_hist_prev:+.4f}->{macd_hist_now:+.4f}" if trend in {"LONG", "SHORT"} else "—"
     detail_prefix = (
-        f"{correction_counter_label} {correction_count}；"
-        f"13EMA 价值带 {value_zone_label}；"
-        f"{structure_label}；"
-        f"Histogram 检查 {histogram_label}。"
+        f"{correction_counter_label} {correction_count}; "
+        f"13EMA value band {value_zone_label}; "
+        f"{structure_label}; "
+        f"Histogram check {histogram_label}."
     )
     if state == "REJECT":
-        reason = f"{detail_prefix} 结论：{reject_reason}"
+        reason = f"{detail_prefix} Conclusion: {reject_reason}"
     elif state == "QUALIFIED":
-        reason = f"{detail_prefix} 结论：{direction_label} setup 已具备执行条件，当前 {elder_core_signal_count}/3 项 Elder 核心信号到位，可进入候选池。"
+        reason = f"{detail_prefix} Conclusion: {direction_label} setup is executable; {elder_core_signal_count}/3 Elder core signals are ready; candidate can enter the pool."
     else:
         reason = (
-            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/3 项 Elder 核心信号到位，继续观察。"
+            f"{detail_prefix} Conclusion: {direction_label} setup exists, but only {elder_core_signal_count}/3 Elder core signals are ready; keep watching."
             if value_zone_reached
-            else f"{detail_prefix} 结论：{direction_label} setup 已出现，但还没回到 13EMA 价值带，继续观察。"
+            else f"{detail_prefix} Conclusion: {direction_label} setup exists, but price has not returned to the 13EMA value band; keep watching."
         )
 
     return {
@@ -876,8 +876,8 @@ _MODELS: dict[str, TradingModel] = {
     ELDER_FORCE_MODEL_ID: TradingModel(
         spec=TradingModelSpec(
             id=ELDER_FORCE_MODEL_ID,
-            label="Elder Force 回调模型",
-            description="Elder 三重滤网风格模型：周线用 MACD 斜率配合动力系统方向门控，日线用 2 日 Force Index 识别顺周线趋势的短线回调/反弹，盘中以日线 EMA 穿透价优先、前一日突破价备选。",
+            label="Elder Force pullback model",
+            description="Elder triple-screen style model: weekly MACD slope plus impulse-system direction gate, daily 2-day Force Index for trend-aligned pullbacks/rallies, and intraday execution using daily EMA penetration first with previous-day breakout as the alternate trigger.",
             weekly_model="Elder impulse-system gate with MACD slope",
             daily_model="Elder 2-day Force Index pullback/rally setup",
             intraday_trigger="Daily EMA penetration entry first, previous-day break as alternate trigger",
@@ -891,8 +891,8 @@ _MODELS: dict[str, TradingModel] = {
     VALUE_REVERSAL_MODEL_ID: TradingModel(
         spec=TradingModelSpec(
             id=VALUE_REVERSAL_MODEL_ID,
-            label="价值带转向模型",
-            description="偏保守的价值带回调模型：周线看 MACD Histogram 与 13EMA 同向，日线等待回到 13EMA 价值带、Histogram 转向且结构完整，盘中用上一根已收盘小时 K 高低点 trailing stop 触发。",
+            label="Value-band reversal model",
+            description="Conservative value-band pullback model: weekly MACD histogram and 13EMA alignment, daily return to the 13EMA value band with histogram reversal and intact structure, then intraday trigger from a trailing stop at the previous closed hourly bar high/low.",
             weekly_model="MACD histogram delta with EMA13 alignment",
             daily_model="Value-zone pullback/rally plus histogram reversal",
             intraday_trigger="Trailing buy-stop/sell-stop from the previous closed hourly bar",

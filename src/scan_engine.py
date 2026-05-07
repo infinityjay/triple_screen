@@ -184,7 +184,7 @@ class TripleScreenScanner:
             "breakout_entry": breakout_entry,
             "ema_penetration_entry": ema_entry,
             "primary_order": {
-                "name": "前日突破 Stop Limit",
+                "name": "Previous-day breakout Stop Limit",
                 "order_type": "Stop Limit",
                 "ibkr_order_type": "STP LMT",
                 "action": action,
@@ -199,12 +199,12 @@ class TripleScreenScanner:
                 "instruction": (
                     f"{side_label} Stop Limit: Stop {stop_price:.2f}, Limit {limit_price:.2f}"
                     if stop_price is not None and limit_price is not None
-                    else "等待突破价"
+                    else "Waiting for breakout price"
                 ),
                 "exits": breakout_exits,
             },
             "secondary_order": {
-                "name": "EMA 穿透限价",
+                "name": "EMA penetration limit",
                 "order_type": "Limit",
                 "ibkr_order_type": "LMT",
                 "action": action,
@@ -218,7 +218,7 @@ class TripleScreenScanner:
                 "instruction": (
                     f"{side_label} Limit: Limit {float(ema_entry):.2f}"
                     if ema_entry is not None
-                    else "等待 EMA 穿透价"
+                    else "Waiting for EMA penetration price"
                 ),
                 "exits": ema_exits,
             },
@@ -231,9 +231,9 @@ class TripleScreenScanner:
                 "reward_risk_ratio_model": breakout_exits.get("reward_risk_ratio_model"),
             },
             "manual_review_required": not bool(daily.get("pass")),
-            "review_note": "日线已合格，可按次日订单计划准备；盘前仍需检查跳空、财报、重复订单。"
+            "review_note": "Daily setup is qualified. Prepare the next-session order plan and review gap, earnings, and duplicate orders before the open."
             if daily.get("pass")
-            else "当前仅为监测候选，订单计划仅供预案参考，需人工确认。",
+            else "This is a monitoring candidate. Treat the order plan as a draft and confirm manually before use.",
         }
 
     @staticmethod
@@ -288,9 +288,9 @@ class TripleScreenScanner:
             base_score = float(candidate.get("candidate_score", candidate.get("signal_score", 0.0)) or 0.0)
             tags = list(candidate.get("priority_tags", []))
             if consecutive_sessions >= 2:
-                tags.append(f"连续{consecutive_sessions}次入选")
+                tags.append(f"Selected {consecutive_sessions} sessions in a row")
             elif appearance_count >= 2:
-                tags.append(f"近{lookback_sessions}次入选{appearance_count}次")
+                tags.append(f"Selected {appearance_count} of last {lookback_sessions} sessions")
             tags = list(dict.fromkeys(tags))
 
             candidate["history"] = {
@@ -330,7 +330,7 @@ class TripleScreenScanner:
                 "blocked": False,
                 "warning": False,
                 "days_until": None,
-                "reason": "未获取到财报日期",
+                "reason": "No earnings date was found",
             }
 
         try:
@@ -343,7 +343,7 @@ class TripleScreenScanner:
                 "blocked": False,
                 "warning": False,
                 "days_until": None,
-                "reason": f"财报日期格式无效：{raw_event.get('report_date')}",
+                "reason": f"Invalid earnings date format: {raw_event.get('report_date')}",
                 "estimate": raw_event.get("estimate"),
             }
         days_until = (report_date - session_date).days
@@ -355,7 +355,7 @@ class TripleScreenScanner:
                 "blocked": False,
                 "warning": False,
                 "days_until": None,
-                "reason": f"缓存财报日 {report_date.isoformat()} 已早于当前交易日，等待财报日更新",
+                "reason": f"Cached earnings date {report_date.isoformat()} is older than the current session; waiting for an updated date",
                 "estimate": raw_event.get("estimate"),
             }
 
@@ -368,13 +368,13 @@ class TripleScreenScanner:
 
         if blocked:
             status = "BLOCKED"
-            reason = f"财报日在 {report_date.isoformat()}，处于黑窗期"
+            reason = f"Earnings date {report_date.isoformat()} is inside the blocked window"
         elif warning:
             status = "WARNING"
-            reason = f"财报日在 {report_date.isoformat()}，接近财报窗口"
+            reason = f"Earnings date {report_date.isoformat()} is near the earnings window"
         else:
             status = "CLEAR"
-            reason = f"下一次财报日为 {report_date.isoformat()}"
+            reason = f"Next earnings date is {report_date.isoformat()}"
 
         return {
             "symbol": symbol,
@@ -392,14 +392,14 @@ class TripleScreenScanner:
             weekly_frame,
             self.settings.strategy,
             direction,
-            "周线",
+            "Weekly",
             self.settings.qualification.strong_divergence_exhaustion_multiplier,
         )
         daily_divergence = indicators.detect_divergence(
             daily_frame,
             self.settings.strategy,
             direction,
-            "日线",
+            "Daily",
             self.settings.qualification.strong_divergence_exhaustion_multiplier,
         )
         strong_divergence = bool(
@@ -445,7 +445,7 @@ class TripleScreenScanner:
                     "report_date": earnings.get("report_date"),
                     "days_until": int(days_until),
                     "status": earnings.get("status", "UNKNOWN"),
-                    "reason": earnings.get("reason", "未获取到财报日期"),
+                    "reason": earnings.get("reason", "No earnings date was found"),
                 }
             )
 
@@ -491,7 +491,7 @@ class TripleScreenScanner:
                             "daily_impulse_color": daily_color,
                             "daily_ema_slope": daily_impulse.get("ema_slope"),
                             "daily_macd_slope": daily_impulse.get("macd_slope"),
-                            "reason": "模型提示当前持仓面临大额亏损风险，按规则需要复核是否平仓。",
+                            "reason": "The model flags elevated loss risk for this open position; review whether it should be closed.",
                         }
                     )
             except Exception as exc:
@@ -501,7 +501,7 @@ class TripleScreenScanner:
                         "symbol": symbol,
                         "direction": str(trade.get("direction", "long")),
                         "status": "ERROR",
-                        "reason": f"持仓动力系统检查失败：{exc}",
+                        "reason": f"Open-position impulse check failed: {exc}",
                     }
                 )
 
@@ -612,13 +612,14 @@ class TripleScreenScanner:
                 "daily": daily,
                 "hourly": {
                     "status": "PENDING_INTRADAY",
-                    "reason": "收盘候选池阶段已生成次日订单计划，小时线留作触碰提醒与突破质量复核。",
+                    "reason": "EOD scan generated the next-session order plan. Hourly scans are reserved for touch alerts and breakout-quality review.",
                 },
                 "exits": order_plan.get("primary_order", {}).get("exits")
                 or {
                     "reward_risk_ratio": 0.0,
                     "weekly_value_target": weekly.get("weekly_value_target"),
                 },
+                "order_plan": order_plan,
                 "next_day_order_plan": order_plan,
                 "earnings": earnings,
                 "divergence": divergence,
@@ -629,7 +630,7 @@ class TripleScreenScanner:
             logger.info(
                 "[%s] qualified %s candidate_score=%.2f strong_div=%s | %s",
                 symbol,
-                "做多" if direction == "LONG" else "做空",
+                "Long" if direction == "LONG" else "Short",
                 candidate["candidate_score"],
                 candidate["strong_divergence"],
                 candidate["summary"],
@@ -759,6 +760,7 @@ class TripleScreenScanner:
             refreshed["earnings"] = earnings
             refreshed["divergence"] = divergence
             refreshed["strong_divergence"] = divergence["strong_divergence"]
+            refreshed["order_plan"] = order_plan
             refreshed["next_day_order_plan"] = order_plan
             refreshed["candidate_score"] = indicators.calc_candidate_score(weekly, daily)
             refreshed["signal_score"] = refreshed["candidate_score"]
@@ -820,7 +822,7 @@ class TripleScreenScanner:
                 index,
                 candidate["earnings"]["status"],
                 candidate["symbol"],
-                "做多" if candidate["direction"] == "LONG" else "做空",
+                "Long" if candidate["direction"] == "LONG" else "Short",
                 candidate.get("candidate_score", candidate.get("signal_score", 0.0)),
                 candidate["strong_divergence"],
                 candidate["summary"],
@@ -915,7 +917,7 @@ class TripleScreenScanner:
                 "INTRADAY ACTION TOP %s %s %s status=%s execution_score=%.2f rr=%.2f strong_div=%s | %s",
                 index,
                 opportunity["symbol"],
-                "做多" if opportunity["direction"] == "LONG" else "做空",
+                "Long" if opportunity["direction"] == "LONG" else "Short",
                 opportunity["opportunity_status"],
                 opportunity.get("execution_score", opportunity.get("signal_score", 0.0)),
                 float(opportunity["exits"].get("reward_risk_ratio_model", 0.0) or 0.0),
@@ -965,7 +967,7 @@ class TripleScreenScanner:
     def _build_premarket_review_item(self, candidate: dict, manual_orders: list[dict]) -> dict:
         symbol = candidate["symbol"]
         direction = candidate["direction"]
-        order_plan = candidate.get("next_day_order_plan") or {}
+        order_plan = candidate.get("order_plan") or candidate.get("next_day_order_plan") or {}
         primary_order = order_plan.get("primary_order") or {}
         stop_price = primary_order.get("stop_price")
         limit_price = primary_order.get("limit_price")
@@ -978,7 +980,7 @@ class TripleScreenScanner:
                 "code": "MANUAL_ORDER",
                 "pass": has_order,
                 "severity": "WARN" if not has_order else "OK",
-                "message": "已有手工订单记录" if has_order else "未找到手工订单记录，请确认是否已在 IBKR 挂单",
+                "message": "Manual order record found" if has_order else "No manual order record found. Confirm whether the order exists in IBKR.",
             }
         )
         checks.append(
@@ -986,7 +988,7 @@ class TripleScreenScanner:
                 "code": "EARNINGS",
                 "pass": not bool(candidate.get("earnings", {}).get("blocked")),
                 "severity": "BLOCK" if candidate.get("earnings", {}).get("blocked") else "OK",
-                "message": candidate.get("earnings", {}).get("reason", "财报状态正常"),
+                "message": candidate.get("earnings", {}).get("reason", "Earnings status is clear"),
             }
         )
         checks.append(
@@ -994,11 +996,11 @@ class TripleScreenScanner:
                 "code": "CANDIDATE",
                 "pass": bool(candidate.get("daily", {}).get("pass")),
                 "severity": "WARN" if not candidate.get("daily", {}).get("pass") else "OK",
-                "message": "仍为合格候选" if candidate.get("daily", {}).get("pass") else "日线不再是立即执行候选",
+                "message": "Candidate remains qualified" if candidate.get("daily", {}).get("pass") else "Daily setup is no longer an immediate execution candidate",
             }
         )
 
-        gap_message = "无盘前参考价，无法判断跳空"
+        gap_message = "No premarket reference price is available, so the gap cannot be evaluated"
         gap_pass = True
         gap_pct = None
         if current_price is not None and stop_price is not None:
@@ -1007,16 +1009,16 @@ class TripleScreenScanner:
             if direction == "LONG":
                 gap_pass = float(current_price) <= float(limit_price or stop_value) and gap_pct <= PREMARKET_GAP_ALERT_PCT * 100
                 gap_message = (
-                    f"参考价 {current_price:.2f} 已高于可接受限价 {float(limit_price):.2f}，建议人工确认"
+                    f"Reference price {current_price:.2f} is above the acceptable limit {float(limit_price):.2f}; review manually"
                     if not gap_pass and limit_price is not None and float(current_price) > float(limit_price)
-                    else f"参考价相对突破价偏离 {gap_pct:.2f}%"
+                    else f"Reference price is {gap_pct:.2f}% away from the breakout stop"
                 )
             else:
                 gap_pass = float(current_price) >= float(limit_price or stop_value) and gap_pct >= -PREMARKET_GAP_ALERT_PCT * 100
                 gap_message = (
-                    f"参考价 {current_price:.2f} 已低于可接受限价 {float(limit_price):.2f}，建议人工确认"
+                    f"Reference price {current_price:.2f} is below the acceptable limit {float(limit_price):.2f}; review manually"
                     if not gap_pass and limit_price is not None and float(current_price) < float(limit_price)
-                    else f"参考价相对突破价偏离 {gap_pct:.2f}%"
+                    else f"Reference price is {gap_pct:.2f}% away from the breakout stop"
                 )
         checks.append(
             {

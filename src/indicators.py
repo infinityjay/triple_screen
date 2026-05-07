@@ -214,7 +214,7 @@ def detect_divergence(
             "strong_alert": False,
             "timeframe": timeframe,
             "direction": direction,
-            "reason": f"{timeframe}数据不足，无法判断背离",
+            "reason": f"{timeframe} data is insufficient for divergence detection",
         }
 
     frame = df.tail(DIVERGENCE_LOOKBACK).copy()
@@ -231,7 +231,7 @@ def detect_divergence(
             "strong_alert": False,
             "timeframe": timeframe,
             "direction": direction,
-            "reason": f"{timeframe}未形成足够清晰的摆点背离",
+            "reason": f"{timeframe} has no sufficiently clear pivot divergence",
         }
 
     second_price_pivot = price_pivots[-1]
@@ -244,19 +244,19 @@ def detect_divergence(
             "strong_alert": False,
             "timeframe": timeframe,
             "direction": direction,
-            "reason": f"{timeframe}价格摆点附近缺少MACD柱线摆点",
+            "reason": f"{timeframe} price pivots lack nearby MACD histogram pivots",
         }
 
     if direction == "SHORT":
         price_condition = high.iloc[second_price_pivot] > high.iloc[first_price_pivot]
         histogram_condition = histogram.iloc[second_hist_pivot] < histogram.iloc[first_hist_pivot]
         crossed_zero = bool((histogram.iloc[first_hist_pivot:second_hist_pivot] < 0).any())
-        label = "熊市顶背离"
+        label = "bearish top divergence"
     else:
         price_condition = low.iloc[second_price_pivot] < low.iloc[first_price_pivot]
         histogram_condition = histogram.iloc[second_hist_pivot] > histogram.iloc[first_hist_pivot]
         crossed_zero = bool((histogram.iloc[first_hist_pivot:second_hist_pivot] > 0).any())
-        label = "牛市底背离"
+        label = "bullish bottom divergence"
 
     detected = bool(price_condition and histogram_condition and crossed_zero)
     if not detected:
@@ -265,11 +265,11 @@ def detect_divergence(
             "strong_alert": False,
             "timeframe": timeframe,
             "direction": direction,
-            "reason": f"{timeframe}最近两次摆点未满足{label}条件",
+            "reason": f"{timeframe} recent pivots do not satisfy {label} conditions",
         }
 
     strong_alert = False
-    exhaustion_reason = "未出现显著的三柱衰竭形态"
+    exhaustion_reason = "No significant three-bar exhaustion pattern"
     if len(frame) >= 23:
         ranges = (frame["high"] - frame["low"]).astype(float)
         recent_three = ranges.iloc[-3:]
@@ -289,7 +289,7 @@ def detect_divergence(
                 )
             if strong_alert:
                 exhaustion_reason = (
-                    f"最近三根K线中间一根振幅达到近20根中位数的 {middle_bar / baseline:.2f} 倍"
+                    f"Middle bar in the latest three reached {middle_bar / baseline:.2f}x the median range of the prior 20 bars"
                 )
 
     return {
@@ -300,7 +300,7 @@ def detect_divergence(
         "label": label,
         "first_price_pivot_at": str(frame.index[first_price_pivot]),
         "second_price_pivot_at": str(frame.index[second_price_pivot]),
-        "reason": f"{timeframe}{label}成立，且柱线在两次摆点之间完成零轴穿越",
+        "reason": f"{timeframe}{label} is valid, with histogram crossing zero between pivots",
         "exhaustion_reason": exhaustion_reason,
     }
 
@@ -410,7 +410,7 @@ def calc_ema_penetration_entry_plan(
     min_tick: float = MIN_TICK,
 ) -> dict:
     if df is None or len(df) < max(ema_period + 2, 3) or direction not in {"LONG", "SHORT"}:
-        return {"available": False, "reason": "日线数据不足，无法计算 EMA 穿透入场价"}
+        return {"available": False, "reason": "Insufficient daily data; cannot calculate EMA penetration entry"}
 
     frame = df.copy()
     close = frame["close"].astype(float)
@@ -430,11 +430,11 @@ def calc_ema_penetration_entry_plan(
         average_penetration = float(positive.mean()) if not positive.empty else 0.0
         ema_penetration_entry = projected_ema - average_penetration
         breakout_entry = float(high.iloc[-1]) + min_tick
-        trigger_label = "买入"
+        trigger_label = "Buy"
         reason = (
-            f"明日 EMA{ema_period} 估算 {projected_ema:.2f}，减近{lookback}日平均下跌穿透 "
-            f"{average_penetration:.2f}，参考买入限价 {ema_penetration_entry:.2f}；"
-            f"替代 buy-stop 为前一日高点上方 {breakout_entry:.2f}。"
+            f"Projected next EMA{ema_period} estimate {projected_ema:.2f}, minus recent {lookback}-day average downside penetration "
+            f"{average_penetration:.2f}, reference buy limit {ema_penetration_entry:.2f}; "
+            f"alternate buy-stop is above the previous day high at {breakout_entry:.2f}."
         )
     else:
         penetrations = (window["high"].astype(float) - ema_window).clip(lower=0)
@@ -442,11 +442,11 @@ def calc_ema_penetration_entry_plan(
         average_penetration = float(positive.mean()) if not positive.empty else 0.0
         ema_penetration_entry = projected_ema + average_penetration
         breakout_entry = float(low.iloc[-1]) - min_tick
-        trigger_label = "卖空"
+        trigger_label = "Short sell"
         reason = (
-            f"明日 EMA{ema_period} 估算 {projected_ema:.2f}，加近{lookback}日平均上穿透 "
-            f"{average_penetration:.2f}，参考卖空限价 {ema_penetration_entry:.2f}；"
-            f"替代 sell-stop 为前一日低点下方 {breakout_entry:.2f}。"
+            f"Projected next EMA{ema_period} estimate {projected_ema:.2f}, plus recent {lookback}-day average upside penetration "
+            f"{average_penetration:.2f}, reference short-sell limit {ema_penetration_entry:.2f}; "
+            f"alternate sell-stop is below the previous day low at {breakout_entry:.2f}."
         )
 
     return {
@@ -471,7 +471,7 @@ def calc_ema_penetration_entry_plan(
 
 def calc_weekly_value_target(df_week: pd.DataFrame | None, direction: str) -> dict:
     if df_week is None or len(df_week) < WEEKLY_VALUE_SLOW_EMA + 2 or direction not in {"LONG", "SHORT"}:
-        return {"available": False, "target_price": None, "reason": "周线数据不足，无法计算周线价值区间目标"}
+        return {"available": False, "target_price": None, "reason": "Insufficient weekly data; cannot calculate weekly value-zone target"}
 
     close = df_week["close"].astype(float)
     fast = calc_ema(close, WEEKLY_VALUE_FAST_EMA)
@@ -489,9 +489,9 @@ def calc_weekly_value_target(df_week: pd.DataFrame | None, direction: str) -> di
         "value_zone_high": round(upper, 4),
         "target_price": round(target, 4),
         "reason": (
-            f"周线价值区间 EMA{WEEKLY_VALUE_FAST_EMA}/{WEEKLY_VALUE_SLOW_EMA}: "
-            f"{lower:.2f}~{upper:.2f}，{'做多' if direction == 'LONG' else '做空'}首个盈利目标取 "
-            f"{target:.2f}。"
+            f"Weekly value zone EMA{WEEKLY_VALUE_FAST_EMA}/{WEEKLY_VALUE_SLOW_EMA}: "
+            f"{lower:.2f}~{upper:.2f}; {'Long' if direction == 'LONG' else 'Short'} first profit target "
+            f"{target:.2f}."
         ),
     }
 
@@ -612,56 +612,56 @@ def build_stop_methods(
         {
             "code": "NICK",
             "group": "initial",
-            "label": "尼克止损法",
+            "label": "Nick stop",
             "price": round(nick_stop, 4) if nick_stop is not None else None,
             "reference": (
                 f"{nick_detail.get('reference_date')} "
-                f"{nick_detail.get('reference_price'):.2f} 外 0.01"
+                f"{nick_detail.get('reference_price'):.2f} plus 0.01 outside"
                 if nick_detail
-                else "当前 V/W 结构次低点(次高点)外 0.01"
+                else "second low/high of current V/W structure plus 0.01 outside"
             ),
             "reference_date": nick_detail.get("reference_date") if nick_detail else None,
             "reference_price": round(float(nick_detail["reference_price"]), 4) if nick_detail else None,
             "style": "structure",
-            "source": "前低/次低点结构止损思路",
-            "suitable_for": "底部/顶部结构较清晰，想给极端低点留一点噪音空间时。",
-            "detail": "从最近一个反向摆点起，取当前结构里第二低(高)点，再向外留一美分。",
+            "source": "prior-low/second-low structural stop",
+            "suitable_for": "Useful when bottom/top structure is clear and you want slight noise outside the extreme.",
+            "detail": "From the latest opposite pivot, use the second low/high in the current structure plus one cent outside.",
         },
         {
             "code": "SAFEZONE",
             "group": "initial",
-            "label": "SafeZone 初始止损",
+            "label": "SafeZone initial stop",
             "price": round(safezone_stop, 4) if safezone_stop is not None else None,
             "reference": (
-                f"EMA{trade_plan.safezone_ema_period} 近{trade_plan.safezone_lookback}根穿透均值 × "
+                f"EMA{trade_plan.safezone_ema_period} last {trade_plan.safezone_lookback}bars penetration average × "
                 f"{_safezone_coefficient(trade_plan, direction)}"
             ),
             "style": "adaptive",
-            "source": "Elder 官方 SafeZone",
-            "suitable_for": "入场时希望按趋势噪音给结构留空间时。",
-            "detail": f"按 EMA 穿透噪音估算初始防守位，当前平均穿透 {safezone_noise:.4f}。",
+            "source": "Elder official SafeZone",
+            "suitable_for": "Useful when entry risk should allow trend noise.",
+            "detail": f"Initial defense estimated from EMA penetration noise; current average penetration {safezone_noise:.4f}.",
         },
         {
             "code": "ATR_1X",
             "group": "trailing",
-            "label": "ATR 移动止损 1x",
+            "label": "ATR trailing stop 1x",
             "price": round(atr_stop_1x, 4) if atr_stop_1x is not None else None,
-            "reference": f"最新日线极值 ± 1.0 ATR（当前 ATR {atr_value:.4f}）",
+            "reference": f"Latest daily extreme +/- 1.0 ATR (current ATR {atr_value:.4f})",
             "style": "adaptive",
-            "source": "ATR 移动止损",
-            "suitable_for": "想把移动止损跟得更紧一些时。",
-            "detail": "按最新日线柱极值外侧 1 倍 ATR 放置。",
+            "source": "ATR trailing stop",
+            "suitable_for": "Useful for tighter trailing stops.",
+            "detail": "Placed one ATR outside the latest daily bar extreme.",
         },
         {
             "code": "ATR_2X",
             "group": "trailing",
-            "label": "ATR 移动止损 2x",
+            "label": "ATR trailing stop 2x",
             "price": round(atr_stop_2x, 4) if atr_stop_2x is not None else None,
-            "reference": f"最新日线极值 ± 2.0 ATR（当前 ATR {atr_value:.4f}）",
+            "reference": f"Latest daily extreme +/- 2.0 ATR (current ATR {atr_value:.4f})",
             "style": "adaptive",
-            "source": "ATR 移动止损",
-            "suitable_for": "想给持仓留更宽波动空间时。",
-            "detail": "按最新日线柱极值外侧 2 倍 ATR 放置，作为更宽的移动止损。",
+            "source": "ATR trailing stop",
+            "suitable_for": "Useful when you want more room for position volatility.",
+            "detail": "Placed two ATR outside the latest daily bar extreme as a wider trailing stop.",
         },
     ]
 
@@ -669,7 +669,7 @@ def build_stop_methods(
 def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dict:
     required = settings.weekly.macd_slow + settings.weekly.macd_signal + 5
     if df_week is None or len(df_week) < required:
-        return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "周线数据不足"}
+        return {"trend": "NEUTRAL", "pass": False, "actionable": False, "reason": "Insufficient weekly data"}
 
     macd, signal, histogram = calc_macd(df_week, settings)
     impulse = calc_impulse_system(df_week, settings)
@@ -723,22 +723,22 @@ def screen_weekly(df_week: pd.DataFrame | None, settings: StrategyConfig) -> dic
     if trend == "LONG":
         setup_state = "BULLISH_MACD_SLOPE"
         reason = (
-            f"周线 MACD 斜率 {macd_slope:+.4f}（向上）；"
-            f"动力系统 {impulse_color}（EMA斜率 {impulse['ema_slope']:+.4f}，MACD斜率 {impulse['macd_slope']:+.4f}）；"
-            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}，允许做多={allows_long}。"
+            f"Weekly MACD slope {macd_slope:+.4f} (up); "
+            f"Impulse system {impulse_color} (EMA slope {impulse['ema_slope']:+.4f}, MACD slope {impulse['macd_slope']:+.4f}); "
+            f"confirmed bars {confirmed}/{settings.weekly.confirm_bars}, allows_long={allows_long}."
         )
     elif trend == "SHORT":
         setup_state = "BEARISH_MACD_SLOPE"
         reason = (
-            f"周线 MACD 斜率 {macd_slope:+.4f}（向下）；"
-            f"动力系统 {impulse_color}（EMA斜率 {impulse['ema_slope']:+.4f}，MACD斜率 {impulse['macd_slope']:+.4f}）；"
-            f"确认 bars {confirmed}/{settings.weekly.confirm_bars}，允许做空={allows_short}。"
+            f"Weekly MACD slope {macd_slope:+.4f} (down); "
+            f"Impulse system {impulse_color} (EMA slope {impulse['ema_slope']:+.4f}, MACD slope {impulse['macd_slope']:+.4f}); "
+            f"confirmed bars {confirmed}/{settings.weekly.confirm_bars}, allows_short={allows_short}."
         )
     else:
         setup_state = "NEUTRAL"
         reason = (
-            f"周线 MACD 斜率 {macd_slope:+.4f}（方向不清晰）；"
-            f"动力系统 {impulse_color}；确认 bars {confirmed}/{settings.weekly.confirm_bars}。"
+            f"Weekly MACD slope {macd_slope:+.4f} (unclear direction); "
+            f"Impulse system {impulse_color}; confirmed bars {confirmed}/{settings.weekly.confirm_bars}."
         )
 
     value_target = calc_weekly_value_target(df_week, trend)
@@ -792,8 +792,8 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             "pass": False,
             "watch": False,
             "state": "REJECT",
-            "reject_reason": "日线数据不足",
-            "reason": "日线数据不足",
+            "reject_reason": "Insufficient daily data",
+            "reason": "Insufficient daily data",
             "countertrend_exists": False,
             "value_zone_reached": False,
             "reversal_evidence_count": 0,
@@ -874,13 +874,13 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     state = "REJECT"
     rsi_state = "NEUTRAL"
     correction_count = 0
-    correction_counter_label = "近8日修正收盘数"
+    correction_counter_label = "recent correction closes"
     histogram_reversal = False
     rsi_strength = 0.0
 
     if trend == "LONG":
         correction_count = down_closes
-        correction_counter_label = "近8日下跌收盘数"
+        correction_counter_label = "recent down closes"
         countertrend_exists = bool(force_now < 0 or down_closes >= 1 or latest_low <= float(ema13.iloc[-1]))
         force_signal = force_now < 0
         same_impulse_or_trend = impulse_color in {"GREEN", "BLUE"}
@@ -891,17 +891,17 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         rsi_strength = max(0.0, 50.0 - rsi_now)
         if not force_signal:
             state = "REJECT"
-            reject_reason = "周线允许做多，但 2 日 Force Index EMA 尚未降到 0 以下"
+            reject_reason = "Weekly allows long, but 2-day Force Index EMA is not below zero"
             rsi_state = "PULLBACK_WAIT_FORCE_BELOW_ZERO"
         elif not same_impulse_or_trend:
             state = "WATCH"
             watch = True
-            reject_reason = "日线动力系统仍为红色，先观察，不把它当成立即交易信号"
+            reject_reason = "Daily impulse is still red; watch first, not an immediate trade signal"
             rsi_state = "PULLBACK_FORCE_READY_WAIT_IMPULSE"
         elif not structure_intact:
             state = "WATCH"
             watch = True
-            reject_reason = "Force 信号已出现，但日线低点已破坏短期结构，谨慎观察"
+            reject_reason = "Force signal appeared, but the daily low broke short-term structure; watch carefully"
             rsi_state = "STRUCTURE_BROKEN"
         else:
             state = "QUALIFIED"
@@ -909,7 +909,7 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
             rsi_state = "PULLBACK_FORCE_BELOW_ZERO"
     elif trend == "SHORT":
         correction_count = up_closes
-        correction_counter_label = "近8日上涨收盘数"
+        correction_counter_label = "recent up closes"
         countertrend_exists = bool(force_now > 0 or up_closes >= 1 or latest_high >= float(ema13.iloc[-1]))
         force_signal = force_now > 0 and force_not_new_high
         same_impulse_or_trend = impulse_color in {"RED", "BLUE"}
@@ -920,24 +920,24 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
         rsi_strength = max(0.0, rsi_now - 50.0)
         if not force_signal:
             state = "REJECT"
-            reject_reason = "周线允许做空，但 2 日 Force Index EMA 尚未升到 0 以上，或已经创数周新高"
+            reject_reason = "Weekly allows short, but 2-day Force Index EMA is not above zero or has made a multi-week high"
             rsi_state = "RALLY_WAIT_FORCE_ABOVE_ZERO"
         elif not same_impulse_or_trend:
             state = "WATCH"
             watch = True
-            reject_reason = "日线动力系统仍为绿色，先观察，不把它当成立即交易信号"
+            reject_reason = "Daily impulse is still green; watch first, not an immediate trade signal"
             rsi_state = "RALLY_FORCE_READY_WAIT_IMPULSE"
         elif not structure_intact:
             state = "WATCH"
             watch = True
-            reject_reason = "Force 信号已出现，但日线高点已破坏短期结构，谨慎观察"
+            reject_reason = "Force signal appeared, but the daily high broke short-term structure; watch carefully"
             rsi_state = "STRUCTURE_BROKEN"
         else:
             state = "QUALIFIED"
             passed = True
             rsi_state = "RALLY_FORCE_ABOVE_ZERO"
     else:
-        reject_reason = "周线方向不明，日线不单独提供交易资格"
+        reject_reason = "Weekly direction is unclear; daily setup is not traded independently"
 
     elder_core_checks = [force_signal, same_impulse_or_trend, structure_intact]
     setup_score = (
@@ -951,20 +951,20 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
 
     elder_core_signal_count = int(sum(elder_core_checks))
     if trend == "LONG":
-        direction_label = "回调"
+        direction_label = "pullback"
     elif trend == "SHORT":
-        direction_label = "反弹"
+        direction_label = "rally"
     else:
-        direction_label = "修正"
+        direction_label = "correction"
 
     value_zone_label = (
-        f"{value_band_low.iloc[-1]:.2f}~{value_band_high.iloc[-1]:.2f}，最新区间 {latest_low:.2f}~{latest_high:.2f}"
+        f"{value_band_low.iloc[-1]:.2f}~{value_band_high.iloc[-1]:.2f}, latest range {latest_low:.2f}~{latest_high:.2f}"
         if trend in {"LONG", "SHORT"}
         else "—"
     )
     structure_label = (
-        f"最新低点 {latest_low:.2f} >= 防守位 {structure_break_level:.2f}" if trend == "LONG" and structure_break_level is not None
-        else f"最新高点 {latest_high:.2f} <= 防守位 {structure_break_level:.2f}" if trend == "SHORT" and structure_break_level is not None
+        f"Latest low {latest_low:.2f} >= defense level {structure_break_level:.2f}" if trend == "LONG" and structure_break_level is not None
+        else f"Latest high {latest_high:.2f} <= defense level {structure_break_level:.2f}" if trend == "SHORT" and structure_break_level is not None
         else "—"
     )
     histogram_label = f"Histogram {macd_hist_prev:+.4f}->{macd_hist_now:+.4f}" if trend in {"LONG", "SHORT"} else "—"
@@ -975,24 +975,24 @@ def screen_daily(df_day: pd.DataFrame | None, trend: str, settings: StrategyConf
     else:
         value_band_gap = None
     detail_prefix = (
-        f"{correction_counter_label} {correction_count}；"
-        f"2日Force EMA {force_prev:+.0f}->{force_now:+.0f}；"
-        f"日线动力系统 {impulse_color}；"
-        f"13EMA 价值带 {value_zone_label}；"
-        f"{structure_label}；"
-        f"辅助 {histogram_label}。"
+        f"{correction_counter_label} {correction_count}; "
+        f"2-day Force EMA {force_prev:+.0f}->{force_now:+.0f}; "
+        f"Daily impulse system {impulse_color}; "
+        f"13EMA value band {value_zone_label}; "
+        f"{structure_label}; "
+        f"Auxiliary {histogram_label}."
     )
 
     if state == "REJECT":
-        reason = f"{detail_prefix} 结论：{reject_reason}"
+        reason = f"{detail_prefix} Conclusion: {reject_reason}"
     elif state == "QUALIFIED":
         reason = (
-            f"{detail_prefix} 结论：{direction_label} setup 已具备执行条件，"
-            f"当前 {elder_core_signal_count}/3 项三重滤网核心信号到位，可进入候选池并等待价格触发。"
+            f"{detail_prefix} Conclusion: {direction_label} setup is executable; "
+            f"{elder_core_signal_count}/3 triple-screen core signals are ready; candidate can enter the pool and wait for price trigger."
         )
     else:
         reason = (
-            f"{detail_prefix} 结论：{direction_label} setup 已出现，但当前仅 {elder_core_signal_count}/3 项核心信号到位，继续观察。"
+            f"{detail_prefix} Conclusion: {direction_label} setup exists, but only {elder_core_signal_count}/3 core signals are ready; keep watching."
         )
 
     return {
@@ -1081,12 +1081,12 @@ def screen_hourly(
     as_of: datetime | None = None,
 ) -> dict:
     if df_hour is None or df_hour.empty:
-        return {"pass": False, "reason": "小时线数据不足"}
+        return {"pass": False, "reason": "Insufficient hourly data"}
 
     closed_bars, live_bar, live_bar_available = _split_hourly_execution_bars(df_hour, as_of=as_of)
     minimum_closed = settings.hourly.atr_period + 1
     if len(closed_bars) < minimum_closed:
-        return {"pass": False, "reason": "小时线已收盘数据不足"}
+        return {"pass": False, "reason": "Insufficient closed hourly data"}
 
     signal_bar = closed_bars.iloc[-1]
     atr = float(calc_atr(closed_bars, settings.hourly.atr_period).iloc[-1])
@@ -1140,26 +1140,26 @@ def screen_hourly(
     gap_atr = (trigger_gap / atr) if atr > 0 else 0.0
     if trend == "LONG":
         reason = (
-            f"当前小时线已向上突破上一根已收盘K线高点，trailing buy-stop 触发（强度 {breakout_strength:.2f} ATR）"
+            f"Current hourly bar broke above the previous closed hourly high; trailing buy-stop triggered (strength {breakout_strength:.2f} ATR)"
             if passed
             else (
-                f"小时线尚未触发，当前 buy-stop 跟踪到上一根已收盘K线高点上方（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
+                f"Hourly has not triggered; current buy-stop tracks above the previous closed hourly high (distance {trigger_gap:.2f}, about {gap_atr:.2f} ATR)"
                 if live_bar_available
-                else "当前暂无进行中的小时K，下一根小时K开始后继续沿最近已收盘K线高点上移买入止损"
+                else "No active hourly bar; the next hourly bar will continue moving the buy-stop above the latest closed hourly high"
             )
         )
     elif trend == "SHORT":
         reason = (
-            f"当前小时线已向下跌破上一根已收盘K线低点，trailing sell-stop 触发（强度 {breakout_strength:.2f} ATR）"
+            f"Current hourly bar broke below the previous closed hourly low; trailing sell-stop triggered (strength {breakout_strength:.2f} ATR)"
             if passed
             else (
-                f"小时线尚未触发，当前 sell-stop 跟踪到上一根已收盘K线低点下方（距离 {trigger_gap:.2f}，约 {gap_atr:.2f} ATR）"
+                f"Hourly has not triggered; current sell-stop tracks below the previous closed hourly low (distance {trigger_gap:.2f}, about {gap_atr:.2f} ATR)"
                 if live_bar_available
-                else "当前暂无进行中的小时K，下一根小时K开始后继续沿最近已收盘K线低点下移卖出止损"
+                else "No active hourly bar; the next hourly bar will continue moving the sell-stop below the latest closed hourly low"
             )
         )
     else:
-        reason = "小时线未匹配周线方向"
+        reason = "Hourly direction does not match weekly direction"
 
     return {
         "close": round(close, 4),
@@ -1239,8 +1239,8 @@ def calc_exits(
         thermometer_ema = float(average_temperature.iloc[-1])
         projected_move = thermometer_ema * trade_plan.thermometer_target_multiplier
 
-        # 暂时停用旧的 SIGNAL_BAR / TWO_BAR / PULLBACK_PIVOT / CHANDELIER / PARABOLIC，
-        # 初始止损只保留 SafeZone 与尼克止损法，移动止损只保留 ATR 1x / 2x。
+        # Temporarily disabled legacy SIGNAL_BAR / TWO_BAR / PULLBACK_PIVOT / CHANDELIER / PARABOLIC exits.
+        # Initial stops keep SafeZone and Nick; trailing stops keep ATR 1x / 2x.
         if direction == "LONG":
             initial_candidates = [("SAFEZONE", safezone_stop), ("NICK", nick_stop)]
             valid_initial_candidates = [(code, float(value)) for code, value in initial_candidates if value is not None]
