@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 TRACKING_SESSION_LIMIT = 1
 HISTORY_SESSION_LIMIT = 3
+STOP_LIMIT_SLIPPAGE_PCT = 0.002
+STOP_LIMIT_MIN_SLIPPAGE = 0.05
+PREMARKET_GAP_ALERT_PCT = 0.01
 
 
 def _utc_now() -> datetime:
@@ -55,6 +58,7 @@ class TripleScreenScanner:
         self.market_timezone = ZoneInfo(settings.app.timezone)
         self.market_open_time = clock_time(hour=9, minute=30)
         self.market_close_time = clock_time(hour=16, minute=0)
+        self.premarket_review_start_time = clock_time(hour=9, minute=15)
         self.eod_auto_cutoff_time = clock_time(hour=16, minute=45)
 
     def _is_recently_alerted(self, symbol: str, direction: str) -> bool:
@@ -110,6 +114,134 @@ class TripleScreenScanner:
     @staticmethod
     def _triggered_sort_key(item: dict) -> tuple[float, int]:
         return (-item.get("execution_score", item.get("signal_score", 0.0)), -int(bool(item.get("strong_divergence"))))
+
+    @staticmethod
+    def _round_price(value: float | None) -> float | None:
+        if value is None:
+            return None
+        return round(float(value), 2)
+
+    def _calc_stop_limit_price(self, direction: str, stop_price: float) -> float:
+        slippage = max(abs(float(stop_price)) * STOP_LIMIT_SLIPPAGE_PCT, STOP_LIMIT_MIN_SLIPPAGE)
+        if direction == "SHORT":
+            return round(float(stop_price) - slippage, 2)
+        return round(float(stop_price) + slippage, 2)
+
+    def _build_next_day_order_plan(
+        self,
+        symbol: str,
+        direction: str,
+        session_date: date,
+        daily_frame,
+        weekly_frame,
+        daily: dict,
+    ) -> dict:
+        entry_plan = daily.get("entry_plan") or indicators.calc_ema_penetration_entry_plan(daily_frame, direction)
+        previous_high = entry_plan.get("previous_high")
+        previous_low = entry_plan.get("previous_low")
+        breakout_entry = entry_plan.get("breakout_entry")
+        ema_entry = entry_plan.get("ema_penetration_entry")
+        action = "BUY" if direction == "LONG" else "SELL"
+        side_label = "Buy" if direction == "LONG" else "Sell"
+        breakout_exits = (
+            self.model.calc_exits(
+                direction,
+                float(breakout_entry),
+                daily_frame,
+                0.0,
+                self.settings.trade_plan,
+                weekly_frame=weekly_frame,
+            )
+            if breakout_entry is not None
+            else {}
+        )
+        ema_exits = (
+            self.model.calc_exits(
+                direction,
+                float(ema_entry),
+                daily_frame,
+                0.0,
+                self.settings.trade_plan,
+                weekly_frame=weekly_frame,
+            )
+            if ema_entry is not None
+            else {}
+        )
+        stop_price = self._round_price(float(breakout_entry)) if breakout_entry is not None else None
+        limit_price = self._calc_stop_limit_price(direction, float(breakout_entry)) if breakout_entry is not None else None
+
+        return {
+            "available": bool(entry_plan.get("available") and breakout_entry is not None),
+            "symbol": symbol,
+            "direction": direction,
+            "source_session_date": session_date.isoformat(),
+            "intended_trade_date": self._next_weekday(session_date).isoformat(),
+            "broker": "IBKR",
+            "slippage_pct": STOP_LIMIT_SLIPPAGE_PCT,
+            "min_slippage": STOP_LIMIT_MIN_SLIPPAGE,
+            "previous_day_high": previous_high,
+            "previous_day_low": previous_low,
+            "breakout_entry": breakout_entry,
+            "ema_penetration_entry": ema_entry,
+            "primary_order": {
+                "name": "前日突破 Stop Limit",
+                "order_type": "Stop Limit",
+                "ibkr_order_type": "STP LMT",
+                "action": action,
+                "side_label": side_label,
+                "quantity": None,
+                "stop_price": stop_price,
+                "limit_price": limit_price,
+                "tif": "DAY",
+                "outside_rth": False,
+                "route": "SMART",
+                "transmit": True,
+                "instruction": (
+                    f"{side_label} Stop Limit: Stop {stop_price:.2f}, Limit {limit_price:.2f}"
+                    if stop_price is not None and limit_price is not None
+                    else "等待突破价"
+                ),
+                "exits": breakout_exits,
+            },
+            "secondary_order": {
+                "name": "EMA 穿透限价",
+                "order_type": "Limit",
+                "ibkr_order_type": "LMT",
+                "action": action,
+                "side_label": side_label,
+                "quantity": None,
+                "limit_price": self._round_price(float(ema_entry)) if ema_entry is not None else None,
+                "tif": "DAY",
+                "outside_rth": False,
+                "route": "SMART",
+                "transmit": True,
+                "instruction": (
+                    f"{side_label} Limit: Limit {float(ema_entry):.2f}"
+                    if ema_entry is not None
+                    else "等待 EMA 穿透价"
+                ),
+                "exits": ema_exits,
+            },
+            "risk": {
+                "initial_stop": breakout_exits.get("initial_stop_model_loss"),
+                "initial_stop_safezone": breakout_exits.get("initial_stop_safezone"),
+                "initial_stop_nick": breakout_exits.get("initial_stop_nick"),
+                "protective_stop": breakout_exits.get("protective_stop_loss"),
+                "take_profit": breakout_exits.get("take_profit"),
+                "reward_risk_ratio_model": breakout_exits.get("reward_risk_ratio_model"),
+            },
+            "manual_review_required": not bool(daily.get("pass")),
+            "review_note": "日线已合格，可按次日订单计划准备；盘前仍需检查跳空、财报、重复订单。"
+            if daily.get("pass")
+            else "当前仅为监测候选，订单计划仅供预案参考，需人工确认。",
+        }
+
+    @staticmethod
+    def _next_weekday(current_date: date) -> date:
+        candidate = current_date + timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate += timedelta(days=1)
+        return candidate
 
     @staticmethod
     def _format_session_label(session_dates: list[str]) -> str:
@@ -449,6 +581,14 @@ class TripleScreenScanner:
             if daily.get("state") == "QUALIFIED" and divergence_detected:
                 daily["state"] = "PRIORITY_QUALIFIED"
             candidate_score = indicators.calc_candidate_score(weekly, daily)
+            order_plan = self._build_next_day_order_plan(
+                symbol=symbol,
+                direction=direction,
+                session_date=session_date,
+                daily_frame=daily_frame,
+                weekly_frame=weekly_frame,
+                daily=daily,
+            )
             priority_tags = []
             if earnings["warning"]:
                 priority_tags.append("EARNINGS_SOON")
@@ -472,12 +612,14 @@ class TripleScreenScanner:
                 "daily": daily,
                 "hourly": {
                     "status": "PENDING_INTRADAY",
-                    "reason": "收盘候选池阶段不计算小时线触发，留待下一交易日盘中扫描。",
+                    "reason": "收盘候选池阶段已生成次日订单计划，小时线留作触碰提醒与突破质量复核。",
                 },
-                "exits": {
+                "exits": order_plan.get("primary_order", {}).get("exits")
+                or {
                     "reward_risk_ratio": 0.0,
                     "weekly_value_target": weekly.get("weekly_value_target"),
                 },
+                "next_day_order_plan": order_plan,
                 "earnings": earnings,
                 "divergence": divergence,
                 "strong_divergence": divergence["strong_divergence"],
@@ -550,6 +692,8 @@ class TripleScreenScanner:
                 float(exits.get("reward_risk_ratio_model", 0.0) or 0.0)
             )
             opportunity["opportunity_status"] = "TRIGGERED" if hourly["pass"] else "WATCHLIST"
+            if not hourly["pass"] and (hourly.get("primary_entry_touched") or hourly.get("breakout_entry_touched")):
+                opportunity["opportunity_status"] = "TOUCHED_ENTRY_PRICE"
             opportunity["cooldown_active"] = (not self.dry_run) and hourly["pass"] and self._is_recently_alerted(symbol, direction)
             opportunity["summary"] = (
                 f"{candidate['weekly']['reason']} | {candidate['daily']['reason']} | {hourly['reason']}"
@@ -598,11 +742,24 @@ class TripleScreenScanner:
                 daily["state"] = "PRIORITY_QUALIFIED"
 
             refreshed = dict(candidate)
+            try:
+                order_plan_session = date.fromisoformat(str(candidate.get("source_session_date") or session_date.isoformat()))
+            except ValueError:
+                order_plan_session = session_date
+            order_plan = self._build_next_day_order_plan(
+                symbol=symbol,
+                direction=direction,
+                session_date=order_plan_session,
+                daily_frame=daily_frame,
+                weekly_frame=weekly_frame,
+                daily=daily,
+            )
             refreshed["weekly"] = weekly
             refreshed["daily"] = daily
             refreshed["earnings"] = earnings
             refreshed["divergence"] = divergence
             refreshed["strong_divergence"] = divergence["strong_divergence"]
+            refreshed["next_day_order_plan"] = order_plan
             refreshed["candidate_score"] = indicators.calc_candidate_score(weekly, daily)
             refreshed["signal_score"] = refreshed["candidate_score"]
             refreshed["execution_score"] = None
@@ -746,15 +903,20 @@ class TripleScreenScanner:
                     opportunities.append(result)
 
         opportunities.sort(key=self._triggered_sort_key)
-        triggered = [item for item in opportunities if item["opportunity_status"] == "TRIGGERED"]
-        top_triggered = triggered
+        actionable = [
+            item
+            for item in opportunities
+            if item["opportunity_status"] in {"TRIGGERED", "TOUCHED_ENTRY_PRICE"}
+        ]
+        top_triggered = actionable
 
         for index, opportunity in enumerate(top_triggered, start=1):
             logger.info(
-                "TRIGGERED TOP %s %s %s execution_score=%.2f rr=%.2f strong_div=%s | %s",
+                "INTRADAY ACTION TOP %s %s %s status=%s execution_score=%.2f rr=%.2f strong_div=%s | %s",
                 index,
                 opportunity["symbol"],
                 "做多" if opportunity["direction"] == "LONG" else "做空",
+                opportunity["opportunity_status"],
                 opportunity.get("execution_score", opportunity.get("signal_score", 0.0)),
                 float(opportunity["exits"].get("reward_risk_ratio_model", 0.0) or 0.0),
                 opportunity.get("strong_divergence"),
@@ -771,12 +933,159 @@ class TripleScreenScanner:
                 self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
 
         logger.info(
-            "intraday trigger scan finished: %s candidates scanned, %s triggered, elapsed %.1fs",
+            "intraday trigger scan finished: %s candidates scanned, %s actionable, elapsed %.1fs",
             len(candidates),
             len(top_triggered),
             elapsed,
         )
         return top_triggered
+
+    def _latest_reference_price(self, symbol: str) -> tuple[float | None, str]:
+        hourly_frame = self.market_data.get_hourly_bars(symbol)
+        if hourly_frame is not None and not hourly_frame.empty:
+            return round(float(hourly_frame["close"].iloc[-1]), 4), "latest_hourly_close"
+        daily_frame = self.market_data.get_daily_bars(symbol)
+        if daily_frame is not None and not daily_frame.empty:
+            return round(float(daily_frame["close"].iloc[-1]), 4), "latest_daily_close"
+        return None, "unavailable"
+
+    @staticmethod
+    def _has_active_manual_order(orders: list[dict], symbol: str, direction: str) -> bool:
+        inactive_statuses = {"CANCELLED", "CANCELED", "FILLED", "INACTIVE", "REJECTED", "EXPIRED"}
+        for order in orders:
+            if str(order.get("symbol", "")).upper() != symbol:
+                continue
+            if str(order.get("direction", "")).upper() != direction:
+                continue
+            if str(order.get("status", "")).upper() in inactive_statuses:
+                continue
+            return True
+        return False
+
+    def _build_premarket_review_item(self, candidate: dict, manual_orders: list[dict]) -> dict:
+        symbol = candidate["symbol"]
+        direction = candidate["direction"]
+        order_plan = candidate.get("next_day_order_plan") or {}
+        primary_order = order_plan.get("primary_order") or {}
+        stop_price = primary_order.get("stop_price")
+        limit_price = primary_order.get("limit_price")
+        current_price, price_source = self._latest_reference_price(symbol)
+        checks: list[dict] = []
+
+        has_order = self._has_active_manual_order(manual_orders, symbol, direction)
+        checks.append(
+            {
+                "code": "MANUAL_ORDER",
+                "pass": has_order,
+                "severity": "WARN" if not has_order else "OK",
+                "message": "已有手工订单记录" if has_order else "未找到手工订单记录，请确认是否已在 IBKR 挂单",
+            }
+        )
+        checks.append(
+            {
+                "code": "EARNINGS",
+                "pass": not bool(candidate.get("earnings", {}).get("blocked")),
+                "severity": "BLOCK" if candidate.get("earnings", {}).get("blocked") else "OK",
+                "message": candidate.get("earnings", {}).get("reason", "财报状态正常"),
+            }
+        )
+        checks.append(
+            {
+                "code": "CANDIDATE",
+                "pass": bool(candidate.get("daily", {}).get("pass")),
+                "severity": "WARN" if not candidate.get("daily", {}).get("pass") else "OK",
+                "message": "仍为合格候选" if candidate.get("daily", {}).get("pass") else "日线不再是立即执行候选",
+            }
+        )
+
+        gap_message = "无盘前参考价，无法判断跳空"
+        gap_pass = True
+        gap_pct = None
+        if current_price is not None and stop_price is not None:
+            stop_value = float(stop_price)
+            gap_pct = ((float(current_price) - stop_value) / stop_value) * 100
+            if direction == "LONG":
+                gap_pass = float(current_price) <= float(limit_price or stop_value) and gap_pct <= PREMARKET_GAP_ALERT_PCT * 100
+                gap_message = (
+                    f"参考价 {current_price:.2f} 已高于可接受限价 {float(limit_price):.2f}，建议人工确认"
+                    if not gap_pass and limit_price is not None and float(current_price) > float(limit_price)
+                    else f"参考价相对突破价偏离 {gap_pct:.2f}%"
+                )
+            else:
+                gap_pass = float(current_price) >= float(limit_price or stop_value) and gap_pct >= -PREMARKET_GAP_ALERT_PCT * 100
+                gap_message = (
+                    f"参考价 {current_price:.2f} 已低于可接受限价 {float(limit_price):.2f}，建议人工确认"
+                    if not gap_pass and limit_price is not None and float(current_price) < float(limit_price)
+                    else f"参考价相对突破价偏离 {gap_pct:.2f}%"
+                )
+        checks.append(
+            {
+                "code": "GAP",
+                "pass": gap_pass,
+                "severity": "WARN" if not gap_pass else "OK",
+                "message": gap_message,
+            }
+        )
+
+        blocked = any(check["severity"] == "BLOCK" for check in checks)
+        warning = any(check["severity"] == "WARN" for check in checks)
+        status = "BLOCKED" if blocked else "REVIEW" if warning else "READY"
+        return {
+            "symbol": symbol,
+            "direction": direction,
+            "status": status,
+            "current_reference_price": current_price,
+            "price_source": price_source,
+            "gap_pct": round(gap_pct, 2) if gap_pct is not None else None,
+            "order_plan": order_plan,
+            "manual_orders": [
+                order
+                for order in manual_orders
+                if str(order.get("symbol", "")).upper() == symbol and str(order.get("direction", "")).upper() == direction
+            ],
+            "checks": checks,
+        }
+
+    def run_premarket_review(self) -> list[dict]:
+        started_at = time.time()
+        candidate_session_date = self._latest_completed_session_date()
+        now_local = self._market_now()
+        review_date = now_local.date() if now_local.weekday() < 5 else candidate_session_date
+        logger.info("==================================================")
+        logger.info(
+            "premarket order review started for candidate session %s on review date %s",
+            candidate_session_date.isoformat(),
+            review_date.isoformat(),
+        )
+
+        tracking_candidates, tracking_label = self._load_tracking_candidates()
+        if not tracking_candidates:
+            logger.warning("no stored qualified candidates found for premarket review.")
+            return []
+
+        symbols = [item["symbol"] for item in tracking_candidates]
+        benchmark_symbol = self.settings.market_filter.benchmark_symbol if self.settings.market_filter.enabled else None
+        self.market_data.warm_cache_for_scan(symbols, benchmark_symbol=benchmark_symbol)
+        market_trend = self._check_market_trend()
+        earnings_map = self.earnings_calendar.get_upcoming_earnings(symbols, session_date=review_date)
+        manual_orders = self.storage.list_planned_orders(tracking_label if "~" not in tracking_label else None)
+
+        refreshed_candidates: list[dict] = []
+        for candidate in tracking_candidates:
+            refreshed = self._refresh_tracking_candidate(candidate, market_trend, review_date, earnings_map)
+            if refreshed:
+                refreshed_candidates.append(refreshed)
+
+        review_items = [self._build_premarket_review_item(candidate, manual_orders) for candidate in refreshed_candidates]
+        elapsed = time.time() - started_at
+        if not self.dry_run:
+            self.notifier.send_premarket_review_summary(review_items, tracking_label, elapsed)
+        logger.info(
+            "premarket order review finished: %s candidates reviewed, elapsed %.1fs",
+            len(review_items),
+            elapsed,
+        )
+        return review_items
 
     def run_scan(self, mode: str = "auto") -> list[dict]:
         normalized_mode = (mode or "auto").strip().lower()
@@ -784,6 +1093,8 @@ class TripleScreenScanner:
             return self.run_end_of_day_scan()
         if normalized_mode == "intraday":
             return self.run_intraday_scan()
+        if normalized_mode == "premarket":
+            return self.run_premarket_review()
         if normalized_mode == "full":
             self.run_end_of_day_scan()
             return self.run_intraday_scan()
@@ -791,6 +1102,9 @@ class TripleScreenScanner:
         now_local = self._market_now()
         if self._is_market_open(now_local):
             return self.run_intraday_scan()
+        premarket_review_start_time = getattr(self, "premarket_review_start_time", clock_time(hour=9, minute=15))
+        if now_local.weekday() < 5 and premarket_review_start_time <= now_local.time() < self.market_open_time:
+            return self.run_premarket_review()
         if now_local.weekday() < 5 and self.market_close_time <= now_local.time() <= self.eod_auto_cutoff_time:
             return self.run_end_of_day_scan()
         logger.info("auto scan skipped outside market hours and EOD window: %s", now_local.isoformat())

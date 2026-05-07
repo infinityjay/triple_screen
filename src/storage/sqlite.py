@@ -197,6 +197,28 @@ class SQLiteStorage:
             )
             cursor.execute(
                 """
+                CREATE TABLE IF NOT EXISTS planned_orders (
+                    id TEXT PRIMARY KEY,
+                    session_date TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    direction TEXT NOT NULL,
+                    broker TEXT DEFAULT 'IBKR',
+                    broker_order_id TEXT,
+                    order_type TEXT,
+                    action TEXT,
+                    quantity REAL,
+                    stop_price REAL,
+                    limit_price REAL,
+                    status TEXT,
+                    submitted_at TEXT,
+                    notes TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS trades (
                     id TEXT PRIMARY KEY,
                     stock TEXT NOT NULL,
@@ -315,6 +337,7 @@ class SQLiteStorage:
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_candidates_session_score ON qualified_candidates(session_date, signal_score DESC)"
             )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_planned_orders_session ON planned_orders(session_date, symbol)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_created_at ON trades(created_at DESC)")
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_trade_stop_updates_session ON trade_stop_updates(session_date, created_at DESC)"
@@ -658,6 +681,75 @@ class SQLiteStorage:
                 (capped_limit,),
             ).fetchall()
         return [self._row_to_dict(row) for row in rows]
+
+    def list_planned_orders(self, session_date: str | None = None) -> list[dict]:
+        query = """
+            SELECT id, session_date, symbol, direction, broker, broker_order_id, order_type, action,
+                   quantity, stop_price, limit_price, status, submitted_at, notes, created_at, updated_at
+            FROM planned_orders
+        """
+        params: tuple = ()
+        if session_date:
+            query += " WHERE session_date = ?"
+            params = (session_date,)
+        query += " ORDER BY session_date DESC, symbol ASC, created_at DESC"
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def upsert_planned_order(self, payload: dict) -> dict:
+        now = self._utc_iso()
+        order_id = str(payload.get("id") or uuid4())
+        record = {
+            "id": order_id,
+            "session_date": str(payload.get("session_date") or ""),
+            "symbol": str(payload.get("symbol") or "").strip().upper(),
+            "direction": str(payload.get("direction") or "").strip().upper(),
+            "broker": str(payload.get("broker") or "IBKR").strip().upper(),
+            "broker_order_id": payload.get("broker_order_id"),
+            "order_type": payload.get("order_type"),
+            "action": payload.get("action"),
+            "quantity": payload.get("quantity"),
+            "stop_price": payload.get("stop_price"),
+            "limit_price": payload.get("limit_price"),
+            "status": str(payload.get("status") or "SUBMITTED").strip().upper(),
+            "submitted_at": payload.get("submitted_at"),
+            "notes": payload.get("notes"),
+            "created_at": payload.get("created_at") or now,
+            "updated_at": now,
+        }
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO planned_orders
+                (id, session_date, symbol, direction, broker, broker_order_id, order_type, action,
+                 quantity, stop_price, limit_price, status, submitted_at, notes, created_at, updated_at)
+                VALUES (:id, :session_date, :symbol, :direction, :broker, :broker_order_id, :order_type, :action,
+                        :quantity, :stop_price, :limit_price, :status, :submitted_at, :notes, :created_at, :updated_at)
+                ON CONFLICT(id) DO UPDATE SET
+                    session_date = excluded.session_date,
+                    symbol = excluded.symbol,
+                    direction = excluded.direction,
+                    broker = excluded.broker,
+                    broker_order_id = excluded.broker_order_id,
+                    order_type = excluded.order_type,
+                    action = excluded.action,
+                    quantity = excluded.quantity,
+                    stop_price = excluded.stop_price,
+                    limit_price = excluded.limit_price,
+                    status = excluded.status,
+                    submitted_at = excluded.submitted_at,
+                    notes = excluded.notes,
+                    updated_at = excluded.updated_at
+                """,
+                record,
+            )
+        return record
+
+    def delete_planned_order(self, order_id: str) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute("DELETE FROM planned_orders WHERE id = ?", (order_id,))
+        return cursor.rowcount > 0
 
     def get_price_bars(self, symbol: str, timeframe: str) -> pd.DataFrame | None:
         with self._connect() as connection:

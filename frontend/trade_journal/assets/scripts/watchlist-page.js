@@ -7,6 +7,7 @@ import {
   formatNumber,
   getSignalDirectionLabel,
   normalizeSignalDirection,
+  parseNumberValue,
   renderConnectionStatus,
   setScreenState,
   syncShell,
@@ -32,10 +33,12 @@ function getReasonBlock(label, score, reason) {
 
 function getStatusBadge(status) {
   const normalized = String(status || "").toUpperCase();
-  const tone = normalized === "TRIGGERED" ? "safe" : normalized === "WATCHLIST" ? "info" : normalized === "MONITOR" ? "warn" : "warn";
+  const tone = normalized === "TRIGGERED" ? "safe" : normalized === "TOUCHED_ENTRY_PRICE" ? "warn" : normalized === "WATCHLIST" ? "info" : normalized === "MONITOR" ? "warn" : "warn";
   const label =
     normalized === "TRIGGERED"
       ? "已触发"
+      : normalized === "TOUCHED_ENTRY_PRICE"
+        ? "已触碰"
       : normalized === "WATCHLIST"
         ? "待触发"
         : normalized === "MONITOR"
@@ -131,6 +134,32 @@ function buildExecutionPlan(item) {
     : "等待日线 Force 与动力系统到位，再用 EMA 下穿透价或前日高点上方一跳监测。";
 }
 
+function getOrderPlan(item) {
+  return item.next_day_order_plan || {};
+}
+
+function buildOrderPlanInline(item) {
+  const plan = getOrderPlan(item);
+  const primary = plan.primary_order || {};
+  const secondary = plan.secondary_order || {};
+  const risk = plan.risk || {};
+  if (!primary.stop_price && !secondary.limit_price) return buildExecutionInline(item);
+  return [
+    `${primary.order_type || "Stop Limit"} ${primary.action || ""} Stop ${formatCurrency(primary.stop_price, 2)} Limit ${formatCurrency(primary.limit_price, 2)}`,
+    `EMA限价 ${formatCurrency(secondary.limit_price, 2)}`,
+    `初始止损 ${formatCurrency(risk.initial_stop, 2)}`,
+    `保护 ${formatCurrency(risk.protective_stop, 2)}`,
+    `止盈 ${formatCurrency(risk.take_profit, 2)}`,
+    `RR ${formatNumber(risk.reward_risk_ratio_model, 2)}R`,
+  ].join(" | ");
+}
+
+function getPlannedOrderFor(item) {
+  const orders = state.payload?.planned_orders || [];
+  const direction = normalizeSignalDirection(item.direction);
+  return orders.find((order) => String(order.symbol || "").toUpperCase() === String(item.symbol || "").toUpperCase() && normalizeSignalDirection(order.direction) === direction);
+}
+
 function buildExecutionInline(item) {
   const hourly = item.hourly || {};
   const exits = item.exits || {};
@@ -175,6 +204,7 @@ function getFilteredItems() {
       .toLowerCase();
 
     if (statusFilter === "watchlist" && status !== "WATCHLIST") return false;
+    if (statusFilter === "touched" && status !== "TOUCHED_ENTRY_PRICE") return false;
     if (statusFilter === "monitor" && status !== "MONITOR") return false;
     if (statusFilter === "triggered" && status !== "TRIGGERED") return false;
     if (directionFilter !== "all" && direction !== directionFilter) return false;
@@ -286,11 +316,15 @@ function renderRail() {
       const earnings = item.earnings || {};
       const earningsDisplay = getEarningsDisplay(earnings);
       const entryPlan = hourly.entry_plan || daily.entry_plan || {};
+      const orderPlan = getOrderPlan(item);
+      const primaryOrder = orderPlan.primary_order || {};
+      const manualOrder = getPlannedOrderFor(item);
       const tags = [
         item.strong_divergence ? "强背离" : "",
         earnings.warning ? "财报临近" : "",
         String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "已触发" : "",
         String(item.opportunity_status || "").toUpperCase() === "MONITOR" ? "监测中" : "",
+        manualOrder ? `IBKR ${manualOrder.status || "已记录"}` : "",
         ...(item.priority_tags || []),
       ].filter(Boolean);
 
@@ -320,7 +354,7 @@ function renderRail() {
               </div>
             </div>
             <div class="watchlist-rail-footer">
-              <span>${escapeHtml(entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? `EMA穿透 ${formatCurrency(entryPlan.ema_penetration_entry, 3)}` : buildExecutionPlan(item))}</span>
+              <span>${escapeHtml(primaryOrder.stop_price !== undefined && primaryOrder.stop_price !== null ? `Stop ${formatCurrency(primaryOrder.stop_price, 2)} / Limit ${formatCurrency(primaryOrder.limit_price, 2)}` : entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? `EMA穿透 ${formatCurrency(entryPlan.ema_penetration_entry, 3)}` : buildExecutionPlan(item))}</span>
               <span>${escapeHtml(earningsDisplay.label)}</span>
             </div>
           </div>
@@ -354,6 +388,7 @@ function renderTable() {
       const earnings = item.earnings || {};
       const earningsDisplay = getEarningsDisplay(earnings);
       const divergence = item.divergence || {};
+      const manualOrder = getPlannedOrderFor(item);
 
       const tags = [
         item.strong_divergence ? "强背离" : "",
@@ -394,7 +429,11 @@ function renderTable() {
             )}</p>
           </td>
           <td class="execution-cell">
-            <span class="execution-inline-text">${escapeHtml(buildExecutionInline(item))}</span>
+            <span class="execution-inline-text">${escapeHtml(buildOrderPlanInline(item))}</span>
+            <div class="mini-action-row">
+              <button class="btn btn-secondary btn-mini" type="button" data-fill-order="${escapeHtml(item.symbol || "")}">填入记录</button>
+              ${manualOrder ? `<span class="tag">IBKR ${escapeHtml(manualOrder.status || "已记录")}</span>` : `<span class="tag">未记录挂单</span>`}
+            </div>
           </td>
         </tr>
       `;
@@ -422,6 +461,58 @@ function renderTable() {
     </div>
   `;
   setupHorizontalScrollbar("watchlistDetailScroll", "watchlistDetailScrollbar");
+  document.querySelectorAll("[data-fill-order]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = items.find((candidate) => String(candidate.symbol || "") === button.dataset.fillOrder);
+      if (item) fillOrderFormFromCandidate(item);
+    });
+  });
+}
+
+function fillOrderFormFromCandidate(item) {
+  const plan = getOrderPlan(item);
+  const primary = plan.primary_order || {};
+  $("orderSessionDate").value = state.payload?.session_date || "";
+  $("orderSymbol").value = item.symbol || "";
+  $("orderDirection").value = normalizeSignalDirection(item.direction);
+  $("orderType").value = primary.order_type || "Stop Limit";
+  $("orderQuantity").value = primary.quantity || "";
+  $("orderStopPrice").value = primary.stop_price ?? "";
+  $("orderLimitPrice").value = primary.limit_price ?? "";
+  $("orderBrokerId").value = "";
+  $("orderStatus").value = "SUBMITTED";
+  $("orderSymbol").focus();
+}
+
+function renderPlannedOrders() {
+  const orders = state.payload?.planned_orders || [];
+  $("orderSessionDate").value = state.payload?.session_date || "";
+  if (!orders.length) {
+    $("plannedOrdersContainer").innerHTML = `<div class="empty-state compact-empty">当前会话还没有手工订单记录。</div>`;
+    return;
+  }
+  $("plannedOrdersContainer").innerHTML = `
+    <div class="manual-order-list">
+      ${orders
+        .map((order) => `
+          <div class="manual-order-row">
+            <strong>${escapeHtml(order.symbol)} · ${escapeHtml(getSignalDirectionLabel(order.direction))}</strong>
+            <span>${escapeHtml(order.order_type || "—")} ${escapeHtml(order.action || "")}</span>
+            <span>Qty ${escapeHtml(formatNumber(order.quantity, 0))}</span>
+            <span>Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}</span>
+            <span class="tag">${escapeHtml(order.status || "SUBMITTED")}</span>
+            <button class="btn btn-secondary btn-mini" type="button" data-delete-order="${escapeHtml(order.id)}">删除</button>
+          </div>
+        `)
+        .join("")}
+    </div>
+  `;
+  document.querySelectorAll("[data-delete-order]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await apiRequest(`/planned-orders/${encodeURIComponent(button.dataset.deleteOrder)}`, { method: "DELETE" });
+      await loadWatchlist(state.sessionDate);
+    });
+  });
 }
 
 function renderFilteredViews() {
@@ -437,6 +528,7 @@ async function loadWatchlist(sessionDate = "") {
   renderSummary();
   renderSessions();
   renderInsights();
+  renderPlannedOrders();
   renderFilteredViews();
 }
 
@@ -462,6 +554,28 @@ function bindEvents() {
   $("statusFilter").addEventListener("change", renderFilteredViews);
   $("directionFilter").addEventListener("change", renderFilteredViews);
   $("watchlistSearch").addEventListener("input", renderFilteredViews);
+  $("plannedOrderForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const direction = $("orderDirection").value;
+    await apiRequest("/planned-orders", {
+      method: "POST",
+      body: {
+        session_date: $("orderSessionDate").value || state.payload?.session_date || "",
+        symbol: $("orderSymbol").value,
+        direction,
+        broker: "IBKR",
+        broker_order_id: $("orderBrokerId").value || null,
+        order_type: $("orderType").value,
+        action: direction === "SHORT" ? "SELL" : "BUY",
+        quantity: parseNumberValue($("orderQuantity").value),
+        stop_price: parseNumberValue($("orderStopPrice").value),
+        limit_price: parseNumberValue($("orderLimitPrice").value),
+        status: $("orderStatus").value,
+      },
+    });
+    $("plannedOrderForm").reset();
+    await loadWatchlist(state.sessionDate);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {

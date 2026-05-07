@@ -288,6 +288,8 @@ def _build_current_intraday_plan(
     triggered_labels = [option["label"] for option in entry_options if option["triggered"]]
     touched_labels = [option["label"] for option in entry_options if option["touched"]]
     trigger_score = 4.0 if primary_confirmed else 3.5 if breakout_confirmed else 0.0
+    touched = bool(primary_touched or breakout_touched)
+    status = "TRIGGERED" if triggered else "TOUCHED_ENTRY_PRICE" if touched else "WAITING_ENTRY_PRICE"
     hourly = {
         "close": round(float(bar["close"]), 4),
         "current_high": round(float(bar["high"]), 4),
@@ -297,7 +299,7 @@ def _build_current_intraday_plan(
         "signal_bar_high": None,
         "signal_bar_low": None,
         "atr": round(atr, 4),
-        "status": "TRIGGERED" if triggered else "WAITING_ENTRY_PRICE",
+        "status": status,
         "entry_price": round(float(entry_price), 4),
         "ema_penetration_entry": entry_plan.get("ema_penetration_entry"),
         "previous_day_break_entry": entry_plan.get("breakout_entry"),

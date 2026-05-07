@@ -33,7 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="Run scan without Telegram sends or alert-log updates")
     parser.add_argument(
         "--mode",
-        choices=("auto", "eod", "intraday", "full"),
+        choices=("auto", "eod", "premarket", "intraday", "full"),
         default="auto",
         help="Scan mode: auto chooses by market session, eod builds candidates, intraday scans stored candidates",
     )

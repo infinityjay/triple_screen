@@ -158,6 +158,23 @@ class SymbolAnalysisPayload(BaseModel):
     model_id: str | None = None
 
 
+class PlannedOrderPayload(BaseModel):
+    id: str | None = None
+    session_date: str
+    symbol: str
+    direction: str
+    broker: str = "IBKR"
+    broker_order_id: str | None = None
+    order_type: str | None = None
+    action: str | None = None
+    quantity: float | None = None
+    stop_price: float | None = None
+    limit_price: float | None = None
+    status: str = "SUBMITTED"
+    submitted_at: str | None = None
+    notes: str | None = None
+
+
 @app.get("/")
 def get_index() -> FileResponse:
     return FileResponse(FRONTEND_ROOT / "index.html")
@@ -270,13 +287,34 @@ def get_watchlist_data(
     target_session = session_date or latest_session
     items = storage.get_qualified_candidates(target_session) if target_session else []
 
+    planned_orders = storage.list_planned_orders(target_session) if target_session else []
+
     return {
         "session_date": target_session,
         "latest_session_date": latest_session,
         "available_sessions": sessions,
         "count": len(items),
         "items": items,
+        "planned_orders": planned_orders,
     }
+
+
+@app.get("/api/planned-orders")
+def list_planned_orders(session_date: str | None = Query(default=None)) -> list[dict[str, Any]]:
+    return storage.list_planned_orders(session_date)
+
+
+@app.post("/api/planned-orders")
+def upsert_planned_order(payload: PlannedOrderPayload) -> dict[str, Any]:
+    return storage.upsert_planned_order(payload.model_dump())
+
+
+@app.delete("/api/planned-orders/{order_id}")
+def delete_planned_order(order_id: str) -> dict[str, Any]:
+    deleted = storage.delete_planned_order(order_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Planned order not found")
+    return {"ok": True}
 
 
 @app.post("/api/technical-analysis")

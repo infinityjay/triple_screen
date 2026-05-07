@@ -720,6 +720,41 @@ button {
   align-items: start;
 }
 
+.order-form-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.manual-order-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.manual-order-row,
+.mini-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.manual-order-row {
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.compact-empty {
+  margin-top: 14px;
+  padding: 16px;
+}
+
 .btn {
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -748,6 +783,11 @@ button {
   border-color: var(--line);
   background: rgba(255, 255, 255, 0.92);
   color: var(--text);
+}
+
+.btn-mini {
+  padding: 6px 10px;
+  font-size: 11px;
 }
 
 .btn-danger {
@@ -1327,6 +1367,10 @@ tbody tr:hover {
 
   .field-grid {
     grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .order-form-grid {
+    grid-template-columns: 1fr;
   }
 
   .span-12,

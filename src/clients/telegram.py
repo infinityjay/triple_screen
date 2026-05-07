@@ -85,6 +85,8 @@ class TelegramNotifier:
     def _status_label(signal: dict) -> str:
         if signal.get("opportunity_status") == "TRIGGERED":
             return "已触发"
+        if signal.get("opportunity_status") == "TOUCHED_ENTRY_PRICE":
+            return "已触碰参考价"
         if signal.get("opportunity_status") == "MONITOR":
             return "监测中"
         return "观察中"
@@ -130,6 +132,7 @@ class TelegramNotifier:
             "WAITING_BREAKOUT": "等待向上突破",
             "WAITING_BREAKDOWN": "等待向下跌破",
             "WAITING_ENTRY_PRICE": "等待参考价触发",
+            "TOUCHED_ENTRY_PRICE": "已触碰，等待小时确认",
             "WAITING_NEXT_BAR": "等待下一根小时K开始跟踪",
             "NEUTRAL": "中性",
         }
@@ -422,10 +425,25 @@ class TelegramNotifier:
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             priority_tags = [_html_text(str(tag)) for tag in signal.get("priority_tags", [])]
             tag_line = f"   标签：{' / '.join(priority_tags)}\n" if priority_tags else ""
+            order_plan = signal.get("next_day_order_plan") or {}
+            primary_order = order_plan.get("primary_order") or {}
+            risk = order_plan.get("risk") or {}
+            order_line = ""
+            if primary_order.get("stop_price") is not None:
+                order_line = (
+                    f"   次日单：{_html_text(primary_order.get('order_type', 'Stop Limit'))} "
+                    f"{_html_text(primary_order.get('action', ''))} "
+                    f"Stop <code>{self._fmt_num(primary_order.get('stop_price'), 2)}</code> "
+                    f"Limit <code>{self._fmt_num(primary_order.get('limit_price'), 2)}</code> "
+                    f"止损 <code>{self._fmt_num(risk.get('initial_stop'), 2)}</code> "
+                    f"目标 <code>{self._fmt_num(risk.get('take_profit'), 2)}</code> "
+                    f"RR <code>{self._fmt_num(risk.get('reward_risk_ratio_model'), 2)}R</code>\n"
+                )
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
                 f"候选分 {self._candidate_score(signal):.1f}{divergence_badge}\n"
                 f"   周线：{weekly_trend} · 日线：{daily_state}\n"
+                f"{order_line}"
                 f"{tag_line}"
             )
 
@@ -552,12 +570,13 @@ class TelegramNotifier:
             divergence_badge = " 🚨背离" if signal.get("strong_divergence") else ""
             exits = signal["exits"]
             hourly = signal.get("hourly", {})
+            status_label = self._status_label(signal)
             entry_options = hourly.get("entry_options") or []
             ema_option = self._entry_option_by_code(entry_options, "EMA_PENETRATION")
             breakout_option = self._entry_option_by_code(entry_options, "PREVIOUS_DAY_BREAK")
             lines.append(
                 f"{index}. <b>{signal['symbol']}</b> {direction} "
-                f"现价 {self._fmt_num(hourly.get('close'), 2)}{divergence_badge}\n"
+                f"{status_label} 现价 {self._fmt_num(hourly.get('close'), 2)}{divergence_badge}\n"
                 f"   建议买入价：<code>{self._fmt_num(exits.get('entry'), 2)}</code>  "
                 f"原因：{_html_text(self._format_trigger_reason(signal))}\n"
                 f"   Entry：EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
@@ -568,6 +587,54 @@ class TelegramNotifier:
 
         lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
+
+    def format_premarket_review_summary(
+        self,
+        review_items: list[dict],
+        session_date: str,
+        scan_time_sec: float,
+    ) -> str:
+        if not review_items:
+            return (
+                f"🌅 <b>盘前订单复核完成</b>\n"
+                f"候选日期：<code>{session_date}</code>\n"
+                "没有可复核的候选订单计划。\n"
+                f"<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
+            )
+
+        ready_count = sum(1 for item in review_items if item.get("status") == "READY")
+        review_count = sum(1 for item in review_items if item.get("status") == "REVIEW")
+        blocked_count = sum(1 for item in review_items if item.get("status") == "BLOCKED")
+        lines = [
+            f"🌅 <b>盘前订单复核</b>\n",
+            f"候选日期：<code>{session_date}</code> · Ready {ready_count} / 需复核 {review_count} / 阻断 {blocked_count}\n",
+            f"{'─' * 24}\n",
+        ]
+        for index, item in enumerate(review_items[:12], start=1):
+            order = (item.get("order_plan") or {}).get("primary_order") or {}
+            checks = item.get("checks") or []
+            warnings = [check for check in checks if check.get("severity") in {"WARN", "BLOCK"}]
+            status = item.get("status", "REVIEW")
+            status_label = "可执行" if status == "READY" else "阻断" if status == "BLOCKED" else "需复核"
+            lines.append(
+                f"{index}. <b>{item.get('symbol', 'UNKNOWN')}</b> {self.get_direction_text(item.get('direction'))} · {status_label}\n"
+                f"   Stop <code>{self._fmt_num(order.get('stop_price'), 2)}</code> "
+                f"Limit <code>{self._fmt_num(order.get('limit_price'), 2)}</code> "
+                f"参考价 <code>{self._fmt_num(item.get('current_reference_price'), 2)}</code> "
+                f"偏离 <code>{self._fmt_num(item.get('gap_pct'), 2)}%</code>\n"
+            )
+            for warning in warnings[:2]:
+                lines.append(f"   {_html_text(warning.get('message', '需要人工确认'))}\n")
+        lines.append(f"\n<i>耗时 {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
+        return "".join(lines)
+
+    def send_premarket_review_summary(
+        self,
+        review_items: list[dict],
+        session_date: str,
+        scan_time_sec: float,
+    ) -> bool:
+        return self._send(self.format_premarket_review_summary(review_items, session_date, scan_time_sec))
 
     def send_candidate_summary(
         self,

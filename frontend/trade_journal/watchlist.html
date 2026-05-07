@@ -112,6 +112,7 @@
               <select class="select" style="max-width:180px" id="statusFilter">
                 <option value="all">全部状态</option>
                 <option value="watchlist">仅待触发</option>
+                <option value="touched">仅已触碰</option>
                 <option value="monitor">仅监测中</option>
                 <option value="triggered">仅已触发</option>
               </select>
@@ -152,6 +153,42 @@
             </div>
             <div class="insight-list" id="watchlistInsights"></div>
           </div>
+        </section>
+
+        <section class="watchlist-card">
+          <div class="card-head">
+            <div>
+              <div class="eyebrow">IBKR Manual Orders</div>
+              <h3>手工挂单记录</h3>
+              <p>系统生成 Stop Limit 计划后，你可以把 IBKR 里的订单编号、数量和状态录进来，盘前复核会用它检查是否已有挂单。</p>
+            </div>
+          </div>
+          <form class="order-form-grid" id="plannedOrderForm">
+            <input type="hidden" id="orderSessionDate">
+            <input class="input" id="orderSymbol" placeholder="Symbol">
+            <select class="select" id="orderDirection">
+              <option value="LONG">做多</option>
+              <option value="SHORT">做空</option>
+            </select>
+            <select class="select" id="orderType">
+              <option value="Stop Limit">Stop Limit</option>
+              <option value="Limit">Limit</option>
+              <option value="Stop">Stop</option>
+            </select>
+            <input class="input" id="orderQuantity" placeholder="Quantity">
+            <input class="input" id="orderStopPrice" placeholder="Stop Price">
+            <input class="input" id="orderLimitPrice" placeholder="Limit Price">
+            <input class="input" id="orderBrokerId" placeholder="IBKR Order ID">
+            <select class="select" id="orderStatus">
+              <option value="SUBMITTED">Submitted</option>
+              <option value="PRESUBMITTED">PreSubmitted</option>
+              <option value="FILLED">Filled</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+            <button class="btn btn-primary" type="submit">保存记录</button>
+          </form>
+          <div id="plannedOrdersContainer"></div>
         </section>
 
         <section class="table-card watchlist-detail-card">

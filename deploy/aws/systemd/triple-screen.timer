@@ -3,6 +3,7 @@ Description=Run Triple Screen Scanner during US market hours and after close
 
 [Timer]
 OnCalendar=Mon..Fri *-*-* 09,10,11,12,13,14,15:30:00 America/New_York
+OnCalendar=Mon..Fri *-*-* 09:25:00 America/New_York
 OnCalendar=Mon..Fri *-*-* 16:10:00 America/New_York
 AccuracySec=1s
 RandomizedDelaySec=0
