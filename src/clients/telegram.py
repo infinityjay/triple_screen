@@ -192,8 +192,12 @@ class TelegramNotifier:
 
     def _entry_option_label(self, option: dict[str, Any]) -> str:
         label = option.get("label") or option.get("code") or "Entry reference"
+        label = {
+            "EMA\u7a7f\u900f\u53c2\u8003\u4ef7": "EMA penetration reference",
+            "\u524d\u65e5\u7a81\u7834\u53c2\u8003\u4ef7": "Previous-day breakout reference",
+        }.get(str(label), str(label))
         status = "Triggered" if option.get("triggered") else "Not triggered"
-        return f"{label}（{status}）"
+        return f"{label} ({status})"
 
     def _format_entry_options(self, options: list[dict] | None) -> str:
         if not options:
@@ -203,7 +207,7 @@ class TelegramNotifier:
             exits = option.get("exits") or {}
             label = _html_text(self._entry_option_label(option))
             lines.append(
-                f"• {label}：Entry <code>{self._fmt_num(option.get('price'), 2)}</code>  "
+                f"• {label}: Entry <code>{self._fmt_num(option.get('price'), 2)}</code>  "
                 f"Model stop <code>{self._fmt_num(exits.get('initial_stop_model_loss'), 2)}</code>  "
                 f"Protective stop <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code>  "
                 f"Target <code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  "
@@ -218,6 +222,10 @@ class TelegramNotifier:
         for option in options:
             exits = option.get("exits") or {}
             label = option.get("label") or option.get("code") or "Entry"
+            label = {
+                "EMA\u7a7f\u900f\u53c2\u8003\u4ef7": "EMA penetration reference",
+                "\u524d\u65e5\u7a81\u7834\u53c2\u8003\u4ef7": "Previous-day breakout reference",
+            }.get(str(label), str(label))
             status = "Triggered" if option.get("triggered") else "Not triggered"
             parts.append(
                 f"{label}({status}) {self._fmt_num(option.get('price'), 2)} / "
@@ -269,7 +277,7 @@ class TelegramNotifier:
         entry_options = hourly.get("entry_options") or []
         weekly_target = exits.get("weekly_value_target") or weekly.get("weekly_value_target") or {}
         entry_options_block = self._format_entry_options(entry_options) or (
-            f"Entry：<code>{self._fmt_num(exits.get('entry'), 2)}</code>"
+            f"Entry: <code>{self._fmt_num(exits.get('entry'), 2)}</code>"
         )
 
         dir_emoji = "🚀" if direction == "LONG" else "🔻"
@@ -319,10 +327,10 @@ class TelegramNotifier:
             f"{'─' * 32}\n"
             f"<b>Screen 1 · Weekly impulse system</b>\n"
             f"Direction: <b>{_html_text(weekly.get('trend'))}</b>\n"
-            f"Impulse color: <b>{_html_text(weekly.get('impulse_color'))}</b>  MACD slope：<code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
-            f"MACD：<code>{self._fmt_num(weekly.get('macd'), 4)}</code>  Signal：<code>{self._fmt_num(weekly.get('macd_signal'), 4)}</code>\n"
-            f"Histogram：<code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  Change: <code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
-            f"13EMA：<code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  Slope: <code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
+            f"Impulse color: <b>{_html_text(weekly.get('impulse_color'))}</b>  MACD slope: <code>{self._fmt_num(weekly.get('macd_slope'), 4, signed=True)}</code>\n"
+            f"MACD: <code>{self._fmt_num(weekly.get('macd'), 4)}</code>  Signal: <code>{self._fmt_num(weekly.get('macd_signal'), 4)}</code>\n"
+            f"Histogram: <code>{self._fmt_num(weekly.get('histogram'), 4, signed=True)}</code>  Change: <code>{self._fmt_num(weekly.get('histogram_delta'), 4, signed=True)}</code>\n"
+            f"13EMA: <code>{self._fmt_num(weekly.get('ema13'), 4)}</code>  Slope: <code>{self._fmt_num(weekly.get('ema13_slope'), 4, signed=True)}</code>\n"
             f"Consecutive aligned bars: <code>{weekly.get('confirmed_bars', '—')}</code> / Impulse gate passed: <b>{self._bool_text(weekly.get('impulse_allows_direction'))}</b>\n"
             f"Weekly conclusion: {_html_text(weekly.get('reason'))}\n"
             f"{'─' * 32}\n"
@@ -332,31 +340,31 @@ class TelegramNotifier:
             f"Daily impulse color: <b>{_html_text(daily.get('impulse_color'))}</b>  Aligned or non-opposing: <b>{self._bool_text(daily.get('same_impulse_or_trend'))}</b>\n"
             f"Aux RSI: <code>{self._fmt_num(daily.get('rsi'), 2)}</code>  HistogramChange: <code>{self._fmt_num(daily.get('momentum_hist_delta'), 4, signed=True)}</code>\n"
             f"13EMA value band: <code>{self._fmt_num(daily.get('value_band_low'), 4)}</code> ~ <code>{self._fmt_num(daily.get('value_band_high'), 4)}</code>  Value-band gap: <code>{self._fmt_num(daily.get('value_band_gap'), 4)}</code>\n"
-            f"{daily.get('correction_counter_label', 'Recent correction closes')}：<code>{daily.get('correction_count', 0)}</code>  Structure defense: <code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
+            f"{daily.get('correction_counter_label', 'Recent correction closes')}: <code>{daily.get('correction_count', 0)}</code>  Structure defense: <code>{self._fmt_num(daily.get('structure_break_level'), 4)}</code>\n"
             f"Force signal: <b>{self._bool_text(daily.get('force_signal'))}</b>  Structure intact: <b>{self._bool_text(daily.get('structure_intact'))}</b>\n"
             f"Aux candle confirmation: <b>{self._bool_text(daily.get('custom_kline_confirmation'))}</b>  Close vs previous close: <b>{self._bool_text(daily.get('custom_close_rule_pass'))}</b>\n"
             f"Wick ratio: <code>{self._fmt_num(daily.get('custom_wick_ratio_pct'), 2)}%</code>  Close location: <code>{self._fmt_num(daily.get('custom_close_location_pct'), 2)}%</code>\n"
             f"Daily conclusion: {_html_text(daily.get('reason'))}\n"
             f"{'─' * 32}\n"
             f"<b>Screen 3 · Entry monitor</b>\n"
-            f"EMA penetration reference：<code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  Previous-day break reference：<code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
+            f"EMA penetration reference: <code>{self._fmt_num(entry_plan.get('ema_penetration_entry'), 2)}</code>  Previous-day break reference: <code>{self._fmt_num(entry_plan.get('breakout_entry'), 2)}</code>\n"
             f"Projected next EMA: <code>{self._fmt_num(entry_plan.get('projected_next_ema'), 2)}</code>  Average penetration: <code>{self._fmt_num(entry_plan.get('average_penetration'), 2)}</code>\n"
             f"{breakout_line}\n"
             f"Breakout strength: [{breakout_bar}] {self._fmt_num(hourly.get('breakout_strength'), 2)}xATR\n"
-            f"ATR：<code>{self._fmt_num(hourly.get('atr'), 4)}</code>\n"
+            f"ATR: <code>{self._fmt_num(hourly.get('atr'), 4)}</code>\n"
             f"TriggerStatus: <b>{hourly_status_label}</b>\n"
             f"Hourly conclusion: {_html_text(hourly.get('reason'))}\n"
             f"{'─' * 32}\n"
             f"<b>Entry plan</b>\n"
             f"{entry_options_block}\n"
-            f"Initial stops：<code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
-            f"SafeZone initial stop：<code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  Nick stop：<code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
-            f"ATR trailing stop 1x：<code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x：<code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
+            f"Initial stops: <code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
+            f"SafeZone initial stop: <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  Nick stop: <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
+            f"ATR trailing stop 1x: <code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x: <code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
             f"Next protective stop: <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}, one-way after entry)\n"
             f"Active stop: <code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
             f"Stop-method list:\n{self._format_stop_methods(exits.get('stop_methods'))}\n"
             f"First target: <code>{self._fmt_num(exits.get('take_profit'), 2)}</code>  Weekly value zone: <code>{self._fmt_num(weekly_target.get('value_zone_low'), 2)}</code> ~ <code>{self._fmt_num(weekly_target.get('value_zone_high'), 2)}</code>\n"
-            f"Daily ATR: <code>{self._fmt_num(exits.get('daily_atr'), 2)}</code>  Thermometer EMA：<code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  Projection base: {self._fmt_num(exits.get('target_reference'), 2)}\n"
+            f"Daily ATR: <code>{self._fmt_num(exits.get('daily_atr'), 2)}</code>  Thermometer EMA: <code>{self._fmt_num(exits.get('thermometer_ema'), 2)}</code>  Projection base: {self._fmt_num(exits.get('target_reference'), 2)}\n"
             f"Risk per share: {self._fmt_num(exits.get('risk_per_share'), 2)}  Estimated R/R: {self._fmt_num(exits.get('reward_risk_ratio'), 2)}R\n"
             f"Model risk: {self._fmt_num(exits.get('risk_per_share_model'), 2)}  Model R/R: {self._fmt_num(exits.get('reward_risk_ratio_model'), 2)}R\n"
             f"{'─' * 32}\n"
@@ -425,7 +433,7 @@ class TelegramNotifier:
             daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
             priority_tags = [_html_text(str(tag)) for tag in signal.get("priority_tags", [])]
             tag_line = f"   Tags: {' / '.join(priority_tags)}\n" if priority_tags else ""
-            order_plan = signal.get("next_day_order_plan") or {}
+            order_plan = signal.get("order_plan") or signal.get("next_day_order_plan") or {}
             primary_order = order_plan.get("primary_order") or {}
             risk = order_plan.get("risk") or {}
             order_line = ""
@@ -435,7 +443,7 @@ class TelegramNotifier:
                     f"{_html_text(primary_order.get('action', ''))} "
                     f"Stop <code>{self._fmt_num(primary_order.get('stop_price'), 2)}</code> "
                     f"Limit <code>{self._fmt_num(primary_order.get('limit_price'), 2)}</code> "
-                    f"Stop <code>{self._fmt_num(risk.get('initial_stop'), 2)}</code> "
+                    f"Initial Stop <code>{self._fmt_num(risk.get('initial_stop'), 2)}</code> "
                     f"Target <code>{self._fmt_num(risk.get('take_profit'), 2)}</code> "
                     f"RR <code>{self._fmt_num(risk.get('reward_risk_ratio_model'), 2)}R</code>\n"
                 )
@@ -560,7 +568,7 @@ class TelegramNotifier:
             )
 
         lines = [
-            f"🏁 <b>Triggered Opportunity（{len(triggered_signals)}）</b>\n",
+            f"🏁 <b>Triggered Opportunity ({len(triggered_signals)})</b>\n",
             f"Tracking candidate date: <code>{session_date}</code> · active candidates {total_candidates}\n",
             f"* = Triggered\n",
             f"{'─' * 24}\n",
@@ -579,9 +587,9 @@ class TelegramNotifier:
                 f"{status_label} Current {self._fmt_num(hourly.get('close'), 2)}{divergence_badge}\n"
                 f"   Suggested entry: <code>{self._fmt_num(exits.get('entry'), 2)}</code>  "
                 f"Reason: {_html_text(self._format_trigger_reason(signal))}\n"
-                f"   Entry：EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
+                f"   Entry: EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
                 f"Breakout <code>{self._format_entry_option_price(breakout_option)}</code>\n"
-                f"   Stop：SafeZone <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  "
+                f"   Stop: SafeZone <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  "
                 f"Nick <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
             )
 

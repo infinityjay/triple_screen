@@ -85,11 +85,11 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
             scan_time_sec=9.2,
         )
 
-        self.assertIn("现价 440.55", message)
-        self.assertIn("建议买入价：<code>438.20</code>", message)
-        self.assertIn("原因：EMA穿透", message)
-        self.assertIn("Entry：EMA <code>438.20*</code>  突破 <code>441.30</code>", message)
-        self.assertIn("止损：SafeZone <code>433.20</code>  尼克 <code>431.10</code>", message)
+        self.assertIn("Current 440.55", message)
+        self.assertIn("Suggested entry: <code>438.20</code>", message)
+        self.assertIn("Reason: EMA penetration", message)
+        self.assertIn("Entry: EMA <code>438.20*</code>  Breakout <code>441.30</code>", message)
+        self.assertIn("Stop: SafeZone <code>433.20</code>  Nick <code>431.10</code>", message)
 
     def test_short_trigger_summary_includes_sell_price_and_initial_stop(self) -> None:
         message = self.notifier.format_trigger_summary_message(
@@ -99,20 +99,20 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
             scan_time_sec=9.2,
         )
 
-        self.assertIn("现价 146.73", message)
-        self.assertIn("建议买入价：<code>146.10</code>", message)
-        self.assertIn("原因：EMA穿透", message)
-        self.assertIn("Entry：EMA <code>146.10*</code>  突破 <code>145.40</code>", message)
-        self.assertIn("止损：SafeZone <code>148.31</code>  尼克 <code>149.70</code>", message)
+        self.assertIn("Current 146.73", message)
+        self.assertIn("Suggested entry: <code>146.10</code>", message)
+        self.assertIn("Reason: EMA penetration", message)
+        self.assertIn("Entry: EMA <code>146.10*</code>  Breakout <code>145.40</code>", message)
+        self.assertIn("Stop: SafeZone <code>148.31</code>  Nick <code>149.70</code>", message)
 
     def test_detailed_signal_supports_ema_trigger_without_signal_bar(self) -> None:
         message = self.notifier.format_signal_message(_build_signal("SHORT"))
 
-        self.assertIn("触发来源：EMA_PENETRATION", message)
-        self.assertIn("触发价：146.10", message)
-        self.assertIn("EMA穿透参考价（已触发）", message)
-        self.assertIn("前日突破参考价（未触发）", message)
-        self.assertIn("止盈 <code>120.00</code>", message)
+        self.assertIn("Trigger source: EMA_PENETRATION", message)
+        self.assertIn("Trigger: 146.10", message)
+        self.assertIn("EMA penetration reference", message)
+        self.assertIn("Previous-day breakout reference", message)
+        self.assertIn("Target <code>120.00</code>", message)
 
     def test_detailed_signal_escapes_strategy_text_for_telegram_html(self) -> None:
         signal = _build_signal("SHORT")

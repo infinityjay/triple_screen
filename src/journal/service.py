@@ -146,7 +146,7 @@ class JournalManager:
                         "session_date": target_session,
                         "status": "ERROR",
                         "changed": False,
-                        "note": "缺少Entry价或Shares，无法计算保护性止损。",
+                        "note": "Missing entry price or shares; cannot calculate protective stop.",
                     }
                 )
                 continue

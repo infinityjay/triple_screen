@@ -336,7 +336,7 @@ function renderSummary(includeCapturePreview = false) {
   $("summaryOpenCount").textContent = String(openTrades.length);
   $("summaryUsedPct").textContent = closedPct === null ? "—" : formatPercent(closedPct, 2);
   $("summaryUsedText").textContent = closedTrades.length
-    ? `本月已结净盈亏 ${formatCurrency(netClosed, 2)} / 总资金 ${formatCurrency(settings.total, 0)}`
+    ? `Closed net P/L this month ${formatCurrency(netClosed, 2)} / Total Capital ${formatCurrency(settings.total, 0)}`
     : "No closed trades this month";
   $("summaryCompleteness").textContent = completionRate === null ? "No sample" : formatPercent(completionRate, 0);
   $("summaryCompletenessSub").textContent = overdue.length
@@ -355,7 +355,7 @@ function renderSummary(includeCapturePreview = false) {
   $("summaryRiskFill").style.width = `${Math.max(0, Math.min(100, Math.abs(closedPct ?? 0)))}%`;
 
   $("monthHeadline").textContent = `Current Month: ${month}`;
-  $("monthHeadlineBody").textContent = `${closedTrades.length} closed，Net Result ${closedTrades.length ? formatCurrency(netClosed, 2) : "—"}，${openTrades.length} open positions currently use stop budget ${formatCurrency(openUsed, 2)}。`;
+  $("monthHeadlineBody").textContent = `${closedTrades.length} closed, Net Result ${closedTrades.length ? formatCurrency(netClosed, 2) : "—"}, ${openTrades.length} open positions currently use stop budget ${formatCurrency(openUsed, 2)}.`;
   $("journalMonthCurrent").textContent = `Current Month: ${month}`;
   $("statsMonthCurrent").textContent = `Current Month: ${month}`;
 
@@ -363,7 +363,7 @@ function renderSummary(includeCapturePreview = false) {
   if (!settings.total) notes.push("Set total capital and risk percentages before the system can suggest position size.");
   if (remaining <= 0) notes.push("Current positions have used the stop budget; pause new entries and manage existing positions first.");
   else if (pct >= 75) notes.push("Current stop-budget usage is elevated; filter new entries more strictly.");
-  if (overdue.length) notes.push(`有 ${overdue.length} old trades are incomplete, which will affect statistics.`);
+  if (overdue.length) notes.push(`${overdue.length} old trades are incomplete, which will affect statistics.`);
   if (!closedTrades.length) notes.push("No closed trades this month; focus on execution quality and record completeness.");
   $("heroNotes").innerHTML = notes.length
     ? notes.map((item) => `<div class="status-pill">${escapeHtml(item)}</div>`).join("")
@@ -379,7 +379,7 @@ function renderOverview() {
     .slice(0, 5);
 
   $("reminderSummary").innerHTML = overdue.length
-    ? `There are <strong>${overdue.length}</strong> trades，建议先补Trade Plan、复盘和价格区间。`
+    ? `There are <strong>${overdue.length}</strong> trades, fill in trade plan, review, and price ranges first.`
     : "No trades older than 3 months remain incomplete.";
 
   $("reminderList").innerHTML = overdue.length
@@ -390,7 +390,7 @@ function renderOverview() {
         return `
             <div class="reminder-item">
               <strong>${escapeHtml(trade.stock || "—")} · ${escapeHtml(getDirectionLabel(trade.direction))}</strong>
-              <p>${formatDateLabel(trade.buy_date || trade.created_at)} opened, ${getTradeAgeInDays(trade) || 0} days old; missing: ${escapeHtml(gaps.join("、"))}</p>
+              <p>${formatDateLabel(trade.buy_date || trade.created_at)} opened, ${getTradeAgeInDays(trade) || 0} days old; missing: ${escapeHtml(gaps.join(", "))}</p>
               <div class="btn-row" style="margin-top:12px">
                 <button class="btn btn-secondary" type="button" data-edit-trade="${escapeHtml(String(trade.id))}">Continue Editing</button>
               </div>
@@ -424,9 +424,9 @@ function renderOverview() {
   const insights = [];
   const { pct, remaining, openUsed } = getRiskNumbers();
   if (remaining <= 0) insights.push(["Current Stop Budget Is Maxed", "Open risk has consumed the total stop budget; pause new positions."]);
-  else if (pct >= 75) insights.push(["Current Stop Usage Is Elevated", `Position usage ${formatCurrency(openUsed, 2)}，Reduce size for new positions.`]);
-  if (openTrades.length) insights.push(["Prioritize Open Positions", `There are ${openTrades.length} open，优先保证止损和跟踪记录及时更新。`]);
-  if (!closedTrades.length) insights.push(["Small Monthly Sample", "已结交易太少时，不要过度解读wins率和Net Result。"]);
+  else if (pct >= 75) insights.push(["Current Stop Usage Is Elevated", `Position usage ${formatCurrency(openUsed, 2)}, Reduce size for new positions.`]);
+  if (openTrades.length) insights.push(["Prioritize Open Positions", `There are ${openTrades.length} open, keep stops and tracking records updated first.`]);
+  if (!closedTrades.length) insights.push(["Small Monthly Sample", "Do not over-interpret win rate and net result when there are too few closed trades."]);
   if (!insights.length) insights.push(["Process On Track", "Risk, sample size, and record completeness are all acceptable."]);
   $("monthInsights").innerHTML = insights
     .map(([title, body]) => `<div class="insight-item"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(body)}</p></div>`)
@@ -488,7 +488,7 @@ function renderJournalRail(list) {
               <p>${escapeHtml(truncateText(primaryNote, 120))}</p>
             </div>
             <div class="journal-rail-footer">
-              <span>${gaps.length ? `Missing ${escapeHtml(gaps.join("、"))}` : "Record complete"}</span>
+              <span>${gaps.length ? `Missing ${escapeHtml(gaps.join(", "))}` : "Record complete"}</span>
               <span>${formatShares(trade.shares)} · Initial Stop ${formatCurrency(initialStop, 3)} · Current Protective Stop ${formatCurrency(currentStop, 3)}</span>
             </div>
           </div>
@@ -535,7 +535,7 @@ function renderJournalTable(list) {
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "Open" : formatCurrency(pnl, 2)}</td>
           <td class="reason-cell">${escapeHtml(trade.stop_reason || "—")}</td>
           <td class="reason-cell">${escapeHtml(trade.sell_reason || "—")}</td>
-          <td class="reason-cell">${escapeHtml(gaps.length ? gaps.join("、") : "Complete")}</td>
+          <td class="reason-cell">${escapeHtml(gaps.length ? gaps.join(", ") : "Complete")}</td>
           <td class="reason-cell">${escapeHtml((trade.review || "").slice(0, 120) || "—")}</td>
           <td>
             <div class="inline-actions">
@@ -555,13 +555,13 @@ function renderJournalTable(list) {
           <tr>
             <th>Symbol</th>
             <th>Status</th>
-            <th>Entry日期</th>
-            <th>Entry价</th>
+            <th>Entry Date</th>
+            <th>Entry Price</th>
             <th>Shares</th>
-            <th>Initial Stop价</th>
+            <th>Initial Stop Price</th>
             <th>Current Protective Stop</th>
-            <th>风险/Result</th>
-            <th>Target价</th>
+            <th>Risk / Result</th>
+            <th>Target Price</th>
             <th>Net Result</th>
             <th>Trade Plan</th>
             <th>Exit Reason</th>
@@ -608,7 +608,7 @@ function renderStats() {
   const netPct = getSettings().total > 0 ? (net / getSettings().total) * 100 : null;
 
   let leadTitle = "Monthly Takeaway";
-  let leadBody = "继续保持记录质量，先看风险，再看Result。";
+  let leadBody = "Keep record quality high; review risk before results.";
   if (!closed.length) {
     leadTitle = "Sample Too Small; Review Execution First";
     leadBody = "There are not enough closed trades this month; make sure plan, stops, and reviews are complete first.";
@@ -616,13 +616,13 @@ function renderStats() {
     leadTitle = "Current Stop Budget Is Maxed";
     leadBody = "Open risk has consumed the total stop budget; stop adding positions and manage existing positions first.";
   } else if (net < 0) {
-    leadTitle = "Net Result偏弱，先收紧风险";
-    leadBody = "本月已结交易Net Result为losses，优先复盘亏损交易的执行偏差，而不是急着扩大样本。";
+    leadTitle = "Net Result Is Weak; Tighten Risk First";
+    leadBody = "Closed trades are net negative this month; review execution issues in losing trades before expanding the sample.";
   } else if (risk.pct >= 75) {
     leadTitle = "Current Stop Usage Is Elevated";
-    leadBody = "未平仓Risk Usage偏高，新仓要继续收紧，把注意力放在高质量 setup 上。";
+    leadBody = "Open risk usage is high; keep new entries tight and focus on high-quality setups.";
   } else if ((completionRate || 0) < 70) {
-    leadTitle = "Result先放一边，先补数据";
+    leadTitle = "Park Results; Complete Data First";
     leadBody = "Low record completeness directly hurts statistics; complete old trades first.";
   }
 
@@ -631,19 +631,19 @@ function renderStats() {
   $("statsLeadPills").innerHTML = [
     `<div class="stat-pill">Closed ${closed.length} trades</div>`,
     `<div class="stat-pill">Open ${open.length} trades</div>`,
-    `<div class="stat-pill">wins率 ${closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"}</div>`,
+    `<div class="stat-pill">Win Rate ${closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"}</div>`,
     `<div class="stat-pill">Completeness ${completionRate === null ? "—" : formatPercent(completionRate, 0)}</div>`,
   ].join("");
 
   $("statsGrid").innerHTML = [
     ["Net Result", closed.length ? formatCurrency(net, 2) : "—"],
     ["of capital", netPct === null ? "—" : formatPercent(netPct, 2)],
-    ["wins率", closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"],
+    ["Win Rate", closed.length ? formatPercent((wins.length / closed.length) * 100, 0) : "—"],
     ["Average Win", avgWin === null ? "—" : formatCurrency(avgWin, 2)],
     ["Average Loss", avgLoss === null ? "—" : formatCurrency(avgLoss, 2)],
     ["Open Stop Usage", formatPercent(risk.pct, 0)],
     ["Current Open Stops", formatCurrency(risk.openUsed, 2)],
-    ["当前remaining额度", formatCurrency(risk.remaining, 2)],
+    ["Remaining Budget", formatCurrency(risk.remaining, 2)],
     ["Recorded Trades", String(all.length)],
     ["Complete Records", completionRate === null ? "—" : formatPercent(completionRate, 0)],
   ]
@@ -658,9 +658,9 @@ function renderStats() {
     .join("");
 
   const suggestions = [];
-  if (risk.remaining <= 0) suggestions.push(["Pause New Positions", "Current Open Stops额度已经耗尽，优先处理现有持仓。"]);
+  if (risk.remaining <= 0) suggestions.push(["Pause New Positions", "Current open stops have consumed the budget; handle existing positions first."]);
   if (losses.length > wins.length && closed.length >= 4) suggestions.push(["Review Loss Patterns", "Check whether mistakes cluster around the same setup type or execution step."]);
-  if ((completionRate || 0) < 70) suggestions.push(["Complete Old Records", "先把未填写的计划、Exit Reason和复盘补完，再看统计。"]);
+  if ((completionRate || 0) < 70) suggestions.push(["Complete Old Records", "Complete missing plans, exit reasons, and reviews before reading stats."]);
   if (!suggestions.length) suggestions.push(["Continue Current Process", "Keep maintaining the journal at the current rhythm and watch protective-stop updates."]);
 
   $("statsNarrative").innerHTML = suggestions
@@ -671,10 +671,10 @@ function renderStats() {
 
 function updateCaptureHeader() {
   const editing = state.editingId !== null;
-  $("captureTitle").textContent = editing ? "Edit交易" : "New Trade";
+  $("captureTitle").textContent = editing ? "Edit Trade" : "New Trade";
   $("captureSubtitle").textContent = editing
     ? "You are editing an existing trade; saving updates SQLite directly."
-    : "New Trade时，系统会实时计算风险和Target位。";
+    : "When adding a new trade, the system calculates risk and target levels live.";
   $("captureCancelBtn").classList.toggle("hidden", !editing);
   $("captureSaveBtn").textContent = editing ? "Save Changes" : "Save Trade";
 }
@@ -823,7 +823,7 @@ function computeCapture() {
   const grossPnl = calculateGrossPnl(buyPrice, sellPrice, shares, direction);
   const netPnl = calculateNetPnl(grossPnl, buyComm, sellComm);
 
-  $("calcMaxLoss").textContent = maxLoss === null ? "先设置总资金" : formatCurrency(maxLoss, 2);
+  $("calcMaxLoss").textContent = maxLoss === null ? "Set total capital first" : formatCurrency(maxLoss, 2);
   $("f_initialStopLoss").value = formatInputNumber(initialStop, 3);
   $("f_suggestedStopLoss").value = formatInputNumber(suggestedStop, 3);
   $("calcInitialStopDisplay").textContent = initialStop === null ? "—" : formatCurrency(initialStop, 3);
@@ -838,23 +838,23 @@ function computeCapture() {
 
   let stopText = "—";
   if (stopStatus) {
-    if (stopStatus.type === "breakeven") stopText = "保本";
-    if (stopStatus.type === "locked") stopText = `锁定 ${formatPercent(stopStatus.pct, 1)}`;
-    if (stopStatus.type === "risk") stopText = `风险 ${formatPercent(stopStatus.pct, 1)}`;
+    if (stopStatus.type === "breakeven") stopText = "Breakeven";
+    if (stopStatus.type === "locked") stopText = `Locked  ${formatPercent(stopStatus.pct, 1)}`;
+    if (stopStatus.type === "risk") stopText = `Risk ${formatPercent(stopStatus.pct, 1)}`;
   }
   $("calcStopState").textContent = stopText;
   $("calcExecutionHint").textContent = recommendedShares === null
     ? stopStatus?.type === "breakeven" || stopStatus?.type === "locked"
-      ? "Current Protective Stop已到保本/盈利侧，这open新增Risk Usage为 0"
-      : "先填写Entry价、止损价和总资金"
-    : `当前规则建议 ${formatNumber(recommendedShares, 0)} 股，方向为 ${getDirectionLabel(direction)}`;
+      ? "Current protective stop is at breakeven/profit side; this open trade adds 0 risk usage"
+      : "Enter entry price, stop price, and total capital first"
+    : `Current rule suggests ${formatNumber(recommendedShares, 0)} shares, direction ${getDirectionLabel(direction)}`;
   $("fillSharesBtn").disabled = recommendedShares === null;
   $("fillSharesInlineBtn").disabled = recommendedShares === null;
 
   if (previewRisk.singleStop > 0 && previewRisk.remaining < 0 && getCapturePreviewTrade()) {
     showAlert(
       "captureAlert",
-      `这笔交易会让Current Open Stops超出remaining额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后remaining额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`,
+      `This trade will exceed remaining open stop budget by ${formatCurrency(Math.abs(previewRisk.remaining), 2)}, remaining budget after save will become ${formatCurrency(previewRisk.remaining, 2)}.`,
       "warn"
     );
   } else {
@@ -941,12 +941,12 @@ function getCapturePayload() {
 }
 
 function validateCapturePayload(payload) {
-  if (!payload.stock) return "请填写股票代码";
-  if (payload.buy_price === null) return "请填写Entry价";
-  if (payload.stop_loss === null) return "请填写止损价";
-  if (payload.shares === null) return "请填写Shares";
-  if (getRiskPerShare(payload.buy_price, payload.initial_stop_loss, payload.direction) === 0) return "Initial Stop价需要位于风险有效的一侧";
-  if (hasPartialSellInfo(payload.sell_price, payload.sell_date)) return payload.sell_price === null ? "填写平仓日期时，也请填写平仓价" : "填写平仓价时，也请填写平仓日期";
+  if (!payload.stock) return "Enter ticker";
+  if (payload.buy_price === null) return "Enter entry price";
+  if (payload.stop_loss === null) return "Enter stop price";
+  if (payload.shares === null) return "Enter shares";
+  if (getRiskPerShare(payload.buy_price, payload.initial_stop_loss, payload.direction) === 0) return "Initial stop price must be on the valid risk side";
+  if (hasPartialSellInfo(payload.sell_price, payload.sell_date)) return payload.sell_price === null ? "When entering exit date, also enter exit price" : "When entering exit price, also enter exit date";
   return "";
 }
 
@@ -960,21 +960,21 @@ async function saveTrade() {
 
   const previewRisk = getRiskNumbers(true);
   if (previewRisk.singleStop > 0 && previewRisk.remaining < 0) {
-    showAlert("captureAlert", `这笔交易会让Current Open Stops超出总额度 ${formatCurrency(Math.abs(previewRisk.remaining), 2)}，保存后remaining额度会变成 ${formatCurrency(previewRisk.remaining, 2)}。`, "warn");
+    showAlert("captureAlert", `This trade will exceed total open stop budget by ${formatCurrency(Math.abs(previewRisk.remaining), 2)}, remaining budget after save will become ${formatCurrency(previewRisk.remaining, 2)}.`, "warn");
   }
 
   const button = $("captureSaveBtn");
   button.disabled = true;
-  button.textContent = state.editingId ? "保存中…" : "创建中…";
+  button.textContent = state.editingId ? "Saving..." : "Creating...";
 
   try {
     let savedTrade = null;
     if (state.editingId) {
       savedTrade = await apiRequest(`/trades/${encodeURIComponent(state.editingId)}`, { method: "PUT", body: payload });
-      showGlobalAlert("交易已更新", "success");
+      showGlobalAlert("Trade updated", "success");
     } else {
       savedTrade = await apiRequest("/trades", { method: "POST", body: payload });
-      showGlobalAlert("交易已保存", "success");
+      showGlobalAlert("Trade saved", "success");
     }
     upsertTradeInState(savedTrade);
     clearCaptureForm();
@@ -992,14 +992,14 @@ async function saveTrade() {
 async function deleteTrade(id) {
   const trade = state.trades.find((item) => String(item.id) === String(id));
   if (!trade) return;
-  if (!window.confirm(`确认Delete ${trade.stock} 这笔交易吗？`)) return;
+  if (!window.confirm(`Confirm deleting ${trade.stock} this trade?`)) return;
 
   try {
     await apiRequest(`/trades/${encodeURIComponent(id)}`, { method: "DELETE" });
     await loadTrades();
     if (String(state.editingId) === String(id)) clearCaptureForm();
     refreshAll();
-    showGlobalAlert("交易已Delete", "success");
+    showGlobalAlert("Trade deleted", "success");
   } catch (error) {
     showGlobalAlert(error.message || String(error), "danger");
   }
@@ -1024,7 +1024,7 @@ async function persistSettings() {
     method: "PUT",
     body: settingsStateToRow(getSettings()),
   });
-  showAlert("settingsAlert", "设置已同步到本地 SQLite", "success");
+  showAlert("settingsAlert", "Settings synced to local SQLite", "success");
 }
 
 function scheduleSettingsSave() {
@@ -1042,7 +1042,7 @@ function scheduleSettingsSave() {
   cacheSettings();
   syncMonthInputs();
   refreshAll();
-  showAlert("settingsAlert", "设置已更新，正在同步本地数据库…", "warn");
+  showAlert("settingsAlert", "Settings updated; syncing local database...", "warn");
 
   clearTimeout(state.settingsSaveTimer);
   state.settingsSaveTimer = setTimeout(async () => {
@@ -1094,13 +1094,13 @@ function exportData() {
 }
 
 async function clearAll() {
-  if (!window.confirm("确认清空全部交易数据吗？这个Actions无法恢复。")) return;
+  if (!window.confirm("Clear all trade data? This action cannot be undone.")) return;
   try {
     await apiRequest("/trades", { method: "DELETE" });
     await loadTrades();
     clearCaptureForm();
     refreshAll();
-    showGlobalAlert("全部交易数据已清空", "success");
+    showGlobalAlert("All trade data cleared", "success");
   } catch (error) {
     showGlobalAlert(error.message || String(error), "danger");
   }
@@ -1108,7 +1108,7 @@ async function clearAll() {
 
 async function bootApp() {
   syncShell("journal");
-  setScreenState("boot", "检查本地 Journal API，并加载交易日志…");
+  setScreenState("boot", "Checking local Journal API and loading Trade Journal...");
 
   try {
     const health = await ensureApiReady();
@@ -1170,7 +1170,7 @@ function bindEvents() {
   $("reloadDataBtn").addEventListener("click", async () => {
     await Promise.all([loadSettings(), loadTrades()]);
     refreshAll();
-    showGlobalAlert("数据已从本地 SQLite 重新加载", "success");
+    showGlobalAlert("Data reloaded from local SQLite", "success");
   });
   $("clearAllBtn").addEventListener("click", clearAll);
 }

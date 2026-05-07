@@ -69,24 +69,24 @@ def _normalize_symbol(value: str) -> str:
 
 def _daily_state_label(state: str | None) -> str:
     labels = {
-        "NEUTRAL": "中性",
-        "NO_PULLBACK": "周线做多，但日线还没形成清晰回调",
-        "NO_RALLY": "周线做空，但日线还没形成清晰反弹",
-        "STRUCTURE_BROKEN": "结构被破坏",
-        "ACCELERATING_PULLBACK": "回调仍在加速",
-        "ACCELERATING_RALLY": "反弹仍在加速",
-        "PULLBACK_WAIT_VALUE_BAND": "回调已出现，等待回到 13EMA 价值带",
-        "RALLY_WAIT_VALUE_BAND": "反弹已出现，等待回到 13EMA 价值带",
-        "PULLBACK_WAIT_HISTOGRAM": "已回到 13EMA 价值带，等待 Histogram 回升",
-        "RALLY_WAIT_HISTOGRAM": "已回到 13EMA 价值带，等待 Histogram 回落",
-        "PULLBACK_HISTOGRAM_TURNED": "回调到价值带后，Histogram 已回升",
-        "RALLY_HISTOGRAM_TURNED": "反弹到价值带后，Histogram 已回落",
-        "PULLBACK_WAIT_FORCE_BELOW_ZERO": "等待 2日 Force EMA 跌破 0",
-        "PULLBACK_FORCE_READY_WAIT_IMPULSE": "Force 已到位，等待日线动力系统不再反向",
-        "PULLBACK_FORCE_BELOW_ZERO": "2日 Force EMA 已跌破 0",
-        "RALLY_WAIT_FORCE_ABOVE_ZERO": "等待 2日 Force EMA 升破 0",
-        "RALLY_FORCE_READY_WAIT_IMPULSE": "Force 已到位，等待日线动力系统不再反向",
-        "RALLY_FORCE_ABOVE_ZERO": "2日 Force EMA 已升破 0",
+        "NEUTRAL": "Neutral",
+        "NO_PULLBACK": "Weekly long, but daily pullback is not clear yet",
+        "NO_RALLY": "Weekly short, but daily rally is not clear yet",
+        "STRUCTURE_BROKEN": "Structure broken",
+        "ACCELERATING_PULLBACK": "Pullback is still accelerating",
+        "ACCELERATING_RALLY": "Rally is still accelerating",
+        "PULLBACK_WAIT_VALUE_BAND": "Pullback appeared; waiting for return to the 13EMA value band",
+        "RALLY_WAIT_VALUE_BAND": "Rally appeared; waiting for return to the 13EMA value band",
+        "PULLBACK_WAIT_HISTOGRAM": "Returned to 13EMA value band; waiting for histogram to turn up",
+        "RALLY_WAIT_HISTOGRAM": "Returned to 13EMA value band; waiting for histogram to turn down",
+        "PULLBACK_HISTOGRAM_TURNED": "Histogram turned up after pullback to value band",
+        "RALLY_HISTOGRAM_TURNED": "Histogram turned down after rally to value band",
+        "PULLBACK_WAIT_FORCE_BELOW_ZERO": "Waiting for 2-day Force EMA to fall below 0",
+        "PULLBACK_FORCE_READY_WAIT_IMPULSE": "Force is ready; waiting for daily impulse system to stop opposing the trade",
+        "PULLBACK_FORCE_BELOW_ZERO": "2-day Force EMA fell below 0",
+        "RALLY_WAIT_FORCE_ABOVE_ZERO": "Waiting for 2-day Force EMA to rise above 0",
+        "RALLY_FORCE_READY_WAIT_IMPULSE": "Force is ready; waiting for daily impulse system to stop opposing the trade",
+        "RALLY_FORCE_ABOVE_ZERO": "2-day Force EMA rose above 0",
     }
     return labels.get(str(state or ""), str(state or "—"))
 
@@ -145,9 +145,9 @@ def _build_divergence_snapshot(settings: Any, weekly_frame: Any, daily_frame: An
         neutral_note = {
             "detected": False,
             "strong_alert": False,
-            "timeframe": "周线/日线",
+            "timeframe": "Weekly/Daily",
             "direction": direction,
-            "reason": "周线方向未明确，当前不单独评估趋势背离。",
+            "reason": "Weekly direction is unclear; trend divergence is not evaluated independently.",
         }
         return {"weekly": neutral_note, "daily": neutral_note}
 
@@ -156,14 +156,14 @@ def _build_divergence_snapshot(settings: Any, weekly_frame: Any, daily_frame: An
             weekly_frame,
             settings.strategy,
             direction,
-            "周线",
+            "Weekly",
             settings.qualification.strong_divergence_exhaustion_multiplier,
         ),
         "daily": indicators.detect_divergence(
             daily_frame,
             settings.strategy,
             direction,
-            "日线",
+            "Daily",
             settings.qualification.strong_divergence_exhaustion_multiplier,
         ),
     }
@@ -177,48 +177,48 @@ def _build_followup_decision(weekly: dict[str, Any], daily: dict[str, Any], dive
     if not weekly.get("actionable"):
         return {
             "code": "NO_TREND",
-            "label": "暂不跟进观察",
+            "label": "Do Not Track Yet",
             "tone": "warn",
-            "reason": "周线柱线方向还不清晰，当前没有稳定的趋势主线。",
+            "reason": "Weekly histogram direction is unclear; there is no stable trend thesis yet.",
         }
 
     if weekly.get("pass") and daily.get("pass") and not strong_divergence:
         return {
             "code": "READY",
-            "label": "可以重点跟进观察",
+            "label": "Priority Watch",
             "tone": "safe",
-            "reason": "周线趋势确认、日线 setup 到位，当前已经具备重点盯盘价值。",
+            "reason": "Weekly trend is confirmed and daily setup is ready; this deserves priority monitoring.",
         }
 
     if weekly.get("pass") and daily.get("pass") and strong_divergence:
         return {
             "code": "READY_WITH_CAUTION",
-            "label": "可以观察，但要更保守",
+            "label": "Watch, But More Conservatively",
             "tone": "warn",
-            "reason": "周线和日线条件都成立，但背离提示趋势可能衰竭，执行上要降低激进程度。",
+            "reason": "Weekly and daily conditions pass, but divergence warns of possible trend exhaustion; reduce execution aggressiveness.",
         }
 
     if weekly.get("pass") and daily.get("watch"):
         return {
             "code": "WATCH",
-            "label": "可以继续跟进观察",
+            "label": "Continue Watching",
             "tone": "info",
-            "reason": "周线方向已经基本明确，但日线 Force Index 或日线动力系统还没有完全到位。",
+            "reason": "Weekly direction is mostly clear, but daily Force Index or daily impulse system is not fully ready.",
         }
 
     if weekly.get("actionable") and not weekly.get("pass"):
         return {
             "code": "EARLY_TREND",
-            "label": "先放入跟踪，不急着判断",
+            "label": "Track First, No Rush",
             "tone": "info",
-            "reason": "周线已经出现方向，但确认条数或趋势侧位置还不够完整。",
+            "reason": "Weekly direction appeared, but confirmation bars or trend-side position are not complete enough.",
         }
 
     return {
         "code": "REJECT",
-        "label": "暂不跟进观察",
+        "label": "Do Not Track Yet",
         "tone": "warn",
-        "reason": daily.get("reject_reason") or "日线 setup 质量不足，暂不建议投入更多关注。",
+        "reason": daily.get("reject_reason") or "Daily setup quality is insufficient; do not allocate more attention yet.",
     }
 
 
@@ -255,7 +255,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
     entry_plan: dict[str, Any] = {}
     weekly_value_target: dict[str, Any] = {}
     execution_metrics: list[dict[str, Any]] = []
-    execution_summary = "周线方向未明确时，不提供执行价位。"
+    execution_summary = "Execution levels are not provided when weekly direction is unclear."
     execution_hourly: dict[str, Any] = {}
     execution_exits: dict[str, Any] = {}
     suggested_entry = None
@@ -307,23 +307,23 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
                 suggested_stop = _safe_round(execution_exits.get("protective_stop_loss"))
                 suggested_target = _safe_round(execution_exits.get("take_profit"))
                 execution_summary = (
-                    f"当前执行口径：优先关注 EMA 穿透参考价 {suggested_entry if suggested_entry is not None else '—'}；"
-                    f"替代触发价为前一日高/低点外一跳 {entry_plan.get('breakout_entry', '—')}。"
-                    f" Initial Stop仍需在 SafeZone / 尼克止损法之间手动选择。"
+                    f"Current execution method: prioritize EMA penetration reference price {suggested_entry if suggested_entry is not None else '—'}; "
+                    f"alternate trigger is one tick outside the previous-day high/low {entry_plan.get('breakout_entry', '—')}."
+                    f" Initial stop still requires manual choice between SafeZone and Nick stop."
                 )
                 execution_metrics = [
-                    _metric("EMA 穿透参考价", suggested_entry, "accent"),
-                    _metric("前日突破参考价", _safe_round(entry_plan.get("breakout_entry")), "accent"),
-                    _metric("明日EMA估算", _safe_round(entry_plan.get("projected_next_ema"))),
-                    _metric("平均穿透", _safe_round(entry_plan.get("average_penetration"))),
+                    _metric("EMA Penetration Reference", suggested_entry, "accent"),
+                    _metric("Previous-Day Breakout Reference", _safe_round(entry_plan.get("breakout_entry")), "accent"),
+                    _metric("Projected Next EMA", _safe_round(entry_plan.get("projected_next_ema"))),
+                    _metric("Average Penetration", _safe_round(entry_plan.get("average_penetration"))),
                     _metric("SafeZone Initial Stop", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
-                    _metric("尼克止损", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
-                    _metric("尼克参考日期", execution_exits.get("initial_stop_nick_reference_date")),
-                    _metric("ATR 1x 移动止损", suggested_stop, "warn"),
-                    _metric("ATR 2x 移动止损", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
-                    _metric("周线价值区间Target", suggested_target),
+                    _metric("Nick Stop", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
+                    _metric("Nick Reference Date", execution_exits.get("initial_stop_nick_reference_date")),
+                    _metric("ATR 1x Trailing Stop", suggested_stop, "warn"),
+                    _metric("ATR 2x Trailing Stop", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
+                    _metric("Weekly Value-Zone Target", suggested_target),
                     _metric(
-                        "周线价值区间",
+                        "Weekly Value Zone",
                         (
                             f"{_safe_round(weekly_value_target.get('value_zone_low'))} ~ "
                             f"{_safe_round(weekly_value_target.get('value_zone_high'))}"
@@ -331,7 +331,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
                         if weekly_value_target.get("available")
                         else "—",
                     ),
-                    _metric("内部模型盈亏比", _safe_round(execution_exits.get("reward_risk_ratio_model"), 2)),
+                    _metric("Internal Model Reward/Risk", _safe_round(execution_exits.get("reward_risk_ratio_model"), 2)),
                 ]
 
     if weekly_trend in {"LONG", "SHORT"} and hourly_frame is not None and not hourly_frame.empty:
@@ -351,155 +351,155 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             suggested_stop = _safe_round(execution_exits.get("protective_stop_loss"))
             suggested_target = _safe_round(execution_exits.get("take_profit"))
             execution_summary = (
-                f"当前执行口径：建议关注触发价 {suggested_entry if suggested_entry is not None else '—'}，"
-                f"Initial Stop需在 SafeZone / 尼克止损法之间手动选择；"
-                f"ATR 1x 移动止损参考位 {suggested_stop if suggested_stop is not None else '—'}。"
+                f"Current execution method: watch trigger price {suggested_entry if suggested_entry is not None else '—'}, "
+                f"Initial stop requires manual choice between SafeZone and Nick stop; "
+                f"ATR 1x trailing stop reference {suggested_stop if suggested_stop is not None else '—'}."
                 f" {execution_hourly.get('reason', '')}"
             )
             execution_metrics = [
-                _metric("建议Entry价", suggested_entry, "accent"),
+                _metric("Suggested Entry Price", suggested_entry, "accent"),
                 _metric("SafeZone Initial Stop", _safe_round(execution_exits.get("initial_stop_safezone")), "warn"),
-                _metric("尼克止损", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
-                _metric("ATR 1x 移动止损", suggested_stop, "warn"),
-                _metric("ATR 2x 移动止损", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
-                _metric("首个Target位", suggested_target),
-                _metric("小时线Status", execution_hourly.get("status")),
-                _metric("当前价", _safe_round(execution_hourly.get("close"))),
-                _metric("信号K高点", _safe_round(execution_hourly.get("signal_bar_high"))),
-                _metric("信号K低点", _safe_round(execution_hourly.get("signal_bar_low"))),
+                _metric("Nick Stop", _safe_round(execution_exits.get("initial_stop_nick")), "warn"),
+                _metric("ATR 1x Trailing Stop", suggested_stop, "warn"),
+                _metric("ATR 2x Trailing Stop", _safe_round(execution_exits.get("stop_loss_atr_2x"))),
+                _metric("First Target", suggested_target),
+                _metric("Hourly Status", execution_hourly.get("status")),
+                _metric("Current Price", _safe_round(execution_hourly.get("close"))),
+                _metric("Signal Bar High", _safe_round(execution_hourly.get("signal_bar_high"))),
+                _metric("Signal Bar Low", _safe_round(execution_hourly.get("signal_bar_low"))),
                 _metric("ATR", _safe_round(execution_hourly.get("atr"), 4)),
-                _metric("内部模型盈亏比", _safe_round(execution_exits.get("reward_risk_ratio_model"), 2)),
+                _metric("Internal Model Reward/Risk", _safe_round(execution_exits.get("reward_risk_ratio_model"), 2)),
             ]
         else:
-            execution_summary = execution_hourly.get("reason") or "当前无法生成执行价位。"
+            execution_summary = execution_hourly.get("reason") or "Cannot generate execution levels right now."
             execution_metrics = [
-                _metric("建议买入价", None),
+                _metric("Suggested Buy Price", None),
                 _metric("Current Protective Stop", None),
-                _metric("小时线Status", execution_hourly.get("status")),
+                _metric("Hourly Status", execution_hourly.get("status")),
             ]
 
     weekly_metrics = [
-        _metric("周线趋势", weekly.get("trend")),
-        _metric("动力系统颜色", weekly.get("impulse_color"), "accent"),
+        _metric("Weekly Trend", weekly.get("trend")),
+        _metric("Impulse Color", weekly.get("impulse_color"), "accent"),
         _metric("MACD", _safe_round(weekly.get("macd"), 6)),
-        _metric("MACD 斜率", _safe_round(weekly.get("macd_slope"), 6)),
+        _metric("MACD Slope", _safe_round(weekly.get("macd_slope"), 6)),
         _metric("Signal", _safe_round(weekly.get("macd_signal"), 6)),
         _metric("Histogram", _safe_round(weekly.get("histogram"), 6)),
-        _metric("Histogram 变化", _safe_round(weekly.get("histogram_delta"), 6)),
+        _metric("Histogram Change", _safe_round(weekly.get("histogram_delta"), 6)),
         _metric("13EMA", _safe_round(weekly.get("ema13"), 4)),
-        _metric("13EMA 斜率", _safe_round(weekly.get("ema13_slope"), 6)),
-        _metric("确认 bars", f"{weekly.get('confirmed_bars', 0)} / {settings.strategy.weekly.confirm_bars}"),
-        _metric("趋势分数", _safe_round(weekly.get("trend_score"), 2)),
+        _metric("13EMA Slope", _safe_round(weekly.get("ema13_slope"), 6)),
+        _metric("Confirmed Bars", f"{weekly.get('confirmed_bars', 0)} / {settings.strategy.weekly.confirm_bars}"),
+        _metric("Trend Score", _safe_round(weekly.get("trend_score"), 2)),
     ]
     weekly_checks = [
         _check(
-            "MACD 斜率方向",
+            "MACD Slope Direction",
             weekly.get("actionable", False),
-            f"本周 MACD 斜率 {_safe_round(weekly.get('macd_slope'), 6)}，不为 0 才有方向。",
+            f"This week MACD slope {_safe_round(weekly.get('macd_slope'), 6)}, must be non-zero to define direction.",
         ),
         _check(
-            "连续同向 MACD bars",
+            "Consecutive Same-Direction MACD Bars",
             bool(weekly.get("pass_checks", {}).get("confirmed_bars")),
-            f"当前 {weekly.get('confirmed_bars', 0)} 根，规则要求至少 {settings.strategy.weekly.confirm_bars} 根。",
+            f"Current {weekly.get('confirmed_bars', 0)} bars; rule requires at least {settings.strategy.weekly.confirm_bars} bars.",
         ),
         _check(
-            "动力系统禁止规则",
+            "Impulse-System Block Rule",
             bool(weekly.get("pass_checks", {}).get("impulse_aligned")),
             (
-                f"动力颜色 {weekly.get('impulse_color', '—')}；做多不能为红色，做空不能为绿色。"
-                f" EMA 斜率 {_safe_round(weekly.get('ema13_slope'), 6)}，MACD 斜率 {_safe_round(weekly.get('macd_slope'), 6)}。"
+                f"Impulse color {weekly.get('impulse_color', '—')}; long cannot be red and short cannot be green."
+                f" EMA slope {_safe_round(weekly.get('ema13_slope'), 6)}, MACD Slope {_safe_round(weekly.get('macd_slope'), 6)}."
             ),
         ),
         _check(
-            "周线价值区间Target可用",
+            "Weekly Value-Zone Target Available",
             bool(weekly.get("weekly_value_target", {}).get("available")),
             (
-                f"周线 EMA13/EMA26 价值区间 "
+                f"Weekly EMA13/EMA26 value zone "
                 f"{_safe_round(weekly.get('weekly_value_target', {}).get('value_zone_low'))} ~ "
-                f"{_safe_round(weekly.get('weekly_value_target', {}).get('value_zone_high'))}。"
+                f"{_safe_round(weekly.get('weekly_value_target', {}).get('value_zone_high'))}."
             ),
         ),
     ]
 
     daily_metrics = [
-        _metric("日线结论", daily.get("state")),
-        _metric("日线阶段", _daily_state_label(daily.get("rsi_state"))),
-        _metric("Setup 分数", _safe_round(daily.get("setup_score"), 2)),
+        _metric("Daily Decision", daily.get("state")),
+        _metric("Daily Stage", _daily_state_label(daily.get("rsi_state"))),
+        _metric("Setup Score", _safe_round(daily.get("setup_score"), 2)),
         _metric(
-            "三重滤网核心信号",
+            "Triple-Screen Core Signals",
             f"{daily.get('elder_core_signal_count', 0)} / {daily.get('elder_core_signal_total', 3)}",
         ),
-        _metric("2日 Force EMA", _safe_round(daily.get("force_index_ema2"), 2), "accent"),
-        _metric("前一日 Force EMA", _safe_round(daily.get("force_index_ema2_prev"), 2)),
-        _metric("Force 变化", _safe_round(daily.get("force_index_delta"), 2)),
-        _metric("日线动力颜色", daily.get("impulse_color")),
-        _metric("辅助 RSI", _safe_round(daily.get("rsi"), 2)),
-        _metric("辅助 Histogram 变化", _safe_round(daily.get("momentum_hist_delta"), 6)),
+        _metric("2-Day Force EMA", _safe_round(daily.get("force_index_ema2"), 2), "accent"),
+        _metric("Previous-Day Force EMA", _safe_round(daily.get("force_index_ema2_prev"), 2)),
+        _metric("Force Change", _safe_round(daily.get("force_index_delta"), 2)),
+        _metric("Daily Impulse Color", daily.get("impulse_color")),
+        _metric("Supporting RSI", _safe_round(daily.get("rsi"), 2)),
+        _metric("Supporting Histogram Change", _safe_round(daily.get("momentum_hist_delta"), 6)),
         _metric("13EMA", daily_ema13),
         _metric(
-            "13EMA 价值带",
+            "13EMA Value Band",
             (
                 f"{_safe_round(daily.get('value_band_low'))} ~ {_safe_round(daily.get('value_band_high'))}"
                 if daily.get("value_band_low") is not None and daily.get("value_band_high") is not None
                 else "—"
             ),
         ),
-        _metric("距价值带", _safe_round(daily.get("value_band_gap"))),
-        _metric(daily.get("correction_counter_label", "近8日修正收盘数"), daily.get("correction_count")),
-        _metric("结构防守位", _safe_round(daily.get("structure_break_level"))),
+        _metric("Distance to Value Band", _safe_round(daily.get("value_band_gap"))),
+        _metric(daily.get("correction_counter_label", "Correction Closes in Last 8 Days"), daily.get("correction_count")),
+        _metric("Structure Defense Level", _safe_round(daily.get("structure_break_level"))),
         _metric("Latest Close", latest_close),
-        _metric("自定义K线确认", "成立" if daily.get("custom_kline_confirmation") else "未成立"),
-        _metric("收盘相对昨收", "满足" if daily.get("custom_close_rule_pass") else "未满足"),
-        _metric("K线影线占比", f"{_safe_round(daily.get('custom_wick_ratio_pct'), 2)}%"),
-        _metric("影线比例>=35%", "满足" if daily.get("custom_wick_rule_pass") else "未满足"),
-        _metric("收盘在K线中的位置", f"{_safe_round(daily.get('custom_close_location_pct'), 2)}%"),
-        _metric("收盘落在有利半区", "满足" if daily.get("custom_close_location_rule_pass") else "未满足"),
+        _metric("Custom Candle Confirmation", "Pass" if daily.get("custom_kline_confirmation") else "Fail"),
+        _metric("Close vs Prior Close", "Pass" if daily.get("custom_close_rule_pass") else "Fail"),
+        _metric("Candle Wick Ratio", f"{_safe_round(daily.get('custom_wick_ratio_pct'), 2)}%"),
+        _metric("Wick Ratio >= 35%", "Pass" if daily.get("custom_wick_rule_pass") else "Fail"),
+        _metric("Close Location in Candle", f"{_safe_round(daily.get('custom_close_location_pct'), 2)}%"),
+        _metric("Close in Favorable Half", "Pass" if daily.get("custom_close_location_rule_pass") else "Fail"),
         _metric(
-            "当日区间",
+            "Daily Range",
             f"{latest_low if latest_low is not None else '—'} ~ {latest_high if latest_high is not None else '—'}",
         ),
     ]
     daily_checks = [
         _check(
-            "2日 Force Index 信号",
+            "2-Day Force Index Signal",
             daily.get("force_signal", False),
             (
-                f"当前 2日 Force EMA {_safe_round(daily.get('force_index_ema2'), 2)}。"
-                " 做多看跌破 0，做空看升破 0 且不是几周新高。"
+                f"Current 2-Day Force EMA {_safe_round(daily.get('force_index_ema2'), 2)}."
+                " For long, look for a break below 0; for short, look for a break above 0 that is not a multi-week new high."
             ),
         ),
         _check(
-            "日线动力系统不反向",
+            "Daily Impulse System Not Opposing",
             daily.get("same_impulse_or_trend", False),
             (
-                f"日线动力颜色 {daily.get('impulse_color', '—')}；"
-                "做多不能为红色，做空不能为绿色。"
+                f"Daily impulse color {daily.get('impulse_color', '—')}; "
+                "long cannot be red and short cannot be green."
             ),
         ),
         _check(
-            "结构防守位",
+            "Structure Defense Level",
             daily.get("structure_intact", False),
             (
-                f"结构防守位 {_safe_round(daily.get('structure_break_level'))}；"
-                f" 最新价格区间 {latest_low if latest_low is not None else '—'} ~ {latest_high if latest_high is not None else '—'}。"
+                f"Structure Defense Level {_safe_round(daily.get('structure_break_level'))}; "
+                f" latest price range {latest_low if latest_low is not None else '—'} ~ {latest_high if latest_high is not None else '—'}."
             ),
         ),
         _check(
-            "EMA 穿透参考价",
+            "EMA Penetration Reference",
             bool(daily.get("entry_plan", {}).get("available")),
             (
-                f"EMA 穿透价 {_safe_round(daily.get('entry_plan', {}).get('ema_penetration_entry'))}；"
-                f"替代突破价 {_safe_round(daily.get('entry_plan', {}).get('breakout_entry'))}。"
+                f"EMA penetration price {_safe_round(daily.get('entry_plan', {}).get('ema_penetration_entry'))}; "
+                f"alternate breakout price {_safe_round(daily.get('entry_plan', {}).get('breakout_entry'))}."
             ),
         ),
         _check(
-            "自定义K线确认",
+            "Custom Candle Confirmation",
             daily.get("custom_kline_confirmation", False),
             (
-                "辅助项，不参与 Elder 核心判断。"
-                f" 收盘相对昨收={'满足' if daily.get('custom_close_rule_pass') else '未满足'}；"
-                f" 影线比例>=35%={'满足' if daily.get('custom_wick_rule_pass') else '未满足'}；"
-                f" 收盘位于有利半区={'满足' if daily.get('custom_close_location_rule_pass') else '未满足'}。"
+                "Supporting item, not part of the Elder core decision."
+                f" Close vs Prior Close={'Pass' if daily.get('custom_close_rule_pass') else 'Fail'}; "
+                f" Wick Ratio >= 35%={'Pass' if daily.get('custom_wick_rule_pass') else 'Fail'}; "
+                f" close in favorable half={'Pass' if daily.get('custom_close_location_rule_pass') else 'Fail'}."
             ),
         ),
     ]
@@ -508,28 +508,28 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
     daily_divergence = divergence.get("daily", {})
     strong_divergence = bool(weekly_divergence.get("strong_alert") or daily_divergence.get("strong_alert"))
     divergence_metrics = [
-        _metric("周线背离", "有" if weekly_divergence.get("detected") else "无", "warn" if weekly_divergence.get("detected") else "neutral"),
-        _metric("日线背离", "有" if daily_divergence.get("detected") else "无", "warn" if daily_divergence.get("detected") else "neutral"),
-        _metric("强衰竭提醒", "有" if strong_divergence else "无", "danger" if strong_divergence else "neutral"),
+        _metric("Weekly Divergence", "Yes" if weekly_divergence.get("detected") else "No", "warn" if weekly_divergence.get("detected") else "neutral"),
+        _metric("Daily Divergence", "Yes" if daily_divergence.get("detected") else "No", "warn" if daily_divergence.get("detected") else "neutral"),
+        _metric("Strong Exhaustion Alert", "Yes" if strong_divergence else "No", "danger" if strong_divergence else "neutral"),
     ]
     key_levels = [
-        _metric("最新日线日期", latest_bar_at),
+        _metric("Latest Daily Date", latest_bar_at),
         _metric("Latest Close", latest_close),
         _metric("SafeZone Initial Stop", _safe_round(safezone_stop)),
-        _metric("尼克止损", _safe_round(nick_stop)),
-        _metric("ATR 移动止损 1x", _safe_round(atr_stop_1x)),
-        _metric("ATR 移动止损 2x", _safe_round(atr_stop_2x)),
-        _metric("日线 ATR", daily_atr),
-        _metric("SafeZone 噪音", _safe_round(safezone_noise)),
-        _metric("市场温度", latest_temperature),
-        _metric("平均温度", average_temperature),
+        _metric("Nick Stop", _safe_round(nick_stop)),
+        _metric("ATR 1x Trailing Stop", _safe_round(atr_stop_1x)),
+        _metric("ATR 2x Trailing Stop", _safe_round(atr_stop_2x)),
+        _metric("Daily ATR", daily_atr),
+        _metric("SafeZone Noise", _safe_round(safezone_noise)),
+        _metric("Market Temperature", latest_temperature),
+        _metric("Average Temperature", average_temperature),
     ]
     stop_method_cards = [
         {
             "code": method.get("code"),
             "label": method.get("label"),
             "raw_price": _safe_round(method.get("price"), 4) if method.get("price") is not None else None,
-            "price": "需Manual" if method.get("price") is None else str(_safe_round(method.get("price"), 4)),
+            "price": "Manual Required" if method.get("price") is None else str(_safe_round(method.get("price"), 4)),
             "reference": method.get("reference"),
             "suitable_for": method.get("suitable_for"),
             "detail": method.get("detail"),
@@ -544,9 +544,9 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
     trailing_stop_methods = [method for method in stop_method_cards if method.get("group") == "trailing"]
 
     summary = (
-        f"System Decision：{followup['label']}。"
-        f" 周线：{weekly.get('reason', '暂无说明')}"
-        f" 日线：{daily.get('reason', '暂无说明')}"
+        f"System Decision: {followup['label']}."
+        f" Weekly: {weekly.get('reason', 'No detail')}"
+        f" Daily: {daily.get('reason', 'No detail')}"
     )
 
     return {
@@ -557,7 +557,7 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
         "recommendation": followup,
         "summary": summary,
         "weekly": {
-            "title": f"周线 / {model.spec.label}",
+            "title": f"Weekly / {model.spec.label}",
             "subtitle": model.spec.weekly_model,
             "reason": weekly.get("reason"),
             "pass": weekly.get("pass", False),
@@ -580,20 +580,20 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             "raw": daily,
         },
         "divergence": {
-            "title": "背离 / 风险补充",
-            "summary": daily_divergence.get("reason") or weekly_divergence.get("reason") or "暂无背离说明。",
+            "title": "Divergence / Risk Add-On",
+            "summary": daily_divergence.get("reason") or weekly_divergence.get("reason") or "No divergence detail yet.",
             "metrics": divergence_metrics,
             "weekly": weekly_divergence,
             "daily": daily_divergence,
             "strong_alert": strong_divergence,
         },
         "key_levels": {
-            "title": "关键价位 / 波动读数",
-            "summary": "帮助你判断观察重点和保护性止损位置。",
+            "title": "Key Levels / Volatility Readings",
+            "summary": "Helps identify watch focus and protective-stop placement.",
             "metrics": key_levels,
         },
         "execution": {
-            "title": "执行计划 / 触发价与止损",
+            "title": "Execution Plan / Trigger and Stops",
             "summary": execution_summary,
             "entry_price": suggested_entry,
             "stop_loss": suggested_stop,
@@ -603,8 +603,8 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
             "exits": execution_exits,
         },
         "stop_methods": {
-            "title": "Elder 止损方法",
-            "summary": "先看Initial Stop怎么定义风险，再看持仓后的跟踪止损怎么推进。",
+            "title": "Elder Stop Methods",
+            "summary": "Review how the initial stop defines risk, then how trailing stops advance after entry.",
             "initial_methods": initial_stop_methods,
             "trailing_methods": trailing_stop_methods,
             "methods": stop_method_cards,
@@ -614,11 +614,11 @@ def _build_system_analysis(symbol: str, model_id: str | None = None) -> dict[str
 
 def _prompt_outline() -> list[str]:
     return [
-        "周线看动力系统颜色、MACD 斜率、EMA 斜率、确认 bars；动力系统只做禁止规则。",
-        "日线核心看 2日 Force Index EMA：做多等待跌破 0，做空等待升破 0 且不是几周新高；RSI 与 Histogram 仅作辅助说明。",
-        "给出系统当前执行价位：EMA 穿透参考价、前一日高/低点外一跳的替代触发价、Current Protective Stop、周线价值区间Target。",
-        "补充看周线/日线背离；当前止损口径先收敛为 SafeZone、尼克止损法，以及日线 ATR 1x/2x 移动止损。",
-        "明确写出系统建议与你的 AI 建议一致或不一致的地方。",
+        "Weekly checks impulse color, MACD slope, EMA slope, and confirmed bars; the impulse system is only a blocking rule.",
+        "Daily core uses 2-day Force Index EMA: long waits for a break below 0; short waits for a break above 0 that is not a multi-week new high; RSI and histogram are supporting context only.",
+        "Provide current system execution levels: EMA penetration reference, alternate trigger one tick outside the previous-day high/low, current protective stop, and weekly value-zone target.",
+        "Add weekly/daily divergence; current stop methods are SafeZone, Nick stop, and daily ATR 1x/2x trailing stops.",
+        "Explicitly state where your AI view agrees or differs from the system recommendation.",
     ]
 
 
@@ -630,7 +630,7 @@ def _build_ai_messages(system_analysis: dict[str, Any]) -> list[dict[str, str]]:
     symbol = system_analysis["symbol"]
 
     user_prompt = {
-        "task": "基于给定的System Technicals数据，对单只股票给出你的独立周线/日线技术分析和观察建议。",
+        "task": "Based on the provided system technical data, give independent weekly/daily technical analysis and watch guidance for one ticker.",
         "requirements": _prompt_outline(),
         "symbol": symbol,
         "system_recommendation": recommendation,
@@ -655,38 +655,38 @@ def _build_ai_messages(system_analysis: dict[str, Any]) -> list[dict[str, str]]:
         "execution": system_analysis.get("execution", {}),
         "stop_methods": system_analysis.get("stop_methods", {}).get("methods", []),
         "response_schema": {
-            "stance": "看多 / 看空 / 中性",
-            "watch_decision": "重点观察 / 继续观察 / 暂不观察",
-            "confidence": "0-100 的整数",
+            "stance": "bullish / bearish / neutral",
+            "watch_decision": "priority watch / continue watching / do not watch",
+            "confidence": "integer from 0 to 100",
             "weekly_analysis": {
-                "summary": "1-2 句总结",
-                "signals": ["列出周线关键指标结论"],
+                "summary": "1-2 sentence summary",
+                "signals": ["list key weekly indicator conclusions"],
             },
             "daily_analysis": {
-                "summary": "1-2 句总结",
-                "signals": ["列出日线关键指标结论"],
+                "summary": "1-2 sentence summary",
+                "signals": ["list key daily indicator conclusions"],
             },
             "investment_view": {
-                "summary": "整体建议，强调是否适合继续跟踪",
-                "risk_controls": ["风险点"],
-                "key_level_focus": ["应重点观察的价位或指标"],
-                "stop_method_comments": ["分别点评不同止损方法的适用性"],
-                "execution_levels": ["点评系统给出的买入价和止损价是否合理"],
+                "summary": "overall recommendation, emphasizing whether it is worth tracking",
+                "risk_controls": ["risk points"],
+                "key_level_focus": ["price levels or indicators to focus on"],
+                "stop_method_comments": ["comment on the suitability of each stop method"],
+                "execution_levels": ["comment on whether the system entry and stop prices are reasonable"],
             },
             "difference_vs_system": {
-                "agreement": "一句话说明整体一致还是分歧",
-                "differences": ["列出具体差异点"],
+                "agreement": "one sentence explaining overall agreement or disagreement",
+                "differences": ["list specific differences"],
             },
         },
-        "strict_output": "只返回一个 JSON 对象，不要使用 Markdown，不要添加额外说明。",
+        "strict_output": "Return only one JSON object. Do not use Markdown or add extra explanation.",
     }
 
     return [
         {
             "role": "system",
             "content": (
-                "你是一名偏交易执行视角的技术分析助手。"
-                "你需要按周线和日线分开输出，并且显式比较你与System Rules结论的差异。"
+                "You are a technical-analysis assistant with a trading-execution perspective."
+                "Separate weekly and daily output, and explicitly compare your view with the system-rule conclusion."
             ),
         },
         {"role": "user", "content": json.dumps(user_prompt, ensure_ascii=False)},
@@ -719,7 +719,7 @@ def _request_ai_analysis(system_analysis: dict[str, Any]) -> dict[str, Any]:
             "status": "UNAVAILABLE",
             "model": config.model or "Not Configured",
             "outline": _prompt_outline(),
-            "message": "AI 模型尚Not Configured。请设置 TECH_ANALYSIS_AI_API_KEY / TECH_ANALYSIS_AI_MODEL，或使用 OPENAI_API_KEY / OPENAI_MODEL。",
+            "message": "AI model is not configured. Set TECH_ANALYSIS_AI_API_KEY / TECH_ANALYSIS_AI_MODEL, or use OPENAI_API_KEY / OPENAI_MODEL.",
         }
 
     response = requests.post(
@@ -750,7 +750,7 @@ def _request_ai_analysis(system_analysis: dict[str, Any]) -> dict[str, Any]:
             "model": config.model,
             "outline": _prompt_outline(),
             "raw_text": content,
-            "message": "AI 已返回Result，但未能解析成结构化 JSON，当前按原文展示。",
+            "message": "AI returned a result, but it could not be parsed as structured JSON; showing the raw response.",
         }
 
     return {
@@ -781,14 +781,14 @@ def analyze_symbol(symbol: str, include_ai: bool = True, model_id: str | None = 
                 "enabled": True,
                 "status": "ERROR",
                 "outline": _prompt_outline(),
-                "message": f"AI 分析Call Failed：{exc}",
+                "message": f"AI analysis call failed: {exc}",
             }
     else:
         ai_analysis = {
             "enabled": False,
             "status": "SKIPPED",
             "outline": _prompt_outline(),
-            "message": "本次请求Disabled AI 分析。",
+            "message": "AI analysis was disabled for this request.",
         }
 
     return {

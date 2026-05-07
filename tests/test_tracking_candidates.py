@@ -63,7 +63,7 @@ class TrackingCandidateTests(unittest.TestCase):
         self.assertEqual([candidate["symbol"] for candidate in candidates], ["AAPL"])
         self.assertEqual(candidates[0]["history"]["appearance_count"], 2)
         self.assertEqual(candidates[0]["history"]["consecutive_sessions"], 2)
-        self.assertIn("连续2次入选", candidates[0]["priority_tags"])
+        self.assertIn("Selected 2 sessions in a row", candidates[0]["priority_tags"])
         self.assertGreater(candidates[0]["candidate_rank_score"], candidates[0]["candidate_score"])
 
     def test_history_enhancement_keeps_old_symbols_out_of_latest_candidates(self) -> None:

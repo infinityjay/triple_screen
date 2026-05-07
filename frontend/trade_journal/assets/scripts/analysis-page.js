@@ -66,7 +66,7 @@ function renderChecks(containerId, checks = []) {
         .map(
           (item) => `
             <div class="analysis-check-item">
-              ${getBadge(item.pass ? "Pass" : "未Pass", item.pass ? "safe" : "warn")}
+              ${getBadge(item.pass ? "Pass" : "Fail", item.pass ? "safe" : "warn")}
               <strong>${escapeHtml(item.label || "—")}</strong>
               <p>${escapeHtml(item.detail || "—")}</p>
             </div>
@@ -118,7 +118,7 @@ function renderSystem(system) {
   $("summaryStopReason").textContent = execution?.summary || "Waiting for stop levels.";
   $("systemDecisionBadge").innerHTML = getBadge(recommendation.label || "System Decision", recommendation.tone || "info");
   $("systemSummary").className = `alert ${recommendation.tone === "safe" ? "success" : recommendation.tone === "warn" ? "warn" : "info"}`;
-  $("systemSummary").textContent = system?.summary || "暂无System Decision。";
+  $("systemSummary").textContent = system?.summary || "No system decision yet.";
   const model = system?.model || {};
   $("systemDifference").innerHTML = `
     <div class="insight-item">
@@ -168,20 +168,20 @@ function renderAi(ai) {
 
   if (!ai || ai.status === "SKIPPED") {
     $("summaryAiDecision").textContent = "Disabled";
-    $("summaryAiReason").textContent = ai?.message || "本次Disabled AI。";
+    $("summaryAiReason").textContent = ai?.message || "AI was not enabled for this run.";
     $("aiStatusBadge").innerHTML = getBadge("AI Disabled", "info");
     $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = ai?.message || "本次Disabled AI。";
+    $("aiSummary").textContent = ai?.message || "AI was not enabled for this run.";
     $("aiDifference").innerHTML = "";
     return;
   }
 
   if (ai.status === "UNAVAILABLE") {
     $("summaryAiDecision").textContent = "Not Configured";
-    $("summaryAiReason").textContent = ai.message || "AI 模型尚Not Configured。";
+    $("summaryAiReason").textContent = ai.message || "AI model is not configured.";
     $("aiStatusBadge").innerHTML = getBadge("AI Not Configured", "warn");
     $("aiSummary").className = "alert warn";
-    $("aiSummary").textContent = ai.message || "AI 模型尚Not Configured。";
+    $("aiSummary").textContent = ai.message || "AI model is not configured.";
     $("aiDifference").innerHTML = "";
     return;
   }
@@ -228,22 +228,22 @@ function renderAi(ai) {
     <div class="insight-item">
       <strong>AI Weekly View</strong>
       <p>${escapeHtml(weeklyAnalysis.summary || "—")}</p>
-      <p>${escapeHtml(weeklySignals.join("； ") || "—")}</p>
+      <p>${escapeHtml(weeklySignals.join(";  ") || "—")}</p>
     </div>
     <div class="insight-item">
       <strong>AI Daily View</strong>
       <p>${escapeHtml(dailyAnalysis.summary || "—")}</p>
-      <p>${escapeHtml(dailySignals.join("； ") || "—")}</p>
+      <p>${escapeHtml(dailySignals.join(";  ") || "—")}</p>
     </div>
     <div class="insight-item">
       <strong>Difference vs System</strong>
       <p>${escapeHtml(difference.agreement || "—")}</p>
-      <p>${escapeHtml(differences.join("； ") || "—")}</p>
+      <p>${escapeHtml(differences.join(";  ") || "—")}</p>
     </div>
     <div class="insight-item">
       <strong>AI Risk Controls and Focus</strong>
-      <p>${escapeHtml(riskControls.join("； ") || "—")}</p>
-      <p>${escapeHtml(keyLevelFocus.join("； ") || "—")}</p>
+      <p>${escapeHtml(riskControls.join(";  ") || "—")}</p>
+      <p>${escapeHtml(keyLevelFocus.join(";  ") || "—")}</p>
     </div>
   `;
 }
@@ -254,7 +254,7 @@ function renderPayload(payload) {
   const ai = payload?.ai || {};
 
   $("analysisHeadline").textContent = `${payload?.symbol || "—"} · System Technicals`;
-  $("analysisHeadlineBody").textContent = `Generated At: ${escapeHtml(payload?.generated_at || "—")}。当前只展示System Rules分析。`;
+  $("analysisHeadlineBody").textContent = `Generated At: ${escapeHtml(payload?.generated_at || "—")}. Currently showing system-rule analysis only.`;
   renderSystem(system);
   if (AI_ANALYSIS_ENABLED) renderAi(ai);
 }
@@ -265,7 +265,7 @@ async function loadAnalysis(symbol) {
   $("systemSummary").textContent = `Analyzing ${symbol} weekly and daily structure...`;
   if (AI_ANALYSIS_ENABLED) {
     $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = $("includeAiToggle").checked ? "Requesting AI comparison analysis..." : "本次Disabled AI。";
+    $("aiSummary").textContent = $("includeAiToggle").checked ? "Requesting AI comparison analysis..." : "AI was not enabled for this run.";
   }
 
   try {
