@@ -1,210 +1,300 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Triple Screen Watchlist</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b2c2a'/%3E%3Cpath d='M14 42c8-1 13-8 19-20l7 11 11-16' fill='none' stroke='%23f2ddb0' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='16' r='5' fill='%23d38a2e'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260421a">
-</head>
-<body>
-  <div id="bootScreen" class="gate-screen">
-    <div class="gate-card">
-      <div class="eyebrow">Watchlist Boot</div>
-      <h1>Loading Watchlist</h1>
-      <p id="bootMessage">Loading recent scan results, impulse-system context, Force Index setup data, and order-plan levels.</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Triple Screen Watchlist</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b2c2a'/%3E%3Cpath d='M14 42c8-1 13-8 19-20l7 11 11-16' fill='none' stroke='%23f2ddb0' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='16' r='5' fill='%23d38a2e'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260421a" />
+  </head>
+  <body>
+    <div id="bootScreen" class="gate-screen">
+      <div class="gate-card">
+        <div class="eyebrow">Watchlist Boot</div>
+        <h1>Loading Watchlist</h1>
+        <p id="bootMessage">
+          Loading recent scan results, impulse-system context, Force Index setup
+          data, and order-plan levels.
+        </p>
+      </div>
     </div>
-  </div>
 
-  <div id="configGate" class="gate-screen" style="display:none">
-    <div class="gate-card">
-      <div class="eyebrow">Local API</div>
-      <h1>The Watchlist Cannot Reach The Local API</h1>
-      <p>Start the `triple_screen` Journal API, then try again.</p>
-      <div class="gate-stack">
-        <div id="configError" class="alert danger">Cannot connect to `/api/watchlist`.</div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="retryConnectBtn" type="button">Reconnect</button>
-          <a class="btn btn-secondary" href="/journal">Open Journal</a>
+    <div id="configGate" class="gate-screen" style="display: none">
+      <div class="gate-card">
+        <div class="eyebrow">Local API</div>
+        <h1>The Watchlist Cannot Reach The Local API</h1>
+        <p>Start the `triple_screen` Journal API, then try again.</p>
+        <div class="gate-stack">
+          <div id="configError" class="alert danger">
+            Cannot connect to `/api/watchlist`.
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="retryConnectBtn" type="button">
+              Reconnect
+            </button>
+            <a class="btn btn-secondary" href="/journal">Open Journal</a>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div id="mainApp" style="display:none">
-    <div class="app-shell">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-mark">∿</div>
-          <div class="brand-copy">
-            <strong>Triple Screen Atlas</strong>
-          <span>Watchlist and order-plan monitor</span>
-          </div>
-        </div>
-        <nav class="topbar-nav">
-          <a class="nav-link" data-app-link="journal" href="/journal">Journal</a>
-          <a class="nav-link" data-app-link="watchlist" href="/watchlist">Watchlist</a>
-          <a class="nav-link" data-app-link="analysis" href="/analysis">Analysis</a>
-        </nav>
-        <div class="topbar-meta">
-          <div class="status-pill">
-            <span class="status-dot" id="connectionDot"></span>
-            <span id="connectionLabel">Connecting...</span>
-          </div>
-          <div class="status-pill mono" id="shellDate">—</div>
-        </div>
-      </header>
-
-      <div class="page-grid">
-        <section class="shell-card">
-          <div class="hero-grid watchlist-hero-grid">
-            <div class="page-head">
-              <div class="eyebrow">Watchlist</div>
-              <h1>Scan Candidates, Then Review Execution Plans</h1>
-              <p>Review candidate quality, order-plan levels, manual IBKR order records, and intraday touch status in one workflow.</p>
+    <div id="mainApp" style="display: none">
+      <div class="app-shell">
+        <header class="topbar">
+          <div class="brand">
+            <div class="brand-mark">∿</div>
+            <div class="brand-copy">
+              <strong>Triple Screen Atlas</strong>
+              <span>Watchlist and order-plan monitor</span>
             </div>
-            <div class="side-card watchlist-session-card">
-              <div class="eyebrow">Session</div>
-              <h3 id="sessionHeadline">Latest scan session: -</h3>
-              <p id="sessionHeadlineBody">Switch sessions to review the candidates and execution assumptions from each EOD scan.</p>
-              <div class="toolbar watchlist-session-toolbar">
-                <select class="select" id="sessionSelect"></select>
-                <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">Refresh</button>
+          </div>
+          <nav class="topbar-nav">
+            <a class="nav-link" data-app-link="journal" href="/journal"
+              >Journal</a
+            >
+            <a class="nav-link" data-app-link="watchlist" href="/watchlist"
+              >Watchlist</a
+            >
+            <a class="nav-link" data-app-link="analysis" href="/analysis"
+              >Analysis</a
+            >
+          </nav>
+          <div class="topbar-meta">
+            <div class="status-pill">
+              <span class="status-dot" id="connectionDot"></span>
+              <span id="connectionLabel">Connecting...</span>
+            </div>
+            <div class="status-pill mono" id="shellDate">—</div>
+          </div>
+        </header>
+
+        <div class="page-grid">
+          <section class="shell-card">
+            <div class="hero-grid watchlist-hero-grid">
+              <div class="page-head">
+                <div class="eyebrow">Watchlist</div>
+                <h1>Scan Candidates, Then Review Execution Plans</h1>
+                <p>
+                  Review candidate quality, order-plan levels, manual IBKR order
+                  records, and intraday touch status in one workflow.
+                </p>
+              </div>
+              <div class="side-card watchlist-session-card">
+                <div class="eyebrow">Session</div>
+                <h3 id="sessionHeadline">Latest scan session: -</h3>
+                <p id="sessionHeadlineBody">
+                  Switch sessions to review the candidates and execution
+                  assumptions from each EOD scan.
+                </p>
+                <div class="toolbar watchlist-session-toolbar">
+                  <select class="select" id="sessionSelect"></select>
+                  <button
+                    class="btn btn-secondary"
+                    id="refreshWatchlistBtn"
+                    type="button"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="watchlist-summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">Candidates</div>
-            <div class="summary-value" id="watchlistCount">0</div>
-            <div class="summary-sub">Symbols in the selected scan session.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Triggered</div>
-            <div class="summary-value accent-safe" id="watchlistTriggered">0</div>
-            <div class="summary-sub">Candidates that touched or confirmed an entry level.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Direction Mix</div>
-            <div class="summary-value" id="watchlistDirectionMix">—</div>
-            <div class="summary-sub">Long / short candidate count.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Divergence Alerts</div>
-            <div class="summary-value accent-warn" id="watchlistDivergence">0</div>
-            <div class="summary-sub">Candidates with elevated exhaustion risk.</div>
-          </div>
-        </section>
-
-        <section class="watchlist-card watchlist-rail-card">
-          <div class="section-head watchlist-rail-head">
-            <div>
-              <div class="eyebrow">Quick Scan</div>
-              <h2>Quick Candidate Rail</h2>
-              <p>Scan symbols, status, core setup context, and the key stop-limit levels before opening the full table.</p>
+          <section class="watchlist-summary-grid">
+            <div class="summary-card">
+              <div class="summary-label">Candidates</div>
+              <div class="summary-value" id="watchlistCount">0</div>
+              <div class="summary-sub">
+                Symbols in the selected scan session.
+              </div>
             </div>
-            <div class="toolbar ledger-toolbar">
-              <select class="select" style="max-width:180px" id="statusFilter">
-                <option value="all">All statuses</option>
-                <option value="watchlist">Waiting only</option>
-                <option value="touched">Touched only</option>
-                <option value="monitor">Monitor only</option>
-                <option value="triggered">Triggered only</option>
-              </select>
-              <select class="select" style="max-width:180px" id="directionFilter">
-                <option value="all">All directions</option>
-                <option value="LONG">Long only</option>
-                <option value="SHORT">Short only</option>
-              </select>
-              <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="Search symbol, reason, earnings, status...">
+            <div class="summary-card">
+              <div class="summary-label">Triggered</div>
+              <div class="summary-value accent-safe" id="watchlistTriggered">
+                0
+              </div>
+              <div class="summary-sub">
+                Candidates that touched or confirmed an entry level.
+              </div>
             </div>
-          </div>
-          <div class="watchlist-rail-meta">
-            <div class="status-pill mono" id="watchlistRailCount">0 cards</div>
-            <div class="watchlist-scroll-hint">Use the horizontal scrollbar to scan the full candidate set.</div>
-          </div>
-          <div id="watchlistRailContainer"></div>
-        </section>
+            <div class="summary-card">
+              <div class="summary-label">Direction Mix</div>
+              <div class="summary-value" id="watchlistDirectionMix">—</div>
+              <div class="summary-sub">Long / short candidate count.</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Divergence Alerts</div>
+              <div class="summary-value accent-warn" id="watchlistDivergence">
+                0
+              </div>
+              <div class="summary-sub">
+                Candidates with elevated exhaustion risk.
+              </div>
+            </div>
+          </section>
 
-        <section class="watchlist-layout compact-watchlist-layout">
-          <div class="watchlist-card">
+          <section class="watchlist-card watchlist-rail-card">
+            <div class="section-head watchlist-rail-head">
+              <div>
+                <div class="eyebrow">Quick Scan</div>
+                <h2>Quick Candidate Rail</h2>
+                <p>
+                  Scan symbols, status, core setup context, and the key
+                  stop-limit levels before opening the full table.
+                </p>
+              </div>
+              <div class="toolbar ledger-toolbar">
+                <select
+                  class="select"
+                  style="max-width: 180px"
+                  id="statusFilter"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="watchlist">Waiting only</option>
+                  <option value="touched">Touched only</option>
+                  <option value="monitor">Monitor only</option>
+                  <option value="triggered">Triggered only</option>
+                </select>
+                <select
+                  class="select"
+                  style="max-width: 180px"
+                  id="directionFilter"
+                >
+                  <option value="all">All directions</option>
+                  <option value="LONG">Long only</option>
+                  <option value="SHORT">Short only</option>
+                </select>
+                <input
+                  class="input"
+                  style="min-width: 240px"
+                  type="search"
+                  id="watchlistSearch"
+                  placeholder="Search symbol, reason, earnings, status..."
+                />
+              </div>
+            </div>
+            <div class="watchlist-rail-meta">
+              <div class="status-pill mono" id="watchlistRailCount">
+                0 cards
+              </div>
+              <div class="watchlist-scroll-hint">
+                Use the horizontal scrollbar to scan the full candidate set.
+              </div>
+            </div>
+            <div id="watchlistRailContainer"></div>
+          </section>
+
+          <section class="watchlist-layout compact-watchlist-layout">
+            <div class="watchlist-card">
+              <div class="card-head">
+                <div>
+                  <div class="eyebrow">Recent Sessions</div>
+                  <h3>Recent Scan Sessions</h3>
+                  <p>
+                    Switch between recent EOD scans and compare candidate
+                    changes.
+                  </p>
+                </div>
+              </div>
+              <div class="session-chip-list" id="sessionChips"></div>
+            </div>
+
+            <div class="watchlist-card">
+              <div class="card-head">
+                <div>
+                  <div class="eyebrow">Execution Lens</div>
+                  <h3>Execution Notes</h3>
+                  <p>
+                    Focused reminders for order planning, manual review, and
+                    risk checks.
+                  </p>
+                </div>
+              </div>
+              <div class="insight-list" id="watchlistInsights"></div>
+            </div>
+          </section>
+
+          <section class="watchlist-card">
             <div class="card-head">
               <div>
-                <div class="eyebrow">Recent Sessions</div>
-                <h3>Recent Scan Sessions</h3>
-                <p>Switch between recent EOD scans and compare candidate changes.</p>
+                <div class="eyebrow">IBKR Manual Orders</div>
+                <h3>Manual IBKR Order Records</h3>
+                <p>
+                  After placing the generated order in IBKR (Stop Limit for
+                  breakout entry, or Limit for EMA entry), record the order ID,
+                  quantity, and status here for premarket review.
+                </p>
               </div>
             </div>
-            <div class="session-chip-list" id="sessionChips"></div>
-          </div>
+            <form class="order-form-grid" id="plannedOrderForm">
+              <input type="hidden" id="orderSessionDate" />
+              <input class="input" id="orderSymbol" placeholder="Symbol" />
+              <select class="select" id="orderDirection">
+                <option value="LONG">Long</option>
+                <option value="SHORT">Short</option>
+              </select>
+              <select class="select" id="orderType">
+                <option value="Stop Limit">Stop Limit</option>
+                <option value="Limit">Limit</option>
+                <option value="Stop">Stop</option>
+              </select>
+              <input class="input" id="orderQuantity" placeholder="Quantity" />
+              <input
+                class="input"
+                id="orderStopPrice"
+                placeholder="Stop Price"
+              />
+              <input
+                class="input"
+                id="orderLimitPrice"
+                placeholder="Limit Price"
+              />
+              <input
+                class="input"
+                id="orderBrokerId"
+                placeholder="IBKR Order ID"
+              />
+              <select class="select" id="orderStatus">
+                <option value="SUBMITTED">Submitted</option>
+                <option value="PRESUBMITTED">PreSubmitted</option>
+                <option value="FILLED">Filled</option>
+                <option value="CANCELLED">Cancelled</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+              <button class="btn btn-primary" type="submit">Save Record</button>
+            </form>
+            <div id="plannedOrdersContainer"></div>
+          </section>
 
-          <div class="watchlist-card">
-            <div class="card-head">
+          <section class="table-card watchlist-detail-card">
+            <div class="section-head watchlist-detail-head">
               <div>
-                <div class="eyebrow">Execution Lens</div>
-                <h3>Execution Notes</h3>
-                <p>Focused reminders for order planning, manual review, and risk checks.</p>
+                <div class="eyebrow">Deep Dive</div>
+                <h2>Full Triple-Screen Table</h2>
+                <p>
+                  Review the full setup context, Force Index state, impulse
+                  color, order plan, and manual order status.
+                </p>
               </div>
             </div>
-            <div class="insight-list" id="watchlistInsights"></div>
-          </div>
-        </section>
-
-        <section class="watchlist-card">
-          <div class="card-head">
-            <div>
-              <div class="eyebrow">IBKR Manual Orders</div>
-              <h3>Manual IBKR Order Records</h3>
-              <p>After placing the generated Stop Limit order in IBKR, record the order ID, quantity, and status here for premarket review.</p>
-            </div>
-          </div>
-          <form class="order-form-grid" id="plannedOrderForm">
-            <input type="hidden" id="orderSessionDate">
-            <input class="input" id="orderSymbol" placeholder="Symbol">
-            <select class="select" id="orderDirection">
-              <option value="LONG">Long</option>
-              <option value="SHORT">Short</option>
-            </select>
-            <select class="select" id="orderType">
-              <option value="Stop Limit">Stop Limit</option>
-              <option value="Limit">Limit</option>
-              <option value="Stop">Stop</option>
-            </select>
-            <input class="input" id="orderQuantity" placeholder="Quantity">
-            <input class="input" id="orderStopPrice" placeholder="Stop Price">
-            <input class="input" id="orderLimitPrice" placeholder="Limit Price">
-            <input class="input" id="orderBrokerId" placeholder="IBKR Order ID">
-            <select class="select" id="orderStatus">
-              <option value="SUBMITTED">Submitted</option>
-              <option value="PRESUBMITTED">PreSubmitted</option>
-              <option value="FILLED">Filled</option>
-              <option value="CANCELLED">Cancelled</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-            <button class="btn btn-primary" type="submit">Save Record</button>
-          </form>
-          <div id="plannedOrdersContainer"></div>
-        </section>
-
-        <section class="table-card watchlist-detail-card">
-          <div class="section-head watchlist-detail-head">
-            <div>
-              <div class="eyebrow">Deep Dive</div>
-              <h2>Full Triple-Screen Table</h2>
-              <p>Review the full setup context, Force Index state, impulse color, order plan, and manual order status.</p>
-            </div>
-          </div>
-          <div id="watchlistTableContainer"></div>
-        </section>
+            <div id="watchlistTableContainer"></div>
+          </section>
+        </div>
       </div>
     </div>
-  </div>
 
-  <script type="module" src="/frontend/assets/scripts/watchlist-page.js?v=20260421a"></script>
-</body>
+    <script
+      type="module"
+      src="/frontend/assets/scripts/watchlist-page.js?v=20260421a"
+    ></script>
+  </body>
 </html>

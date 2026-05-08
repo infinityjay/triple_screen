@@ -562,13 +562,16 @@ function renderTable() {
 function fillOrderFormFromCandidate(item) {
   const plan = getOrderPlan(item);
   const primary = plan.primary_order || {};
+  const secondary = plan.secondary_order || {};
+  const useEma = Boolean(item.daily?.entered_value_zone);
+  const order = useEma ? secondary : primary;
   $("orderSessionDate").value = state.payload?.session_date || "";
   $("orderSymbol").value = item.symbol || "";
   $("orderDirection").value = normalizeSignalDirection(item.direction);
-  $("orderType").value = primary.order_type || "Stop Limit";
-  $("orderQuantity").value = primary.quantity || "";
-  $("orderStopPrice").value = primary.stop_price ?? "";
-  $("orderLimitPrice").value = primary.limit_price ?? "";
+  $("orderType").value = order.order_type || (useEma ? "Limit" : "Stop Limit");
+  $("orderQuantity").value = order.quantity || "";
+  $("orderStopPrice").value = useEma ? "" : (primary.stop_price ?? "");
+  $("orderLimitPrice").value = order.limit_price ?? "";
   $("orderBrokerId").value = "";
   $("orderStatus").value = "SUBMITTED";
   $("orderSymbol").focus();
@@ -591,7 +594,7 @@ function renderPlannedOrders() {
             <strong>${escapeHtml(order.symbol)} · ${escapeHtml(getSignalDirectionLabel(order.direction))}</strong>
             <span>${escapeHtml(order.order_type || "—")} ${escapeHtml(order.action || "")}</span>
             <span>Qty ${escapeHtml(formatNumber(order.quantity, 0))}</span>
-            <span>Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}</span>
+            <span>${order.stop_price != null ? `Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / ` : ""}Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}</span>
             <span class="tag">${escapeHtml(order.status || "SUBMITTED")}</span>
             <button class="btn btn-secondary btn-mini" type="button" data-delete-order="${escapeHtml(order.id)}">Delete</button>
           </div>
