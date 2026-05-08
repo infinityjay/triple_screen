@@ -33,17 +33,26 @@ function getReasonBlock(label, score, reason) {
 
 function getStatusBadge(status) {
   const normalized = String(status || "").toUpperCase();
-  const tone = normalized === "TRIGGERED" ? "safe" : normalized === "TOUCHED_ENTRY_PRICE" ? "warn" : normalized === "WATCHLIST" ? "info" : normalized === "MONITOR" ? "warn" : "warn";
+  const tone =
+    normalized === "TRIGGERED"
+      ? "safe"
+      : normalized === "TOUCHED_ENTRY_PRICE"
+        ? "warn"
+        : normalized === "WATCHLIST"
+          ? "info"
+          : normalized === "MONITOR"
+            ? "warn"
+            : "warn";
   const label =
     normalized === "TRIGGERED"
       ? "Triggered"
       : normalized === "TOUCHED_ENTRY_PRICE"
         ? "Touched"
-      : normalized === "WATCHLIST"
-        ? "Waiting"
-        : normalized === "MONITOR"
-          ? "Monitor"
-          : normalized || "Unknown";
+        : normalized === "WATCHLIST"
+          ? "Waiting"
+          : normalized === "MONITOR"
+            ? "Monitor"
+            : normalized || "Unknown";
   return `<span class="badge badge-${tone}">${escapeHtml(label)}</span>`;
 }
 
@@ -65,7 +74,9 @@ function getEarningsDisplay(earnings = {}) {
     };
   }
   return {
-    label: earnings.report_date ? `Earnings ${formatDateLabel(earnings.report_date)}` : "Earnings unknown",
+    label: earnings.report_date
+      ? `Earnings ${formatDateLabel(earnings.report_date)}`
+      : "Earnings unknown",
     reason: earnings.reason || "No earnings data provided",
   };
 }
@@ -88,7 +99,8 @@ function setupHorizontalScrollbar(scrollContainerId, scrollbarId) {
     const contentWidth = scrollContainer.scrollWidth;
     const visibleWidth = scrollContainer.clientWidth;
     spacer.style.width = `${contentWidth}px`;
-    scrollbar.style.display = contentWidth > visibleWidth + 4 ? "block" : "none";
+    scrollbar.style.display =
+      contentWidth > visibleWidth + 4 ? "block" : "none";
   };
 
   let syncingFromContainer = false;
@@ -119,12 +131,23 @@ function buildExecutionPlan(item) {
   const emaEntry = entryPlan.ema_penetration_entry;
   const breakoutEntry = entryPlan.breakout_entry;
   const target = exits.take_profit ?? exits.weekly_value_target?.target_price;
-  if ((emaEntry !== undefined && emaEntry !== null) || (breakoutEntry !== undefined && breakoutEntry !== null)) {
+  if (
+    (emaEntry !== undefined && emaEntry !== null) ||
+    (breakoutEntry !== undefined && breakoutEntry !== null)
+  ) {
     return [
-      emaEntry !== undefined && emaEntry !== null ? `EMA penetration ${formatCurrency(emaEntry, 3)}` : "",
-      breakoutEntry !== undefined && breakoutEntry !== null ? `Previous-day break ${formatCurrency(breakoutEntry, 3)}` : "",
-      exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null ? `Nick stop ${formatCurrency(exits.initial_stop_nick, 3)}` : "",
-      target !== undefined && target !== null ? `Target ${formatCurrency(target, 3)}` : "",
+      emaEntry !== undefined && emaEntry !== null
+        ? `EMA penetration ${formatCurrency(emaEntry, 3)}`
+        : "",
+      breakoutEntry !== undefined && breakoutEntry !== null
+        ? `Previous-day break ${formatCurrency(breakoutEntry, 3)}`
+        : "",
+      exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
+        ? `Nick stop ${formatCurrency(exits.initial_stop_nick, 3)}`
+        : "",
+      target !== undefined && target !== null
+        ? `Target ${formatCurrency(target, 3)}`
+        : "",
     ]
       .filter(Boolean)
       .join(" · ");
@@ -143,39 +166,73 @@ function buildOrderPlanInline(item) {
   const primary = plan.primary_order || {};
   const secondary = plan.secondary_order || {};
   const risk = plan.risk || {};
-  if (!primary.stop_price && !secondary.limit_price) return buildExecutionInline(item);
-  return [
-    `${primary.order_type || "Stop Limit"} ${primary.action || ""} Stop ${formatCurrency(primary.stop_price, 2)} Limit ${formatCurrency(primary.limit_price, 2)}`,
-    `EMA limit ${formatCurrency(secondary.limit_price, 2)}`,
-    `Initial stop ${formatCurrency(risk.initial_stop, 2)}`,
-    `Protective stop ${formatCurrency(risk.protective_stop, 2)}`,
-    `Target ${formatCurrency(risk.take_profit, 2)}`,
-    `RR ${formatNumber(risk.reward_risk_ratio_model, 2)}R`,
-  ].join(" | ");
+  if (!primary.stop_price && !secondary.limit_price)
+    return buildExecutionInline(item);
+  const action = String(primary.action || "").trim();
+  const sideLabel = action
+    ? action.charAt(0).toUpperCase() + action.slice(1).toLowerCase()
+    : "Buy";
+  const stopParts = [
+    risk.initial_stop_safezone != null
+      ? `SafeZone stop ${formatCurrency(risk.initial_stop_safezone, 2)}`
+      : "",
+    risk.initial_stop_nick != null
+      ? `Nick stop ${formatCurrency(risk.initial_stop_nick, 2)}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  const orderParts = [
+    primary.stop_price != null
+      ? `${sideLabel} Stop Limit — Stop ${formatCurrency(primary.stop_price, 2)}  Limit ${formatCurrency(primary.limit_price, 2)}`
+      : "",
+    secondary.limit_price != null
+      ? `${sideLabel} EMA Limit — ${formatCurrency(secondary.limit_price, 2)}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  return [orderParts, stopParts || "—"].join("   ‖   ");
 }
 
 function getPlannedOrderFor(item) {
   const orders = state.payload?.planned_orders || [];
   const direction = normalizeSignalDirection(item.direction);
-  return orders.find((order) => String(order.symbol || "").toUpperCase() === String(item.symbol || "").toUpperCase() && normalizeSignalDirection(order.direction) === direction);
+  return orders.find(
+    (order) =>
+      String(order.symbol || "").toUpperCase() ===
+        String(item.symbol || "").toUpperCase() &&
+      normalizeSignalDirection(order.direction) === direction,
+  );
 }
 
 function buildExecutionInline(item) {
   const hourly = item.hourly || {};
   const exits = item.exits || {};
   const entryPlan = hourly.entry_plan || item.daily?.entry_plan || {};
-  const emaEntry = entryPlan.ema_penetration_entry !== undefined && entryPlan.ema_penetration_entry !== null ? formatCurrency(entryPlan.ema_penetration_entry, 3) : "—";
-  const breakoutEntry = entryPlan.breakout_entry !== undefined && entryPlan.breakout_entry !== null ? formatCurrency(entryPlan.breakout_entry, 3) : "—";
-  const stop = exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
-    ? `Nick ${formatCurrency(exits.initial_stop_nick, 3)}`
-    : exits.initial_stop_safezone !== undefined && exits.initial_stop_safezone !== null
-      ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
-      : "Choose manually";
-  const target = exits.take_profit !== undefined && exits.take_profit !== null
-    ? formatCurrency(exits.take_profit, 3)
-    : exits.weekly_value_target?.target_price !== undefined && exits.weekly_value_target?.target_price !== null
-      ? formatCurrency(exits.weekly_value_target.target_price, 3)
+  const emaEntry =
+    entryPlan.ema_penetration_entry !== undefined &&
+    entryPlan.ema_penetration_entry !== null
+      ? formatCurrency(entryPlan.ema_penetration_entry, 3)
       : "—";
+  const breakoutEntry =
+    entryPlan.breakout_entry !== undefined && entryPlan.breakout_entry !== null
+      ? formatCurrency(entryPlan.breakout_entry, 3)
+      : "—";
+  const stop =
+    exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
+      ? `Nick ${formatCurrency(exits.initial_stop_nick, 3)}`
+      : exits.initial_stop_safezone !== undefined &&
+          exits.initial_stop_safezone !== null
+        ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
+        : "Choose manually";
+  const target =
+    exits.take_profit !== undefined && exits.take_profit !== null
+      ? formatCurrency(exits.take_profit, 3)
+      : exits.weekly_value_target?.target_price !== undefined &&
+          exits.weekly_value_target?.target_price !== null
+        ? formatCurrency(exits.weekly_value_target.target_price, 3)
+        : "—";
   return `EMA penetration ${emaEntry} | Previous-day break ${breakoutEntry} | ${stop} | Weekly target ${target}`;
 }
 
@@ -204,10 +261,12 @@ function getFilteredItems() {
       .toLowerCase();
 
     if (statusFilter === "watchlist" && status !== "WATCHLIST") return false;
-    if (statusFilter === "touched" && status !== "TOUCHED_ENTRY_PRICE") return false;
+    if (statusFilter === "touched" && status !== "TOUCHED_ENTRY_PRICE")
+      return false;
     if (statusFilter === "monitor" && status !== "MONITOR") return false;
     if (statusFilter === "triggered" && status !== "TRIGGERED") return false;
-    if (directionFilter !== "all" && direction !== directionFilter) return false;
+    if (directionFilter !== "all" && direction !== directionFilter)
+      return false;
     if (query && !searchText.includes(query)) return false;
     return true;
   });
@@ -215,8 +274,13 @@ function getFilteredItems() {
 
 function renderSummary() {
   const items = state.payload?.items || [];
-  const triggered = items.filter((item) => String(item.opportunity_status || "").toUpperCase() === "TRIGGERED");
-  const longCount = items.filter((item) => normalizeSignalDirection(item.direction) === "LONG").length;
+  const triggered = items.filter(
+    (item) =>
+      String(item.opportunity_status || "").toUpperCase() === "TRIGGERED",
+  );
+  const longCount = items.filter(
+    (item) => normalizeSignalDirection(item.direction) === "LONG",
+  ).length;
   const shortCount = items.length - longCount;
   const divergenceCount = items.filter((item) => item.strong_divergence).length;
 
@@ -224,7 +288,8 @@ function renderSummary() {
   $("watchlistTriggered").textContent = String(triggered.length);
   $("watchlistDirectionMix").textContent = `${longCount} / ${shortCount}`;
   $("watchlistDivergence").textContent = String(divergenceCount);
-  $("sessionHeadline").textContent = `Scan session: ${state.payload?.session_date || "—"}`;
+  $("sessionHeadline").textContent =
+    `Scan session: ${state.payload?.session_date || "—"}`;
   $("sessionHeadlineBody").textContent = items.length
     ? `${items.length} candidates in this session; ${triggered.length} have confirmed an entry trigger.`
     : "No qualified candidates in this session.";
@@ -236,7 +301,7 @@ function renderSessions() {
     ? sessions
         .map(
           (session) =>
-            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? " selected" : ""}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`
+            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? " selected" : ""}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`,
         )
         .join("")
     : `<option value="">No sessions</option>`;
@@ -244,7 +309,10 @@ function renderSessions() {
   $("sessionChips").innerHTML = sessions.length
     ? sessions
         .map((session) => {
-          const active = session.session_date === state.payload.session_date ? " active" : "";
+          const active =
+            session.session_date === state.payload.session_date
+              ? " active"
+              : "";
           return `
             <button class="session-chip${active}" type="button" data-session-date="${escapeHtml(session.session_date)}">
               ${escapeHtml(session.session_date)}
@@ -256,14 +324,22 @@ function renderSessions() {
     : `<div class="empty-state">No watchlist snapshots are stored yet. Run a scan first.</div>`;
 
   document.querySelectorAll("[data-session-date]").forEach((button) => {
-    button.addEventListener("click", () => loadWatchlist(button.dataset.sessionDate));
+    button.addEventListener("click", () =>
+      loadWatchlist(button.dataset.sessionDate),
+    );
   });
 }
 
 function renderInsights() {
   const items = state.payload?.items || [];
-  const triggered = items.filter((item) => String(item.opportunity_status || "").toUpperCase() === "TRIGGERED");
-  const pending = items.filter((item) => String(item.opportunity_status || "").toUpperCase() !== "TRIGGERED");
+  const triggered = items.filter(
+    (item) =>
+      String(item.opportunity_status || "").toUpperCase() === "TRIGGERED",
+  );
+  const pending = items.filter(
+    (item) =>
+      String(item.opportunity_status || "").toUpperCase() !== "TRIGGERED",
+  );
   const insights = [];
 
   if (pending.length) {
@@ -291,11 +367,17 @@ function renderInsights() {
     ]);
   }
   if (!insights.length) {
-    insights.push(["No special notes", "This candidate set is clean enough for the normal review workflow."]);
+    insights.push([
+      "No special notes",
+      "This candidate set is clean enough for the normal review workflow.",
+    ]);
   }
 
   $("watchlistInsights").innerHTML = insights
-    .map(([title, body]) => `<div class="insight-item"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(body)}</p></div>`)
+    .map(
+      ([title, body]) =>
+        `<div class="insight-item"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(body)}</p></div>`,
+    )
     .join("");
 }
 
@@ -304,7 +386,8 @@ function renderRail() {
   $("watchlistRailCount").textContent = `${items.length} cards`;
 
   if (!items.length) {
-    $("watchlistRailContainer").innerHTML = `<div class="empty-state">No candidate cards match the current filters.</div>`;
+    $("watchlistRailContainer").innerHTML =
+      `<div class="empty-state">No candidate cards match the current filters.</div>`;
     return;
   }
 
@@ -322,8 +405,12 @@ function renderRail() {
       const tags = [
         item.strong_divergence ? "Strong divergence" : "",
         earnings.warning ? "Earnings soon" : "",
-        String(item.opportunity_status || "").toUpperCase() === "TRIGGERED" ? "Triggered" : "",
-        String(item.opportunity_status || "").toUpperCase() === "MONITOR" ? "Monitor" : "",
+        String(item.opportunity_status || "").toUpperCase() === "TRIGGERED"
+          ? "Triggered"
+          : "",
+        String(item.opportunity_status || "").toUpperCase() === "MONITOR"
+          ? "Monitor"
+          : "",
         manualOrder ? `IBKR ${manualOrder.status || "Recorded"}` : "",
         ...(item.priority_tags || []),
       ].filter(Boolean);
@@ -375,7 +462,8 @@ function renderRail() {
 function renderTable() {
   const items = getFilteredItems();
   if (!items.length) {
-    $("watchlistTableContainer").innerHTML = `<div class="empty-state">No watchlist items match the current filters.</div>`;
+    $("watchlistTableContainer").innerHTML =
+      `<div class="empty-state">No watchlist items match the current filters.</div>`;
     return;
   }
 
@@ -425,7 +513,7 @@ function renderTable() {
             <p>${escapeHtml(
               divergence.daily?.reason ||
                 divergence.weekly?.reason ||
-                "No divergence notes"
+                "No divergence notes",
             )}</p>
           </td>
           <td class="execution-cell">
@@ -463,7 +551,10 @@ function renderTable() {
   setupHorizontalScrollbar("watchlistDetailScroll", "watchlistDetailScrollbar");
   document.querySelectorAll("[data-fill-order]").forEach((button) => {
     button.addEventListener("click", () => {
-      const item = items.find((candidate) => String(candidate.symbol || "") === button.dataset.fillOrder);
+      const item = items.find(
+        (candidate) =>
+          String(candidate.symbol || "") === button.dataset.fillOrder,
+      );
       if (item) fillOrderFormFromCandidate(item);
     });
   });
@@ -488,13 +579,15 @@ function renderPlannedOrders() {
   const orders = state.payload?.planned_orders || [];
   $("orderSessionDate").value = state.payload?.session_date || "";
   if (!orders.length) {
-    $("plannedOrdersContainer").innerHTML = `<div class="empty-state compact-empty">No manual order records for this session yet.</div>`;
+    $("plannedOrdersContainer").innerHTML =
+      `<div class="empty-state compact-empty">No manual order records for this session yet.</div>`;
     return;
   }
   $("plannedOrdersContainer").innerHTML = `
     <div class="manual-order-list">
       ${orders
-        .map((order) => `
+        .map(
+          (order) => `
           <div class="manual-order-row">
             <strong>${escapeHtml(order.symbol)} · ${escapeHtml(getSignalDirectionLabel(order.direction))}</strong>
             <span>${escapeHtml(order.order_type || "—")} ${escapeHtml(order.action || "")}</span>
@@ -503,13 +596,17 @@ function renderPlannedOrders() {
             <span class="tag">${escapeHtml(order.status || "SUBMITTED")}</span>
             <button class="btn btn-secondary btn-mini" type="button" data-delete-order="${escapeHtml(order.id)}">Delete</button>
           </div>
-        `)
+        `,
+        )
         .join("")}
     </div>
   `;
   document.querySelectorAll("[data-delete-order]").forEach((button) => {
     button.addEventListener("click", async () => {
-      await apiRequest(`/planned-orders/${encodeURIComponent(button.dataset.deleteOrder)}`, { method: "DELETE" });
+      await apiRequest(
+        `/planned-orders/${encodeURIComponent(button.dataset.deleteOrder)}`,
+        { method: "DELETE" },
+      );
       await loadWatchlist(state.sessionDate);
     });
   });
@@ -521,7 +618,9 @@ function renderFilteredViews() {
 }
 
 async function loadWatchlist(sessionDate = "") {
-  const query = sessionDate ? `?session_date=${encodeURIComponent(sessionDate)}` : "";
+  const query = sessionDate
+    ? `?session_date=${encodeURIComponent(sessionDate)}`
+    : "";
   const payload = await apiRequest(`/watchlist${query}`);
   state.payload = payload;
   state.sessionDate = payload.session_date || "";
@@ -534,10 +633,16 @@ async function loadWatchlist(sessionDate = "") {
 
 async function bootApp() {
   syncShell("watchlist");
-  setScreenState("boot", "Checking the local Journal API and loading the watchlist...");
+  setScreenState(
+    "boot",
+    "Checking the local Journal API and loading the watchlist...",
+  );
   try {
     const health = await ensureApiReady();
-    renderConnectionStatus(true, `Local API connected · ${health.server.host}:${health.server.port}`);
+    renderConnectionStatus(
+      true,
+      `Local API connected · ${health.server.host}:${health.server.port}`,
+    );
     setScreenState("app");
     await loadWatchlist();
   } catch (error) {
@@ -549,8 +654,12 @@ async function bootApp() {
 
 function bindEvents() {
   $("retryConnectBtn").addEventListener("click", bootApp);
-  $("refreshWatchlistBtn").addEventListener("click", () => loadWatchlist(state.sessionDate));
-  $("sessionSelect").addEventListener("change", (event) => loadWatchlist(event.target.value));
+  $("refreshWatchlistBtn").addEventListener("click", () =>
+    loadWatchlist(state.sessionDate),
+  );
+  $("sessionSelect").addEventListener("change", (event) =>
+    loadWatchlist(event.target.value),
+  );
   $("statusFilter").addEventListener("change", renderFilteredViews);
   $("directionFilter").addEventListener("change", renderFilteredViews);
   $("watchlistSearch").addEventListener("input", renderFilteredViews);
@@ -560,7 +669,8 @@ function bindEvents() {
     await apiRequest("/planned-orders", {
       method: "POST",
       body: {
-        session_date: $("orderSessionDate").value || state.payload?.session_date || "",
+        session_date:
+          $("orderSessionDate").value || state.payload?.session_date || "",
         symbol: $("orderSymbol").value,
         direction,
         broker: "IBKR",
