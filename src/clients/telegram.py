@@ -392,68 +392,19 @@ class TelegramNotifier:
         open_position_exit_alert_summary: dict[str, Any] | None = None,
     ) -> str:
         if total_candidates <= 0:
-            message = (
-                "🔍 <b>No qualified EOD candidates found</b>\n"
-                f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
-            )
-            if stop_update_summary:
-                message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
-            if open_position_earnings_summary:
-                message = f"{message}\n\n{self.format_open_position_earnings_section(open_position_earnings_summary)}"
-            if open_position_exit_alert_summary:
-                message = f"{message}\n\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}"
-            return message
-        if not qualified_signals:
-            message = (
-                f"📘 <b>{session_date} candidate pool updated</b>\n"
-                f"Found {total_candidates} qualified candidates，but display limit is set to 0\n"
-                f"<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>"
-            )
-            if stop_update_summary:
-                message = f"{message}\n\n{self.format_stop_update_section(stop_update_summary)}"
-            if open_position_earnings_summary:
-                message = f"{message}\n\n{self.format_open_position_earnings_section(open_position_earnings_summary)}"
-            if open_position_exit_alert_summary:
-                message = f"{message}\n\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}"
-            return message
-
-        strong_divergence_count = sum(1 for signal in qualified_signals if signal.get("strong_divergence"))
-        lines = [
-            f"📘 <b>{session_date} candidate pool updated</b>\n",
-            f"Found {total_candidates} qualified candidates, showing top {len(qualified_signals)} \n",
-            f"Strong divergence alert {strong_divergence_count} \n",
-            f"{'─' * 24}\n",
-        ]
-
-        for index, signal in enumerate(qualified_signals, start=1):
-            direction = "Long" if signal["direction"] == "LONG" else "Short"
-            divergence_badge = " 🚨 divergence" if signal.get("strong_divergence") else ""
-            status_label = self._status_label(signal)
-            weekly_trend = "Up" if signal['weekly'].get('trend') == "LONG" else "Down"
-            daily_state = self._daily_state_label(signal["daily"]["rsi_state"])
-            priority_tags = [_html_text(str(tag)) for tag in signal.get("priority_tags", [])]
-            tag_line = f"   Tags: {' / '.join(priority_tags)}\n" if priority_tags else ""
-            order_plan = signal.get("order_plan") or signal.get("next_day_order_plan") or {}
-            primary_order = order_plan.get("primary_order") or {}
-            risk = order_plan.get("risk") or {}
-            order_line = ""
-            if primary_order.get("stop_price") is not None:
-                order_line = (
-                    f"   Next-session order: {_html_text(primary_order.get('order_type', 'Stop Limit'))} "
-                    f"{_html_text(primary_order.get('action', ''))} "
-                    f"Stop <code>{self._fmt_num(primary_order.get('stop_price'), 2)}</code> "
-                    f"Limit <code>{self._fmt_num(primary_order.get('limit_price'), 2)}</code> "
-                    f"Initial Stop <code>{self._fmt_num(risk.get('initial_stop'), 2)}</code> "
-                    f"Target <code>{self._fmt_num(risk.get('take_profit'), 2)}</code> "
-                    f"RR <code>{self._fmt_num(risk.get('reward_risk_ratio_model'), 2)}R</code>\n"
-                )
-            lines.append(
-                f"{index}. <b>{signal['symbol']}</b> {direction} {status_label} "
-                f"Candidate score {self._candidate_score(signal):.1f}{divergence_badge}\n"
-                f"   Weekly: {weekly_trend} · Daily: {daily_state}\n"
-                f"{order_line}"
-                f"{tag_line}"
-            )
+            lines = [
+                "🔍 <b>No qualified EOD candidates found</b>\n",
+                f"Session: <code>{session_date}</code>\n",
+            ]
+        else:
+            strong_divergence_count = sum(1 for s in qualified_signals if s.get("strong_divergence"))
+            divergence_note = f" · 🚨 {strong_divergence_count} strong divergence" if strong_divergence_count else ""
+            lines = [
+                f"📋 <b>EOD watchlist ready — {session_date}</b>\n",
+                f"{total_candidates} candidates qualified{divergence_note}\n",
+                f"{'─' * 24}\n",
+                "✅ Please check the watchlist and place orders before tomorrow's open.\n",
+            ]
 
         if stop_update_summary:
             lines.append(f"\n{self.format_stop_update_section(stop_update_summary)}")
