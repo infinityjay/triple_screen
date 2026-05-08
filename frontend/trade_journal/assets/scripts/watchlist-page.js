@@ -173,9 +173,7 @@ function buildOrderPlanInline(item) {
     ? action.charAt(0).toUpperCase() + action.slice(1).toLowerCase()
     : "Buy";
   const rsiState = String(item.daily?.rsi_state || "");
-  const useEmaEntry =
-    rsiState === "PULLBACK_HISTOGRAM_TURNED" ||
-    rsiState === "RALLY_HISTOGRAM_TURNED";
+  const useEmaEntry = Boolean(item.daily?.entered_value_zone);
   const stopParts = [
     risk.initial_stop_safezone != null
       ? `SafeZone stop ${formatCurrency(risk.initial_stop_safezone, 2)}`
