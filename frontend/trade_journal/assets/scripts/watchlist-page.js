@@ -172,6 +172,10 @@ function buildOrderPlanInline(item) {
   const sideLabel = action
     ? action.charAt(0).toUpperCase() + action.slice(1).toLowerCase()
     : "Buy";
+  const rsiState = String(item.daily?.rsi_state || "");
+  const useEmaEntry =
+    rsiState === "PULLBACK_HISTOGRAM_TURNED" ||
+    rsiState === "RALLY_HISTOGRAM_TURNED";
   const stopParts = [
     risk.initial_stop_safezone != null
       ? `SafeZone stop ${formatCurrency(risk.initial_stop_safezone, 2)}`
@@ -182,17 +186,14 @@ function buildOrderPlanInline(item) {
   ]
     .filter(Boolean)
     .join("  ·  ");
-  const orderParts = [
-    primary.stop_price != null
-      ? `${sideLabel} Stop Limit — Stop ${formatCurrency(primary.stop_price, 2)}  Limit ${formatCurrency(primary.limit_price, 2)}`
-      : "",
-    secondary.limit_price != null
-      ? `${sideLabel} EMA Limit — ${formatCurrency(secondary.limit_price, 2)}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
-  return [orderParts, stopParts || "—"].join("   ‖   ");
+  const orderText = useEmaEntry
+    ? secondary.limit_price != null
+      ? `EMA Entry: ${sideLabel} Limit — ${formatCurrency(secondary.limit_price, 2)}`
+      : ""
+    : primary.stop_price != null
+      ? `Breakout Entry: ${sideLabel} Stop Limit — Stop ${formatCurrency(primary.stop_price, 2)}  Limit ${formatCurrency(primary.limit_price, 2)}`
+      : "";
+  return [orderText, stopParts || "—"].join("   ‖   ");
 }
 
 function getPlannedOrderFor(item) {
