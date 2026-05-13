@@ -78,174 +78,38 @@
         </header>
 
         <div class="page-grid">
+          <div id="globalAlertZone"></div>
+
           <section class="shell-card">
-            <div class="hero-grid watchlist-hero-grid">
-              <div class="page-head">
-                <div class="eyebrow">Watchlist</div>
-                <h1>Scan Candidates, Then Review Execution Plans</h1>
-                <p>
-                  Review candidate quality, order-plan levels, manual IBKR order
-                  records, and intraday touch status in one workflow.
-                </p>
-              </div>
-              <div class="side-card watchlist-session-card">
-                <div class="eyebrow">Session</div>
-                <h3 id="sessionHeadline">Latest scan session: -</h3>
-                <p id="sessionHeadlineBody">
-                  Switch sessions to review the candidates and execution
-                  assumptions from each EOD scan.
-                </p>
-                <div class="toolbar watchlist-session-toolbar">
-                  <select class="select" id="sessionSelect"></select>
-                  <button
-                    class="btn btn-secondary"
-                    id="refreshWatchlistBtn"
-                    type="button"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="watchlist-summary-grid">
-            <div class="summary-card">
-              <div class="summary-label">Candidates</div>
-              <div class="summary-value" id="watchlistCount">0</div>
-              <div class="summary-sub">
-                Symbols in the selected scan session.
-              </div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-label">Triggered</div>
-              <div class="summary-value accent-safe" id="watchlistTriggered">
-                0
-              </div>
-              <div class="summary-sub">
-                Candidates that touched or confirmed an entry level.
-              </div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-label">Direction Mix</div>
-              <div class="summary-value" id="watchlistDirectionMix">—</div>
-              <div class="summary-sub">Long / short candidate count.</div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-label">Divergence Alerts</div>
-              <div class="summary-value accent-warn" id="watchlistDivergence">
-                0
-              </div>
-              <div class="summary-sub">
-                Candidates with elevated exhaustion risk.
-              </div>
-            </div>
-          </section>
-
-          <section class="watchlist-card watchlist-rail-card">
             <div class="section-head watchlist-rail-head">
               <div>
-                <div class="eyebrow">Quick Scan</div>
-                <h2>Quick Candidate Rail</h2>
-                <p>
-                  Scan symbols, status, core setup context, and the key
-                  stop-limit levels before opening the full table.
-                </p>
+                <div class="eyebrow">Watchlist</div>
+                <h2 id="sessionHeadline">Scan Candidates</h2>
+                <p id="sessionHeadlineBody">Select a session to review candidates and execution plans.</p>
               </div>
               <div class="toolbar ledger-toolbar">
-                <select
-                  class="select"
-                  style="max-width: 180px"
-                  id="statusFilter"
-                >
+                <select class="select" style="max-width:180px" id="sessionSelect"></select>
+                <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">Refresh</button>
+                <select class="select" style="max-width:160px" id="statusFilter">
                   <option value="all">All statuses</option>
                   <option value="watchlist">Waiting only</option>
                   <option value="touched">Touched only</option>
                   <option value="monitor">Monitor only</option>
                   <option value="triggered">Triggered only</option>
                 </select>
-                <select
-                  class="select"
-                  style="max-width: 180px"
-                  id="directionFilter"
-                >
+                <select class="select" style="max-width:160px" id="directionFilter">
                   <option value="all">All directions</option>
                   <option value="LONG">Long only</option>
                   <option value="SHORT">Short only</option>
                 </select>
-                <input
-                  class="input"
-                  style="min-width: 240px"
-                  type="search"
-                  id="watchlistSearch"
-                  placeholder="Search symbol, reason, earnings, status..."
-                />
+                <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="Search symbol, reason, earnings, status...">
               </div>
             </div>
-            <div class="status-legend">
-              <span class="status-legend-item"
-                ><span class="badge badge-safe">Triggered</span
-                ><span>All 3 screens aligned — place the order now</span></span
-              >
-              <span class="status-legend-item"
-                ><span class="badge badge-warn">Touched</span
-                ><span
-                  >Entry price touched but hourly not confirmed — review
-                  manually</span
-                ></span
-              >
-              <span class="status-legend-item"
-                ><span class="badge badge-info">Waiting</span
-                ><span
-                  >Weekly + daily fully ready, awaiting intraday trigger — stage
-                  your order</span
-                ></span
-              >
-              <span class="status-legend-item"
-                ><span class="badge badge-warn">Monitor</span
-                ><span
-                  >Daily not yet aligned — track only, no order yet</span
-                ></span
-              >
-            </div>
-            <div class="watchlist-rail-meta">
-              <div class="status-pill mono" id="watchlistRailCount">
-                0 cards
-              </div>
-              <div class="watchlist-scroll-hint">
-                Use the horizontal scrollbar to scan the full candidate set.
-              </div>
-            </div>
-            <div id="watchlistRailContainer"></div>
-          </section>
-
-          <section class="watchlist-layout compact-watchlist-layout">
-            <div class="watchlist-card">
-              <div class="card-head">
-                <div>
-                  <div class="eyebrow">Recent Sessions</div>
-                  <h3>Recent Scan Sessions</h3>
-                  <p>
-                    Switch between recent EOD scans and compare candidate
-                    changes.
-                  </p>
-                </div>
-              </div>
-              <div class="session-chip-list" id="sessionChips"></div>
-            </div>
-
-            <div class="watchlist-card">
-              <div class="card-head">
-                <div>
-                  <div class="eyebrow">Execution Lens</div>
-                  <h3>Execution Notes</h3>
-                  <p>
-                    Focused reminders for order planning, manual review, and
-                    risk checks.
-                  </p>
-                </div>
-              </div>
-              <div class="insight-list" id="watchlistInsights"></div>
+            <div class="toolbar ledger-meta">
+              <div class="status-pill mono" id="watchlistRailCount">0 candidates</div>
+              <div class="status-pill mono">Triggered: <span id="watchlistTriggered">0</span></div>
+              <div class="status-pill mono">Mix: <span id="watchlistDirectionMix">—</span></div>
+              <div class="status-pill mono">Divergence: <span id="watchlistDivergence">0</span></div>
             </div>
           </section>
 
@@ -274,26 +138,10 @@
                 <option value="Stop">Stop</option>
               </select>
               <input class="input" id="orderQuantity" placeholder="Quantity" />
-              <input
-                class="input"
-                id="orderStopPrice"
-                placeholder="Stop (order trigger)"
-              />
-              <input
-                class="input"
-                id="orderLimitPrice"
-                placeholder="Limit (order price)"
-              />
-              <input
-                class="input"
-                id="orderStopLoss"
-                placeholder="Stop Loss (exit)"
-              />
-              <input
-                class="input"
-                id="orderBrokerId"
-                placeholder="IBKR Order ID"
-              />
+              <input class="input" id="orderStopPrice" placeholder="Stop (order trigger)" />
+              <input class="input" id="orderLimitPrice" placeholder="Limit (order price)" />
+              <input class="input" id="orderStopLoss" placeholder="Stop Loss (exit)" />
+              <input class="input" id="orderBrokerId" placeholder="IBKR Order ID" />
               <select class="select" id="orderStatus">
                 <option value="SUBMITTED">Submitted</option>
                 <option value="PRESUBMITTED">PreSubmitted</option>

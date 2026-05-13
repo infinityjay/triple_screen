@@ -17,8 +17,9 @@ const state = {
   sessionDate: "",
 };
 
+const _noop = new Proxy({}, { get: () => _noop, set: () => true });
 function $(id) {
-  return document.getElementById(id);
+  return document.getElementById(id) ?? _noop;
 }
 
 function getReasonBlock(label, score, reason) {
@@ -304,7 +305,7 @@ function renderSummary() {
   const shortCount = items.length - longCount;
   const divergenceCount = items.filter((item) => item.strong_divergence).length;
 
-  $("watchlistCount").textContent = String(items.length);
+  $("watchlistRailCount").textContent = `${items.length} candidates`;
   $("watchlistTriggered").textContent = String(triggered.length);
   $("watchlistDirectionMix").textContent = `${longCount} / ${shortCount}`;
   $("watchlistDivergence").textContent = String(divergenceCount);

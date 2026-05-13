@@ -1,394 +1,721 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Triple Screen Journal</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b2c2a'/%3E%3Cpath d='M14 42c8-1 13-8 19-20l7 11 11-16' fill='none' stroke='%23f2ddb0' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='16' r='5' fill='%23d38a2e'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260410b">
-</head>
-<body>
-  <div id="bootScreen" class="gate-screen">
-    <div class="gate-card">
-      <div class="eyebrow">Journal Boot</div>
-      <h1>Loading Trade Journal Workspace</h1>
-      <p id="bootMessage">Checking the local FastAPI + SQLite service and preparing journal statistics.</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Triple Screen Journal</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b2c2a'/%3E%3Cpath d='M14 42c8-1 13-8 19-20l7 11 11-16' fill='none' stroke='%23f2ddb0' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='16' r='5' fill='%23d38a2e'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/frontend/assets/styles/app.css?v=20260410b" />
+  </head>
+  <body>
+    <div id="bootScreen" class="gate-screen">
+      <div class="gate-card">
+        <div class="eyebrow">Journal Boot</div>
+        <h1>Loading Trade Journal Workspace</h1>
+        <p id="bootMessage">
+          Checking the local FastAPI + SQLite service and preparing journal
+          statistics.
+        </p>
+      </div>
     </div>
-  </div>
 
-  <div id="configGate" class="gate-screen" style="display:none">
-    <div class="gate-card">
-      <div class="eyebrow">Local API</div>
-      <h1>Local Journal Service Is Unavailable</h1>
-      <p>Start the `triple_screen` Journal API, then retry the connection.</p>
-      <div class="gate-stack">
-        <div id="configError" class="alert danger">Cannot connect to `/api/health`.</div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="retryConnectBtn" type="button">Reconnect</button>
-          <a class="btn btn-secondary" href="/watchlist">Open Watchlist First</a>
+    <div id="configGate" class="gate-screen" style="display: none">
+      <div class="gate-card">
+        <div class="eyebrow">Local API</div>
+        <h1>Local Journal Service Is Unavailable</h1>
+        <p>Start the `triple_screen` Journal API, then retry the connection.</p>
+        <div class="gate-stack">
+          <div id="configError" class="alert danger">
+            Cannot connect to `/api/health`.
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="retryConnectBtn" type="button">
+              Reconnect
+            </button>
+            <a class="btn btn-secondary" href="/watchlist"
+              >Open Watchlist First</a
+            >
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div id="mainApp" style="display:none">
-    <div class="app-shell">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-mark">∿</div>
-          <div class="brand-copy">
-            <strong>Triple Screen Atlas</strong>
-            <span>Unified trade journal and watchlist</span>
-          </div>
-        </div>
-        <nav class="topbar-nav">
-          <a class="nav-link" data-app-link="journal" href="/journal">Trade Journal</a>
-          <a class="nav-link" data-app-link="watchlist" href="/watchlist">Watchlist</a>
-          <a class="nav-link" data-app-link="analysis" href="/analysis">Technical Analysis</a>
-        </nav>
-        <div class="topbar-meta">
-          <div class="status-pill">
-            <span class="status-dot" id="connectionDot"></span>
-            <span id="connectionLabel">Connecting...</span>
-          </div>
-          <div class="status-pill mono" id="shellDate">—</div>
-        </div>
-      </header>
-
-      <div class="page-grid">
-        <div id="globalAlertZone"></div>
-
-        <section class="shell-card">
-          <div class="section-head">
-            <div>
-              <div class="eyebrow">Trade Journal</div>
-              <h2>Full Trade Ledger</h2>
-            </div>
-            <div class="subnav">
-              <button class="subnav-btn active" type="button" data-section-tab="ledger">Ledger</button>
-              <button class="subnav-btn" type="button" data-section-tab="capture">Capture / Edit</button>
-              <button class="subnav-btn" type="button" data-section-tab="stats">Stats</button>
-              <button class="subnav-btn" type="button" data-section-tab="settings">Settings</button>
+    <div id="mainApp" style="display: none">
+      <div class="app-shell">
+        <header class="topbar">
+          <div class="brand">
+            <div class="brand-mark">∿</div>
+            <div class="brand-copy">
+              <strong>Triple Screen Atlas</strong>
+              <span>Unified trade journal and watchlist</span>
             </div>
           </div>
+          <nav class="topbar-nav">
+            <a class="nav-link" data-app-link="journal" href="/journal"
+              >Trade Journal</a
+            >
+            <a class="nav-link" data-app-link="watchlist" href="/watchlist"
+              >Watchlist</a
+            >
+            <a class="nav-link" data-app-link="analysis" href="/analysis"
+              >Technical Analysis</a
+            >
+          </nav>
+          <div class="topbar-meta">
+            <div class="status-pill">
+              <span class="status-dot" id="connectionDot"></span>
+              <span id="connectionLabel">Connecting...</span>
+            </div>
+            <div class="status-pill mono" id="shellDate">—</div>
+          </div>
+        </header>
 
-          <div class="panel active" id="panel-ledger">
-            <div class="table-card compact-ledger-card journal-detail-card">
-              <div class="section-head ledger-head">
-                <div>
-                  <div class="eyebrow">Ledger</div>
-                  <h2>Full Trade Ledger</h2>
-                  <p>Open positions appear first. Closed trades follow in descending order.</p>
-                </div>
-                <div class="toolbar ledger-toolbar">
-                  <input class="input mono" style="max-width:180px" type="month" id="journalMonthPicker">
-                  <select class="select" style="max-width:180px" id="journalStatusFilter">
-                    <option value="all">All Statuses</option>
-                    <option value="open">Open</option>
-                    <option value="closed">Closed Trades</option>
-                    <option value="win">Wins</option>
-                    <option value="loss">Losses</option>
-                    <option value="planned">Plan Complete</option>
-                  </select>
-                  <input class="input" style="min-width:260px" type="search" id="journalSearchInput" placeholder="Search ticker, direction, plan, exit reason, or review keywords...">
-                  <button class="btn btn-primary" id="newTradeBtn" type="button">+ New Trade</button>
-                </div>
+        <div class="page-grid">
+          <div id="globalAlertZone"></div>
+
+          <section class="shell-card">
+            <div class="section-head">
+              <div>
+                <div class="eyebrow">Trade Journal</div>
+                <h2>Full Trade Ledger</h2>
               </div>
-              <div class="toolbar ledger-meta">
-                <div class="status-pill mono" id="journalMonthCurrent">Current Month: —</div>
-                <div class="status-pill mono" id="journalCountLabel">0 trades</div>
+              <div class="subnav">
+                <button
+                  class="subnav-btn active"
+                  type="button"
+                  data-section-tab="ledger"
+                >
+                  Ledger
+                </button>
+                <button
+                  class="subnav-btn"
+                  type="button"
+                  data-section-tab="capture"
+                >
+                  Capture / Edit
+                </button>
+                <button
+                  class="subnav-btn"
+                  type="button"
+                  data-section-tab="stats"
+                >
+                  Stats
+                </button>
+                <button
+                  class="subnav-btn"
+                  type="button"
+                  data-section-tab="settings"
+                >
+                  Settings
+                </button>
               </div>
-              <div id="journalTableContainer"></div>
             </div>
-          </div>
 
-          <div class="panel" id="panel-capture">
-            <div class="capture-layout">
-              <div class="side-card sticky-card">
-                <div class="card-head">
+            <div class="panel active" id="panel-ledger">
+              <div class="table-card compact-ledger-card journal-detail-card">
+                <div class="section-head ledger-head">
                   <div>
-                    <div class="eyebrow">Capture</div>
-                    <h3 id="captureTitle">New Trade</h3>
-                    <p id="captureSubtitle">See risk, suggested size, and profit preview while entering data.</p>
+                    <div class="eyebrow">Ledger</div>
+                    <h2>Full Trade Ledger</h2>
+                    <p>
+                      Open positions appear first. Closed trades follow in
+                      descending order.
+                    </p>
+                  </div>
+                  <div class="toolbar ledger-toolbar">
+                    <input
+                      class="input mono"
+                      style="max-width: 180px"
+                      type="month"
+                      id="journalMonthPicker"
+                    />
+                    <select
+                      class="select"
+                      style="max-width: 180px"
+                      id="journalStatusFilter"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="open">Open</option>
+                      <option value="closed">Closed Trades</option>
+                      <option value="win">Wins</option>
+                      <option value="loss">Losses</option>
+                      <option value="planned">Plan Complete</option>
+                    </select>
+                    <input
+                      class="input"
+                      style="min-width: 260px"
+                      type="search"
+                      id="journalSearchInput"
+                      placeholder="Search ticker, direction, plan, exit reason, or review keywords..."
+                    />
+                    <button
+                      class="btn btn-primary"
+                      id="newTradeBtn"
+                      type="button"
+                    >
+                      + New Trade
+                    </button>
                   </div>
                 </div>
-                <div id="captureAlert"></div>
-                <div class="metric-grid" style="margin-top:14px">
-                  <div class="metric-row"><span>Max Loss</span><strong id="calcMaxLoss">—</strong></div>
-                  <div class="metric-row"><span>Initial Stop</span><strong id="calcInitialStopDisplay">—</strong></div>
-                  <div class="metric-row"><span>Current Protective Stop</span><strong id="calcCurrentStopDisplay">—</strong></div>
-                  <div class="metric-row"><span>Current Suggested Stop</span><strong id="calcSuggestedStopDisplay">—</strong></div>
-                  <div class="metric-row"><span>Stop Status</span><strong id="calcStopState">—</strong></div>
-                  <div class="metric-row"><span>Risk / Share</span><strong id="calcRiskPerShare">—</strong></div>
-                  <div class="metric-row">
-                    <span>Suggested Shares</span>
-                    <strong id="calcRecommendedShares">—</strong>
-                  </div>
-                  <div class="metric-row"><span>Stop Budget Used</span><strong id="calcUsedStop">—</strong></div>
-                  <div class="metric-row"><span>Target Price</span><strong id="calcTargetPrice">—</strong></div>
-                  <div class="metric-row"><span>Net Profit Preview</span><strong id="calcLivePnl">Open</strong></div>
-                  <div class="metric-row"><span>Execution Hint</span><strong id="calcExecutionHint">Enter entry price, stop price, and shares first</strong></div>
+                <div class="toolbar ledger-meta">
+                  <div class="status-pill mono" id="journalMonthCurrent">Current Month: —</div>
+                  <div class="status-pill mono" id="journalCountLabel">0 trades</div>
+                  <div class="status-pill mono">Capital: <strong id="riskBarTotal">—</strong></div>
+                  <div class="status-pill mono">Max Loss/Trade: <strong id="riskBarSingleStop">—</strong></div>
+                  <div class="status-pill mono">Stop Budget: <strong id="riskBarBudget">—</strong></div>
+                  <div class="status-pill mono">Remaining: <strong id="riskBarRemaining">—</strong></div>
+                  <div class="status-pill mono">Open: <strong id="riskBarOpen">0</strong></div>
+                  <div class="status-pill mono">Closed P/L: <strong id="riskBarClosed">—</strong></div>
                 </div>
-                <div class="btn-row" style="margin-top:16px">
-                  <button class="btn btn-secondary" type="button" id="fillSharesBtn">Use Suggested Shares</button>
-                  <button class="btn btn-secondary hidden" type="button" id="captureCancelBtn">Cancel Edit</button>
                 </div>
+                <div id="journalTableContainer"></div>
               </div>
+            </div>
 
-              <div class="stack">
-                <div class="form-card">
+            <div class="panel" id="panel-capture">
+              <div class="capture-layout">
+                <div class="side-card sticky-card">
                   <div class="card-head">
                     <div>
-                      <h3>1. Entry Plan</h3>
-                      <p>Record direction, entry level, risk, and expected target.</p>
+                      <div class="eyebrow">Capture</div>
+                      <h3 id="captureTitle">New Trade</h3>
+                      <p id="captureSubtitle">
+                        See risk, suggested size, and profit preview while
+                        entering data.
+                      </p>
                     </div>
                   </div>
-                  <div class="field-grid">
-                    <div class="field-group span-4">
-                      <label>Ticker *</label>
-                      <input class="input" id="f_stock" type="text" placeholder="NVDA" style="text-transform:uppercase">
+                  <div id="captureAlert"></div>
+                  <div class="metric-grid" style="margin-top: 14px">
+                    <div class="metric-row">
+                      <span>Max Loss</span><strong id="calcMaxLoss">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Direction *</label>
-                      <select class="select" id="f_direction">
-                        <option value="long">Long</option>
-                        <option value="short">Short</option>
-                      </select>
+                    <div class="metric-row">
+                      <span>Initial Stop</span
+                      ><strong id="calcInitialStopDisplay">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Entry Date</label>
-                      <input class="input mono" id="f_buyDate" type="date">
+                    <div class="metric-row">
+                      <span>Current Protective Stop</span
+                      ><strong id="calcCurrentStopDisplay">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Entry Price *</label>
-                      <input class="input" id="f_buyPrice" type="number" step="0.001">
+                    <div class="metric-row">
+                      <span>Current Suggested Stop</span
+                      ><strong id="calcSuggestedStopDisplay">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Initial Stop</label>
-                      <input class="input" id="f_initialStopLoss" type="number" step="0.001" readonly>
+                    <div class="metric-row">
+                      <span>Stop Status</span
+                      ><strong id="calcStopState">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Current Protective Stop *</label>
-                      <input class="input" id="f_stopLoss" type="number" step="0.001">
+                    <div class="metric-row">
+                      <span>Risk / Share</span
+                      ><strong id="calcRiskPerShare">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Current Suggested Stop</label>
-                      <input class="input" id="f_suggestedStopLoss" type="number" step="0.001" readonly>
+                    <div class="metric-row">
+                      <span>Suggested Shares</span>
+                      <strong id="calcRecommendedShares">—</strong>
                     </div>
-                    <div class="field-group span-4">
-                      <label>Shares *</label>
-                      <div class="field-stack">
-                        <input class="input" id="f_shares" type="number" step="1">
-                        <button class="btn btn-secondary" id="fillSharesInlineBtn" type="button">Use Suggested Value</button>
+                    <div class="metric-row">
+                      <span>Stop Budget Used</span
+                      ><strong id="calcUsedStop">—</strong>
+                    </div>
+                    <div class="metric-row">
+                      <span>Target Price</span
+                      ><strong id="calcTargetPrice">—</strong>
+                    </div>
+                    <div class="metric-row">
+                      <span>Net Profit Preview</span
+                      ><strong id="calcLivePnl">Open</strong>
+                    </div>
+                    <div class="metric-row">
+                      <span>Execution Hint</span
+                      ><strong id="calcExecutionHint"
+                        >Enter entry price, stop price, and shares first</strong
+                      >
+                    </div>
+                  </div>
+                  <div class="btn-row" style="margin-top: 16px">
+                    <button
+                      class="btn btn-secondary"
+                      type="button"
+                      id="fillSharesBtn"
+                    >
+                      Use Suggested Shares
+                    </button>
+                    <button
+                      class="btn btn-secondary hidden"
+                      type="button"
+                      id="captureCancelBtn"
+                    >
+                      Cancel Edit
+                    </button>
+                  </div>
+                </div>
+
+                <div class="stack">
+                  <div class="form-card">
+                    <div class="card-head">
+                      <div>
+                        <h3>1. Entry Plan</h3>
+                        <p>
+                          Record direction, entry level, risk, and expected
+                          target.
+                        </p>
                       </div>
                     </div>
-                    <div class="field-group span-6">
-                      <label>Trade Method / Stop Basis</label>
-                      <input class="input" id="f_stopReason" type="text" placeholder="Pullback to Value / Below Prior Low">
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Target Profit (%)</label>
-                      <input class="input" id="f_targetPct" type="number" step="0.1" placeholder="10">
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Profit Target Price</label>
-                      <input class="input" id="f_targetPrice" type="number" step="0.001" readonly>
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Entry Commission ($)</label>
-                      <input class="input" id="f_buyComm" type="number" step="0.01" min="0">
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Channel High</label>
-                      <input class="input" id="f_chanHigh" type="number" step="0.001">
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Channel Low</label>
-                      <input class="input" id="f_chanLow" type="number" step="0.001">
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Entry Day High</label>
-                      <input class="input" id="f_dayHigh" type="number" step="0.001">
-                    </div>
-                    <div class="field-group span-3">
-                      <label>Entry Day Low</label>
-                      <input class="input" id="f_dayLow" type="number" step="0.001">
+                    <div class="field-grid">
+                      <div class="field-group span-4">
+                        <label>Ticker *</label>
+                        <input
+                          class="input"
+                          id="f_stock"
+                          type="text"
+                          placeholder="NVDA"
+                          style="text-transform: uppercase"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Direction *</label>
+                        <select class="select" id="f_direction">
+                          <option value="long">Long</option>
+                          <option value="short">Short</option>
+                        </select>
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Entry Date</label>
+                        <input class="input mono" id="f_buyDate" type="date" />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Entry Price *</label>
+                        <input
+                          class="input"
+                          id="f_buyPrice"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Initial Stop</label>
+                        <input
+                          class="input"
+                          id="f_initialStopLoss"
+                          type="number"
+                          step="0.001"
+                          readonly
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Current Protective Stop *</label>
+                        <input
+                          class="input"
+                          id="f_stopLoss"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Current Suggested Stop</label>
+                        <input
+                          class="input"
+                          id="f_suggestedStopLoss"
+                          type="number"
+                          step="0.001"
+                          readonly
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Shares *</label>
+                        <div class="field-stack">
+                          <input
+                            class="input"
+                            id="f_shares"
+                            type="number"
+                            step="1"
+                          />
+                          <button
+                            class="btn btn-secondary"
+                            id="fillSharesInlineBtn"
+                            type="button"
+                          >
+                            Use Suggested Value
+                          </button>
+                        </div>
+                      </div>
+                      <div class="field-group span-6">
+                        <label>Trade Method / Stop Basis</label>
+                        <input
+                          class="input"
+                          id="f_stopReason"
+                          type="text"
+                          placeholder="Pullback to Value / Below Prior Low"
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Target Profit (%)</label>
+                        <input
+                          class="input"
+                          id="f_targetPct"
+                          type="number"
+                          step="0.1"
+                          placeholder="10"
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Profit Target Price</label>
+                        <input
+                          class="input"
+                          id="f_targetPrice"
+                          type="number"
+                          step="0.001"
+                          readonly
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Entry Commission ($)</label>
+                        <input
+                          class="input"
+                          id="f_buyComm"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Channel High</label>
+                        <input
+                          class="input"
+                          id="f_chanHigh"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Channel Low</label>
+                        <input
+                          class="input"
+                          id="f_chanLow"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Entry Day High</label>
+                        <input
+                          class="input"
+                          id="f_dayHigh"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-3">
+                        <label>Entry Day Low</label>
+                        <input
+                          class="input"
+                          id="f_dayLow"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="form-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>2. Exit Record</h3>
-                      <p>Keep exit data complete for review and monthly stats.</p>
+                  <div class="form-card">
+                    <div class="card-head">
+                      <div>
+                        <h3>2. Exit Record</h3>
+                        <p>
+                          Keep exit data complete for review and monthly stats.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="field-grid">
+                      <div class="field-group span-4">
+                        <label>Exit Date</label>
+                        <input class="input mono" id="f_sellDate" type="date" />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Exit Price</label>
+                        <input
+                          class="input"
+                          id="f_sellPrice"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Exit Commission ($)</label>
+                        <input
+                          class="input"
+                          id="f_sellComm"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Exit Day High</label>
+                        <input
+                          class="input"
+                          id="f_sellHigh"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Exit Day Low</label>
+                        <input
+                          class="input"
+                          id="f_sellLow"
+                          type="number"
+                          step="0.001"
+                        />
+                      </div>
+                      <div class="field-group span-4">
+                        <label>Exit Reason</label>
+                        <input
+                          class="input"
+                          id="f_sellReason"
+                          type="text"
+                          placeholder="Stop hit / Target reached / Trend broken"
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div class="field-grid">
-                    <div class="field-group span-4">
-                      <label>Exit Date</label>
-                      <input class="input mono" id="f_sellDate" type="date">
-                    </div>
-                    <div class="field-group span-4">
-                      <label>Exit Price</label>
-                      <input class="input" id="f_sellPrice" type="number" step="0.001">
-                    </div>
-                    <div class="field-group span-4">
-                      <label>Exit Commission ($)</label>
-                      <input class="input" id="f_sellComm" type="number" step="0.01" min="0">
-                    </div>
-                    <div class="field-group span-4">
-                      <label>Exit Day High</label>
-                      <input class="input" id="f_sellHigh" type="number" step="0.001">
-                    </div>
-                    <div class="field-group span-4">
-                      <label>Exit Day Low</label>
-                      <input class="input" id="f_sellLow" type="number" step="0.001">
-                    </div>
-                    <div class="field-group span-4">
-                      <label>Exit Reason</label>
-                      <input class="input" id="f_sellReason" type="text" placeholder="Stop hit / Target reached / Trend broken">
-                    </div>
-                  </div>
-                </div>
 
-                <div class="form-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>3. Review Notes</h3>
-                      <p>Write plan, execution, emotions, and improvements so later stats have meaning.</p>
+                  <div class="form-card">
+                    <div class="card-head">
+                      <div>
+                        <h3>3. Review Notes</h3>
+                        <p>
+                          Write plan, execution, emotions, and improvements so
+                          later stats have meaning.
+                        </p>
+                      </div>
+                      <div class="btn-row">
+                        <button
+                          class="template-chip"
+                          id="insertPlanTemplateBtn"
+                          type="button"
+                        >
+                          Insert Plan Template
+                        </button>
+                        <button
+                          class="template-chip"
+                          id="insertReviewTemplateBtn"
+                          type="button"
+                        >
+                          Insert Review Template
+                        </button>
+                      </div>
+                    </div>
+                    <div class="field-group">
+                      <label>Trade Notes / Review</label>
+                      <textarea
+                        id="f_review"
+                        placeholder="Write plan, execution, emotions, mistakes, and next improvements..."
+                      ></textarea>
                     </div>
                     <div class="btn-row">
-                      <button class="template-chip" id="insertPlanTemplateBtn" type="button">Insert Plan Template</button>
-                      <button class="template-chip" id="insertReviewTemplateBtn" type="button">Insert Review Template</button>
+                      <button
+                        class="btn btn-secondary"
+                        type="button"
+                        id="clearCaptureBtn"
+                      >
+                        Reset Form
+                      </button>
+                      <button
+                        class="btn btn-primary"
+                        type="button"
+                        id="captureSaveBtn"
+                      >
+                        Save Trade
+                      </button>
                     </div>
-                  </div>
-                  <div class="field-group">
-                    <label>Trade Notes / Review</label>
-                    <textarea id="f_review" placeholder="Write plan, execution, emotions, mistakes, and next improvements..."></textarea>
-                  </div>
-                  <div class="btn-row">
-                    <button class="btn btn-secondary" type="button" id="clearCaptureBtn">Reset Form</button>
-                    <button class="btn btn-primary" type="button" id="captureSaveBtn">Save Trade</button>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="panel" id="panel-stats">
-            <div class="stats-layout">
-              <div class="section-card">
-                <div class="card-head">
-                  <div>
-                    <div class="eyebrow">Monthly Read</div>
-                    <h3 id="statsLeadTitle">Monthly Takeaway</h3>
-                    <p id="statsLeadBody">This summarizes the month from net result, risk budget, and record completeness.</p>
-                  </div>
-                  <div class="toolbar">
-                    <input class="input mono" style="max-width:180px" type="month" id="statsMonthPicker">
-                    <div class="status-pill mono" id="statsMonthCurrent">Current Month: —</div>
-                  </div>
-                </div>
-                <div class="btn-row" id="statsLeadPills"></div>
-              </div>
-
-              <div class="stack">
-                <div class="stats-card">
+            <div class="panel" id="panel-stats">
+              <div class="stats-layout">
+                <div class="section-card">
                   <div class="card-head">
                     <div>
-                      <h3>Key Numbers</h3>
-                      <p>Only the monthly metrics that help decisions most.</p>
+                      <div class="eyebrow">Monthly Read</div>
+                      <h3 id="statsLeadTitle">Monthly Takeaway</h3>
+                      <p id="statsLeadBody">
+                        This summarizes the month from net result, risk budget,
+                        and record completeness.
+                      </p>
+                    </div>
+                    <div class="toolbar">
+                      <input
+                        class="input mono"
+                        style="max-width: 180px"
+                        type="month"
+                        id="statsMonthPicker"
+                      />
+                      <div class="status-pill mono" id="statsMonthCurrent">
+                        Current Month: —
+                      </div>
                     </div>
                   </div>
-                  <div class="stats-grid" id="statsGrid"></div>
+                  <div class="btn-row" id="statsLeadPills"></div>
                 </div>
-                <div class="stats-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>Next Month Priorities</h3>
-                      <p>Up to 3 actions you can take immediately.</p>
-                    </div>
-                  </div>
-                  <div class="insight-list" id="statsNarrative"></div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="panel" id="panel-settings">
-            <div class="quick-grid">
-              <div class="section-card">
-                <div class="card-head">
-                  <div>
-                    <div class="eyebrow">Risk Settings</div>
-                    <h3>Risk Parameters</h3>
-                    <p>These settings sync to the local SQLite `trade_settings` table.</p>
-                  </div>
-                </div>
-                <div id="settingsAlert"></div>
-                <div class="field-grid" style="margin-top:14px">
-                  <div class="field-group span-6">
-                    <label>Total Capital ($)</label>
-                    <input class="input" id="s_total" type="number" placeholder="114000">
-                  </div>
-                  <div class="field-group span-6">
-                    <label>Single-Trade Stop Limit (%)</label>
-                    <input class="input" id="s_singleStop" type="number" step="0.1">
-                  </div>
-                  <div class="field-group span-6">
-                    <label>Total Stop Budget (%)</label>
-                    <input class="input" id="s_monthStop" type="number" step="0.1" disabled>
-                  </div>
-                  <div class="field-group span-6">
-                    <label>Default Stats Month</label>
-                    <input class="input mono" id="s_month" type="month">
-                  </div>
-                </div>
-              </div>
-
-              <div class="section-card">
-                <div class="card-head">
-                  <div>
-                    <div class="eyebrow">Data Actions</div>
-                    <h3>Data Actions</h3>
-                    <p>Export, refresh, and clear actions are centralized here.</p>
-                  </div>
-                </div>
                 <div class="stack">
-                  <div class="focus-item">
-                    <strong>Export JSON Backup</strong>
-                    <p>Export current trades and settings as a local JSON file.</p>
-                    <div class="btn-row" style="margin-top:12px">
-                      <button class="btn btn-secondary" id="exportDataBtn" type="button">Export JSON</button>
+                  <div class="stats-card">
+                    <div class="card-head">
+                      <div>
+                        <h3>Key Numbers</h3>
+                        <p>
+                          Only the monthly metrics that help decisions most.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="stats-grid" id="statsGrid"></div>
+                  </div>
+                  <div class="stats-card">
+                    <div class="card-head">
+                      <div>
+                        <h3>Next Month Priorities</h3>
+                        <p>Up to 3 actions you can take immediately.</p>
+                      </div>
+                    </div>
+                    <div class="insight-list" id="statsNarrative"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" id="panel-settings">
+              <div class="quick-grid">
+                <div class="section-card">
+                  <div class="card-head">
+                    <div>
+                      <div class="eyebrow">Risk Settings</div>
+                      <h3>Risk Parameters</h3>
+                      <p>
+                        These settings sync to the local SQLite `trade_settings`
+                        table.
+                      </p>
                     </div>
                   </div>
-                  <div class="focus-item">
-                    <strong>Reload Local Data</strong>
-                    <p>Reload trades, settings, and risk parameters from SQLite.</p>
-                    <div class="btn-row" style="margin-top:12px">
-                      <button class="btn btn-secondary" id="reloadDataBtn" type="button">Refresh Data</button>
+                  <div id="settingsAlert"></div>
+                  <div class="field-grid" style="margin-top: 14px">
+                    <div class="field-group span-6">
+                      <label>Total Capital ($)</label>
+                      <input
+                        class="input"
+                        id="s_total"
+                        type="number"
+                        placeholder="114000"
+                      />
+                    </div>
+                    <div class="field-group span-6">
+                      <label>Single-Trade Stop Limit (%)</label>
+                      <input
+                        class="input"
+                        id="s_singleStop"
+                        type="number"
+                        step="0.1"
+                      />
+                    </div>
+                    <div class="field-group span-6">
+                      <label>Total Stop Budget (%)</label>
+                      <input
+                        class="input"
+                        id="s_monthStop"
+                        type="number"
+                        step="0.1"
+                        disabled
+                      />
+                    </div>
+                    <div class="field-group span-6">
+                      <label>Default Stats Month</label>
+                      <input class="input mono" id="s_month" type="month" />
                     </div>
                   </div>
-                  <div class="focus-item">
-                    <strong class="badge-danger">Clear All Trade Data</strong>
-                    <p>Deletes all records from the `trades` table and cannot be undone.</p>
-                    <div class="btn-row" style="margin-top:12px">
-                      <button class="btn btn-danger" id="clearAllBtn" type="button">Clear Trades</button>
+                </div>
+
+                <div class="section-card">
+                  <div class="card-head">
+                    <div>
+                      <div class="eyebrow">Data Actions</div>
+                      <h3>Data Actions</h3>
+                      <p>
+                        Export, refresh, and clear actions are centralized here.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="stack">
+                    <div class="focus-item">
+                      <strong>Export JSON Backup</strong>
+                      <p>
+                        Export current trades and settings as a local JSON file.
+                      </p>
+                      <div class="btn-row" style="margin-top: 12px">
+                        <button
+                          class="btn btn-secondary"
+                          id="exportDataBtn"
+                          type="button"
+                        >
+                          Export JSON
+                        </button>
+                      </div>
+                    </div>
+                    <div class="focus-item">
+                      <strong>Reload Local Data</strong>
+                      <p>
+                        Reload trades, settings, and risk parameters from
+                        SQLite.
+                      </p>
+                      <div class="btn-row" style="margin-top: 12px">
+                        <button
+                          class="btn btn-secondary"
+                          id="reloadDataBtn"
+                          type="button"
+                        >
+                          Refresh Data
+                        </button>
+                      </div>
+                    </div>
+                    <div class="focus-item">
+                      <strong class="badge-danger">Clear All Trade Data</strong>
+                      <p>
+                        Deletes all records from the `trades` table and cannot
+                        be undone.
+                      </p>
+                      <div class="btn-row" style="margin-top: 12px">
+                        <button
+                          class="btn btn-danger"
+                          id="clearAllBtn"
+                          type="button"
+                        >
+                          Clear Trades
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
-  </div>
 
-  <script type="module" src="/frontend/assets/scripts/journal-page.js?v=20260416a"></script>
-</body>
+    <script
+      type="module"
+      src="/frontend/assets/scripts/journal-page.js?v=20260416a"
+    ></script>
+  </body>
 </html>
