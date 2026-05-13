@@ -59,134 +59,29 @@
       </header>
 
       <div class="page-grid">
-        <section class="shell-card">
-          <div class="hero-grid journal-hero-grid">
-            <div class="page-head">
-              <div class="eyebrow">Trading Journal</div>
-              <h1>Trade Journal: Review Rhythm First, Then Each Plan, Risk, and Review</h1>
-              <p>The workspace uses a cleaner layered layout. Start with monthly risk and trade snapshots, then drill into the full ledger, capture form, statistics, and settings.</p>
-              <div class="btn-row" style="margin-top:18px">
-                <input class="input mono" style="max-width:180px" type="month" id="heroMonthPicker">
-                <button class="btn btn-primary" id="newTradeBtn" type="button">+ New Trade</button>
-                <button class="btn btn-secondary" id="goCaptureBtn" type="button">Open Capture</button>
-                <a class="btn btn-secondary" href="/watchlist">Go to Watchlist</a>
-              </div>
-            </div>
-            <div class="side-card journal-focus-card">
-              <div class="eyebrow">Month Focus</div>
-              <h3 id="monthHeadline">Current Month: —</h3>
-              <p id="monthHeadlineBody">Monthly budget, results, and priorities update together.</p>
-              <div class="stack" id="heroNotes" style="margin-top:16px"></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">Total Capital</div>
-            <div class="summary-value" id="summaryTotal">—</div>
-            <div class="summary-sub">Base for risk-budget calculations.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Single-Trade Stop Budget</div>
-            <div class="summary-value accent-warn" id="summarySingleStop">—</div>
-            <div class="summary-sub" id="summarySingleStopSub">Based on total capital and single-trade stop percentage.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total Stop Budget</div>
-            <div class="summary-value accent-danger" id="summaryMonthBudget">—</div>
-            <div class="summary-sub" id="summaryMonthBudgetSub">Calculated as 6% of total capital, open positions only.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Remaining Stop Budget</div>
-            <div class="summary-value accent-safe" id="summaryRemaining">—</div>
-            <div class="summary-sub" id="summaryRemainingSub">Calculated from current open stop usage only.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Closed Net Result This Month</div>
-            <div class="summary-value" id="summaryClosedResult">—</div>
-            <div class="summary-sub" id="summaryClosedResultSub">0 closed trades.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Open Positions</div>
-            <div class="summary-value" id="summaryOpenCount">0</div>
-            <div class="summary-sub" id="summaryOpenCountSub">Positions still open at month end.</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Closed P/L % This Month</div>
-            <div class="summary-value" id="summaryUsedPct">0%</div>
-            <div class="summary-sub" id="summaryUsedText">Only counts net P/L from trades closed this month.</div>
-            <div class="risk-track" style="margin-top:14px"><div class="risk-fill" id="summaryRiskFill"></div></div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Record Completeness</div>
-            <div class="summary-value" id="summaryCompleteness">—</div>
-            <div class="summary-sub" id="summaryCompletenessSub">Prioritize long-incomplete records.</div>
-          </div>
-        </section>
-
         <div id="globalAlertZone"></div>
 
         <section class="shell-card">
           <div class="section-head">
             <div>
-              <div class="eyebrow">Workspace</div>
-              <h2>Trade Journal Workspace</h2>
-              <p>Switch between overview, ledger, capture, stats, and settings on one page.</p>
+              <div class="eyebrow">Trade Journal</div>
+              <h2>Full Trade Ledger</h2>
             </div>
             <div class="subnav">
-              <button class="subnav-btn active" type="button" data-section-tab="overview">Overview</button>
-              <button class="subnav-btn" type="button" data-section-tab="ledger">Ledger</button>
+              <button class="subnav-btn active" type="button" data-section-tab="ledger">Ledger</button>
               <button class="subnav-btn" type="button" data-section-tab="capture">Capture / Edit</button>
               <button class="subnav-btn" type="button" data-section-tab="stats">Stats</button>
               <button class="subnav-btn" type="button" data-section-tab="settings">Settings</button>
             </div>
           </div>
 
-          <div class="panel active" id="panel-overview">
-            <div class="overview-grid">
-              <div class="section-card">
-                <div class="card-head">
-                  <div>
-                    <h3>Priority Reminders</h3>
-                    <p>Trades older than 3 months with missing fields appear first.</p>
-                  </div>
-                  <button class="btn btn-secondary" type="button" id="jumpCaptureBtn">Open Capture</button>
-                </div>
-                <div id="reminderSummary" class="alert warn">Checking incomplete records...</div>
-                <div class="reminder-list" id="reminderList" style="margin-top:14px"></div>
-              </div>
-
-              <div class="stack">
-                <div class="side-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>Current Focus</h3>
-                      <p>Open positions appear first, followed by recent records needing review.</p>
-                    </div>
-                  </div>
-                  <div class="focus-list" id="focusList"></div>
-                </div>
-                <div class="side-card">
-                  <div class="card-head">
-                    <div>
-                      <h3>Monthly Snapshot</h3>
-                      <p>Risk, results, and execution reminders are condensed into actionable notes.</p>
-                    </div>
-                  </div>
-                  <div class="insight-list" id="monthInsights"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="panel" id="panel-ledger">
-            <div class="watchlist-card journal-rail-card">
-              <div class="section-head journal-rail-head">
+          <div class="panel active" id="panel-ledger">
+            <div class="table-card compact-ledger-card journal-detail-card">
+              <div class="section-head ledger-head">
                 <div>
-                  <div class="eyebrow">Quick Ledger</div>
-                  <h2>Quick Horizontal Trade Review</h2>
-                  <p>Scan each trade status, risk usage, plan, and review gaps before opening the full ledger.</p>
+                  <div class="eyebrow">Ledger</div>
+                  <h2>Full Trade Ledger</h2>
+                  <p>Open positions appear first. Closed trades follow in descending order.</p>
                 </div>
                 <div class="toolbar ledger-toolbar">
                   <input class="input mono" style="max-width:180px" type="month" id="journalMonthPicker">
@@ -199,23 +94,12 @@
                     <option value="planned">Plan Complete</option>
                   </select>
                   <input class="input" style="min-width:260px" type="search" id="journalSearchInput" placeholder="Search ticker, direction, plan, exit reason, or review keywords...">
+                  <button class="btn btn-primary" id="newTradeBtn" type="button">+ New Trade</button>
                 </div>
               </div>
               <div class="toolbar ledger-meta">
                 <div class="status-pill mono" id="journalMonthCurrent">Current Month: —</div>
                 <div class="status-pill mono" id="journalCountLabel">0 trades</div>
-                <div class="ledger-scroll-hint">Scan cards horizontally, then verify full fields below</div>
-              </div>
-              <div id="journalRailContainer"></div>
-            </div>
-
-            <div class="table-card compact-ledger-card journal-detail-card">
-              <div class="section-head ledger-head">
-                <div>
-                  <div class="eyebrow">Deep Ledger</div>
-                  <h2>Full Trade Ledger</h2>
-                  <p>Keeps all fields and actions for detailed review of plan, execution, exit reason, and review summary.</p>
-                </div>
               </div>
               <div id="journalTableContainer"></div>
             </div>

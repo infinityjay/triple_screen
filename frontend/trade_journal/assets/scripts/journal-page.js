@@ -72,7 +72,7 @@ const state = {
   editingId: null,
   captureInitialStop: null,
   captureSuggestedStop: null,
-  activeSection: "overview",
+  activeSection: "ledger",
   settingsSaveTimer: null,
   suggestedStopTimer: null,
   suggestedStopRequestSeq: 0,
@@ -80,7 +80,6 @@ const state = {
 };
 
 const MONTH_INPUT_IDS = [
-  "heroMonthPicker",
   "journalMonthPicker",
   "statsMonthPicker",
 ];
@@ -110,8 +109,9 @@ const FORM_INPUT_IDS = [
   "f_review",
 ];
 
+const _noop = new Proxy({}, { get: () => _noop, set: () => true });
 function $(id) {
-  return document.getElementById(id);
+  return document.getElementById(id) ?? _noop;
 }
 
 function showAlert(containerId, message, tone = "warn") {
@@ -231,28 +231,37 @@ function getFilteredTrades() {
   const month = getCurrentMonth();
   const status = $("journalStatusFilter")?.value || "all";
   const query = ($("journalSearchInput")?.value || "").trim().toLowerCase();
-  return getTradesForMonth(month).filter((trade) => {
-    const pnl = getTradeNetPnl(trade);
-    const gaps = getTradeCompletionGaps(trade);
-    const searchText = [
-      trade.stock,
-      getDirectionLabel(trade.direction),
-      trade.stop_reason,
-      trade.sell_reason,
-      trade.review,
-      gaps.join(" "),
-    ]
-      .join(" ")
-      .toLowerCase();
+  return getTradesForMonth(month)
+    .filter((trade) => {
+      const pnl = getTradeNetPnl(trade);
+      const gaps = getTradeCompletionGaps(trade);
+      const searchText = [
+        trade.stock,
+        getDirectionLabel(trade.direction),
+        trade.stop_reason,
+        trade.sell_reason,
+        trade.review,
+        gaps.join(" "),
+      ]
+        .join(" ")
+        .toLowerCase();
 
-    if (status === "open" && isTradeClosed(trade)) return false;
-    if (status === "closed" && !isTradeClosed(trade)) return false;
-    if (status === "win" && !(pnl !== null && pnl >= 0)) return false;
-    if (status === "loss" && !(pnl !== null && pnl < 0)) return false;
-    if (status === "planned" && gaps.length > 0) return false;
-    if (query && !searchText.includes(query)) return false;
-    return true;
-  });
+      if (status === "open" && isTradeClosed(trade)) return false;
+      if (status === "closed" && !isTradeClosed(trade)) return false;
+      if (status === "win" && !(pnl !== null && pnl >= 0)) return false;
+      if (status === "loss" && !(pnl !== null && pnl < 0)) return false;
+      if (status === "planned" && gaps.length > 0) return false;
+      if (query && !searchText.includes(query)) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const aOpen = !isTradeClosed(a) ? 0 : 1;
+      const bOpen = !isTradeClosed(b) ? 0 : 1;
+      if (aOpen !== bOpen) return aOpen - bOpen;
+      const aDate = getTradeAnchorDate(a)?.getTime() || 0;
+      const bDate = getTradeAnchorDate(b)?.getTime() || 0;
+      return bDate - aDate;
+    });
 }
 
 function getOverdueIncompleteTrades(months = 3) {
@@ -708,7 +717,6 @@ function renderJournalTable(list) {
 function renderJournal() {
   const list = getFilteredTrades();
   $("journalCountLabel").textContent = `${list.length} trades`;
-  renderJournalRail(list);
   renderJournalTable(list);
 }
 
@@ -1296,7 +1304,6 @@ function renderSettings() {
 function refreshAll() {
   syncMonthInputs();
   renderSummary();
-  renderOverview();
   renderJournal();
   renderStats();
   renderSettings();
@@ -1371,8 +1378,6 @@ function bindEvents() {
     clearCaptureForm();
     setSection("capture");
   });
-  $("goCaptureBtn").addEventListener("click", () => setSection("capture"));
-  $("jumpCaptureBtn").addEventListener("click", () => setSection("capture"));
 
   document.querySelectorAll("[data-section-tab]").forEach((button) => {
     button.addEventListener("click", () =>
