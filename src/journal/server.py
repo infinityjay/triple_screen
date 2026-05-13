@@ -170,6 +170,7 @@ class PlannedOrderPayload(BaseModel):
     quantity: float | None = None
     stop_price: float | None = None
     limit_price: float | None = None
+    stop_loss: float | None = None
     status: str = "SUBMITTED"
     submitted_at: str | None = None
     notes: str | None = None

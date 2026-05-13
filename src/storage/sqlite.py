@@ -346,6 +346,7 @@ class SQLiteStorage:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id, sequence)")
             self._ensure_column(cursor.connection, "trades", "initial_stop_loss", "REAL")
             self._ensure_column(cursor.connection, "trades", "initial_stop_basis", "TEXT")
+            self._ensure_column(cursor.connection, "planned_orders", "stop_loss", "REAL")
             cursor.execute(
                 """
                 UPDATE trades
@@ -685,7 +686,7 @@ class SQLiteStorage:
     def list_planned_orders(self, session_date: str | None = None) -> list[dict]:
         query = """
             SELECT id, session_date, symbol, direction, broker, broker_order_id, order_type, action,
-                   quantity, stop_price, limit_price, status, submitted_at, notes, created_at, updated_at
+                   quantity, stop_price, limit_price, stop_loss, status, submitted_at, notes, created_at, updated_at
             FROM planned_orders
         """
         params: tuple = ()
@@ -712,6 +713,7 @@ class SQLiteStorage:
             "quantity": payload.get("quantity"),
             "stop_price": payload.get("stop_price"),
             "limit_price": payload.get("limit_price"),
+            "stop_loss": payload.get("stop_loss"),
             "status": str(payload.get("status") or "SUBMITTED").strip().upper(),
             "submitted_at": payload.get("submitted_at"),
             "notes": payload.get("notes"),
@@ -723,9 +725,9 @@ class SQLiteStorage:
                 """
                 INSERT INTO planned_orders
                 (id, session_date, symbol, direction, broker, broker_order_id, order_type, action,
-                 quantity, stop_price, limit_price, status, submitted_at, notes, created_at, updated_at)
+                 quantity, stop_price, limit_price, stop_loss, status, submitted_at, notes, created_at, updated_at)
                 VALUES (:id, :session_date, :symbol, :direction, :broker, :broker_order_id, :order_type, :action,
-                        :quantity, :stop_price, :limit_price, :status, :submitted_at, :notes, :created_at, :updated_at)
+                        :quantity, :stop_price, :limit_price, :stop_loss, :status, :submitted_at, :notes, :created_at, :updated_at)
                 ON CONFLICT(id) DO UPDATE SET
                     session_date = excluded.session_date,
                     symbol = excluded.symbol,
@@ -737,6 +739,7 @@ class SQLiteStorage:
                     quantity = excluded.quantity,
                     stop_price = excluded.stop_price,
                     limit_price = excluded.limit_price,
+                    stop_loss = excluded.stop_loss,
                     status = excluded.status,
                     submitted_at = excluded.submitted_at,
                     notes = excluded.notes,

@@ -36,7 +36,11 @@ body {
   color: var(--text);
   font-family: "Manrope", "Noto Sans SC", sans-serif;
   background:
-    radial-gradient(circle at top center, rgba(255, 255, 255, 0.94), transparent 26%),
+    radial-gradient(
+      circle at top center,
+      rgba(255, 255, 255, 0.94),
+      transparent 26%
+    ),
     radial-gradient(circle at 0% 0%, rgba(0, 113, 227, 0.08), transparent 20%),
     linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 52%, #eef2f7 100%);
   min-height: 100vh;
@@ -88,7 +92,11 @@ button {
   width: min(580px, 100%);
   padding: 36px;
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 251, 253, 0.96));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(250, 251, 253, 0.96)
+  );
 }
 
 .eyebrow {
@@ -269,7 +277,11 @@ button {
 
 .shell-card {
   padding: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 249, 251, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(248, 249, 251, 0.94)
+  );
 }
 
 .summary-grid,
@@ -471,11 +483,19 @@ button {
 }
 
 .journal-focus-card {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0.96),
+    rgba(255, 255, 255, 0.98)
+  );
 }
 
 .watchlist-session-card {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0.96),
+    rgba(255, 255, 255, 0.98)
+  );
 }
 
 .watchlist-session-toolbar {
@@ -528,7 +548,11 @@ button {
   padding: 18px;
   border-radius: 24px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 251, 0.96));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(246, 248, 251, 0.96)
+  );
   box-shadow: var(--shadow-soft);
   display: grid;
   gap: 14px;
@@ -631,7 +655,11 @@ button {
   padding: 18px;
   border-radius: 24px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 251, 0.96));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(246, 248, 251, 0.96)
+  );
   box-shadow: var(--shadow-soft);
   display: grid;
   gap: 14px;
@@ -722,7 +750,7 @@ button {
 
 .order-form-grid {
   display: grid;
-  grid-template-columns: repeat(9, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 10px;
   align-items: center;
 }
@@ -838,11 +866,21 @@ textarea {
   color: var(--muted);
 }
 
-.span-12 { grid-column: span 12; }
-.span-8 { grid-column: span 8; }
-.span-6 { grid-column: span 6; }
-.span-4 { grid-column: span 4; }
-.span-3 { grid-column: span 3; }
+.span-12 {
+  grid-column: span 12;
+}
+.span-8 {
+  grid-column: span 8;
+}
+.span-6 {
+  grid-column: span 6;
+}
+.span-4 {
+  grid-column: span 4;
+}
+.span-3 {
+  grid-column: span 3;
+}
 
 .capture-layout {
   display: grid;
@@ -1190,7 +1228,11 @@ tbody tr:hover {
 }
 
 .analysis-focus-card {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0.96),
+    rgba(255, 255, 255, 0.98)
+  );
 }
 
 .analysis-form {

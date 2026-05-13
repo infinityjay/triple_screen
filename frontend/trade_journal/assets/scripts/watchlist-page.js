@@ -559,6 +559,14 @@ function renderTable() {
   });
 }
 
+function updateOrderFormVisibility() {
+  const orderType = $("orderType").value;
+  const showStop = orderType === "Stop Limit" || orderType === "Stop";
+  const showLimit = orderType === "Stop Limit" || orderType === "Limit";
+  $("orderStopPrice").style.display = showStop ? "" : "none";
+  $("orderLimitPrice").style.display = showLimit ? "" : "none";
+}
+
 function fillOrderFormFromCandidate(item) {
   const plan = getOrderPlan(item);
   const primary = plan.primary_order || {};
@@ -572,8 +580,12 @@ function fillOrderFormFromCandidate(item) {
   $("orderQuantity").value = order.quantity || "";
   $("orderStopPrice").value = useEma ? "" : (primary.stop_price ?? "");
   $("orderLimitPrice").value = order.limit_price ?? "";
+  const exits = item.exits || {};
+  $("orderStopLoss").value =
+    exits.initial_stop_nick ?? exits.initial_stop_safezone ?? "";
   $("orderBrokerId").value = "";
   $("orderStatus").value = "SUBMITTED";
+  updateOrderFormVisibility();
   $("orderSymbol").focus();
 }
 
@@ -594,7 +606,16 @@ function renderPlannedOrders() {
             <strong>${escapeHtml(order.symbol)} · ${escapeHtml(getSignalDirectionLabel(order.direction))}</strong>
             <span>${escapeHtml(order.order_type || "—")} ${escapeHtml(order.action || "")}</span>
             <span>Qty ${escapeHtml(formatNumber(order.quantity, 0))}</span>
-            <span>${order.stop_price != null ? `Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / ` : ""}Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}</span>
+            <span>${
+              order.order_type === "Stop Limit"
+                ? `Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}`
+                : order.order_type === "Limit"
+                  ? `Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}`
+                  : order.order_type === "Stop"
+                    ? `Stop ${escapeHtml(formatCurrency(order.stop_price, 2))}`
+                    : `${order.stop_price != null ? `Stop ${escapeHtml(formatCurrency(order.stop_price, 2))} / ` : ""}${order.limit_price != null ? `Limit ${escapeHtml(formatCurrency(order.limit_price, 2))}` : "—"}`
+            }</span>
+            <span>${order.stop_loss != null ? `SL ${escapeHtml(formatCurrency(order.stop_loss, 2))}` : "No SL"}</span>
             <span class="tag">${escapeHtml(order.status || "SUBMITTED")}</span>
             <button class="btn btn-secondary btn-mini" type="button" data-delete-order="${escapeHtml(order.id)}">Delete</button>
           </div>
@@ -665,6 +686,8 @@ function bindEvents() {
   $("statusFilter").addEventListener("change", renderFilteredViews);
   $("directionFilter").addEventListener("change", renderFilteredViews);
   $("watchlistSearch").addEventListener("input", renderFilteredViews);
+  $("orderType").addEventListener("change", updateOrderFormVisibility);
+  updateOrderFormVisibility();
   $("plannedOrderForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const direction = $("orderDirection").value;
@@ -682,10 +705,12 @@ function bindEvents() {
         quantity: parseNumberValue($("orderQuantity").value),
         stop_price: parseNumberValue($("orderStopPrice").value),
         limit_price: parseNumberValue($("orderLimitPrice").value),
+        stop_loss: parseNumberValue($("orderStopLoss").value),
         status: $("orderStatus").value,
       },
     });
     $("plannedOrderForm").reset();
+    updateOrderFormVisibility();
     await loadWatchlist(state.sessionDate);
   });
 }
