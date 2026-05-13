@@ -318,13 +318,13 @@ function renderSummary() {
 
 function renderSessions() {
   const sessions = state.payload?.available_sessions || [];
-  $('sessionSelect').innerHTML = sessions.length
+  $("sessionSelect").innerHTML = sessions.length
     ? sessions
         .map(
           (session) =>
-            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? ' selected' : ''}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`,
+            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? " selected" : ""}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`,
         )
-        .join('')
+        .join("")
     : `<option value="">No sessions</option>`;
 }
 

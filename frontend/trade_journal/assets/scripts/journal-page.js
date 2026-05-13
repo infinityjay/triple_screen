@@ -685,6 +685,8 @@ function renderJournalTable(list) {
           <td>${formatDateLabel(trade.buy_date || trade.created_at)}</td>
           <td>${formatCurrency(trade.buy_price, 3)}</td>
           <td>${formatShares(trade.shares)}</td>
+          <td>${formatDateLabel(trade.sell_date) || "—"}</td>
+          <td>${formatCurrency(trade.sell_price, 3)}</td>
           <td>${formatCurrency(initialStop, 3)}</td>
           <td>${formatCurrency(currentStop, 3)}</td>
           <td class="reason-cell">
@@ -722,6 +724,8 @@ function renderJournalTable(list) {
             <th>Entry Date</th>
             <th>Entry Price</th>
             <th>Shares</th>
+            <th>Exit Date</th>
+            <th>Exit Price</th>
             <th>Initial Stop Price</th>
             <th>Current Protective Stop</th>
             <th>EOD Updated Stops</th>
