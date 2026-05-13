@@ -318,37 +318,14 @@ function renderSummary() {
 
 function renderSessions() {
   const sessions = state.payload?.available_sessions || [];
-  $("sessionSelect").innerHTML = sessions.length
+  $('sessionSelect').innerHTML = sessions.length
     ? sessions
         .map(
           (session) =>
-            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? " selected" : ""}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`,
+            `<option value="${escapeHtml(session.session_date)}"${session.session_date === state.payload.session_date ? ' selected' : ''}>${escapeHtml(session.session_date)} · ${escapeHtml(String(session.candidate_count))} candidates</option>`,
         )
-        .join("")
+        .join('')
     : `<option value="">No sessions</option>`;
-
-  $("sessionChips").innerHTML = sessions.length
-    ? sessions
-        .map((session) => {
-          const active =
-            session.session_date === state.payload.session_date
-              ? " active"
-              : "";
-          return `
-            <button class="session-chip${active}" type="button" data-session-date="${escapeHtml(session.session_date)}">
-              ${escapeHtml(session.session_date)}
-              <span class="mono"> ${escapeHtml(String(session.candidate_count))} symbols / ${escapeHtml(String(session.triggered_count || 0))} triggered</span>
-            </button>
-          `;
-        })
-        .join("")
-    : `<div class="empty-state">No watchlist snapshots are stored yet. Run a scan first.</div>`;
-
-  document.querySelectorAll("[data-session-date]").forEach((button) => {
-    button.addEventListener("click", () =>
-      loadWatchlist(button.dataset.sessionDate),
-    );
-  });
 }
 
 function renderInsights() {
@@ -670,6 +647,7 @@ async function loadWatchlist(sessionDate = "") {
   state.payload = payload;
   state.sessionDate = payload.session_date || "";
   renderSummary();
+  renderSessions();
   renderPlannedOrders();
   renderFilteredViews();
 }
