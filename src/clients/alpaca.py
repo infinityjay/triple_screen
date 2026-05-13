@@ -491,8 +491,48 @@ class AlpacaClient:
         logger.debug("[%s/%s] cache hit", symbol, timeframe)
         return cached
 
+    def _inject_current_week_bar(self, symbol: str, weekly_frame: pd.DataFrame) -> pd.DataFrame:
+        """Synthesize the current in-progress week's bar from daily data so that
+        weekly indicators (MACD, impulse) always reflect today's close, not just
+        the last completed Friday close returned by Alpaca's 1Week endpoint."""
+        if not self.storage:
+            return weekly_frame
+
+        daily_frame = self.storage.get_price_bars(symbol, "day")
+        if daily_frame is None or daily_frame.empty:
+            return weekly_frame
+
+        # Monday of the current trading week in market-local calendar date
+        today = self._to_market_datetime(self._utc_now()).date()
+        week_start = today - timedelta(days=today.weekday())  # always Monday
+        week_start_ts = pd.Timestamp(week_start)  # midnight UTC
+
+        # Daily bars whose normalized date falls within this week
+        current_week_daily = daily_frame[daily_frame.index.normalize() >= week_start_ts]
+        if current_week_daily.empty:
+            return weekly_frame
+
+        # Build synthetic bar: Mon open, week high/low, latest close, cumulative volume
+        synthetic = pd.DataFrame(
+            [{
+                "open": float(current_week_daily["open"].iloc[0]),
+                "high": float(current_week_daily["high"].max()),
+                "low": float(current_week_daily["low"].min()),
+                "close": float(current_week_daily["close"].iloc[-1]),
+                "volume": float(current_week_daily["volume"].sum()),
+            }],
+            index=pd.DatetimeIndex([week_start_ts]),
+        )
+
+        # Drop any existing bar(s) for this week (partial weekly from Alpaca or prior synthetic)
+        prior = weekly_frame[weekly_frame.index.normalize() < week_start_ts]
+        return pd.concat([prior, synthetic])
+
     def get_weekly_bars(self, symbol: str) -> pd.DataFrame | None:
-        return self._get_cached_or_incremental_bars(symbol, "week")
+        frame = self._get_cached_or_incremental_bars(symbol, "week")
+        if frame is not None and not frame.empty:
+            frame = self._inject_current_week_bar(symbol, frame)
+        return frame
 
     def get_daily_bars(self, symbol: str) -> pd.DataFrame | None:
         return self._get_cached_or_incremental_bars(symbol, "day")
