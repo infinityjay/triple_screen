@@ -1030,6 +1030,16 @@ tbody tr:hover {
   line-height: 1.35;
 }
 
+.stop-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #888);
+  min-width: 56px;
+}
+
 .journal-ledger-table th:last-child,
 .journal-ledger-table td:last-child {
   position: sticky;

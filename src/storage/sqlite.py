@@ -357,6 +357,8 @@ class SQLiteStorage:
             self._ensure_column(cursor.connection, "trades", "initial_stop_basis", "TEXT")
             self._ensure_column(cursor.connection, "planned_orders", "stop_loss", "REAL")
             self._ensure_column(cursor.connection, "trade_stop_updates", "proposed_stop_hourly_safezone", "REAL")
+            self._ensure_column(cursor.connection, "trade_stop_updates", "proposed_stop_loss_atr_2x", "REAL")
+            self._ensure_column(cursor.connection, "trade_stop_updates", "proposed_stop_nick", "REAL")
             cursor.execute(
                 """
                 UPDATE trades
@@ -891,7 +893,9 @@ class SQLiteStorage:
                 t.*,
                 su.applied_stop_loss AS suggested_stop_loss,
                 su.proposed_stop_loss AS suggested_stop_candidate,
+                su.proposed_stop_loss_atr_2x AS suggested_stop_atr_2x,
                 su.proposed_stop_hourly_safezone AS suggested_stop_hourly_safezone,
+                su.proposed_stop_nick AS suggested_stop_nick,
                 su.stop_basis AS suggested_stop_basis,
                 su.session_date AS suggested_stop_session_date,
                 su.created_at AS suggested_stop_updated_at
@@ -900,7 +904,9 @@ class SQLiteStorage:
                 SELECT
                     u.trade_id,
                     u.proposed_stop_loss,
+                    u.proposed_stop_loss_atr_2x,
                     u.proposed_stop_hourly_safezone,
+                    u.proposed_stop_nick,
                     u.applied_stop_loss,
                     u.stop_basis,
                     u.session_date,
@@ -1172,7 +1178,9 @@ class SQLiteStorage:
                 item.get("session_date"),
                 item.get("previous_stop_loss"),
                 item.get("proposed_stop_loss"),
+                item.get("proposed_stop_loss_atr_2x"),
                 item.get("proposed_stop_hourly_safezone"),
+                item.get("proposed_stop_nick"),
                 item.get("applied_stop_loss"),
                 item.get("stop_basis"),
                 int(bool(item.get("changed"))),
@@ -1187,10 +1195,10 @@ class SQLiteStorage:
                 """
                 INSERT INTO trade_stop_updates (
                     trade_id, symbol, direction, session_date, previous_stop_loss,
-                    proposed_stop_loss, proposed_stop_hourly_safezone, applied_stop_loss, stop_basis, changed,
-                    status, note, created_at
+                    proposed_stop_loss, proposed_stop_loss_atr_2x, proposed_stop_hourly_safezone,
+                    proposed_stop_nick, applied_stop_loss, stop_basis, changed, status, note, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 records,
             )

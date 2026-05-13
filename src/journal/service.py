@@ -167,6 +167,8 @@ class JournalManager:
                     else (None, 0.0)
                 )
                 proposed_stop_hourly_safezone = _round_or_none(hourly_safezone_stop)
+                nick_stop = indicators.calc_nick_stop(daily_frame, direction)
+                proposed_stop_nick = _round_or_none(nick_stop)
                 applied_stop = apply_monotonic_stop(monotonic_anchor, proposed_stop, direction)
                 used_stop = compute_used_stop(entry_price, applied_stop, shares, direction)
                 changed = monotonic_anchor is None or (
@@ -195,6 +197,7 @@ class JournalManager:
                         "proposed_stop_loss": _round_or_none(proposed_stop),
                         "proposed_stop_loss_atr_2x": _round_or_none(proposed_stop_wide),
                         "proposed_stop_hourly_safezone": proposed_stop_hourly_safezone,
+                        "proposed_stop_nick": proposed_stop_nick,
                         "applied_stop_loss": _round_or_none(applied_stop),
                         "stop_basis": stop_basis,
                         "changed": changed,

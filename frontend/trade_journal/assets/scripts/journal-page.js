@@ -628,9 +628,12 @@ function renderJournalTable(list) {
       const gaps = getTradeCompletionGaps(trade);
       const initialStop = getTradeInitialStop(trade);
       const currentStop = getTradeCurrentStop(trade);
+      const atr1xStop = parseNumberValue(trade?.suggested_stop_candidate);
+      const atr2xStop = parseNumberValue(trade?.suggested_stop_atr_2x);
       const hourlyStop = parseNumberValue(
         trade?.suggested_stop_hourly_safezone,
       );
+      const nickStop = parseNumberValue(trade?.suggested_stop_nick);
       const riskOrResult = isTradeClosed(trade)
         ? pnl === null
           ? "—"
@@ -648,7 +651,13 @@ function renderJournalTable(list) {
           <td>${formatShares(trade.shares)}</td>
           <td>${formatCurrency(initialStop, 3)}</td>
           <td>${formatCurrency(currentStop, 3)}</td>
-          <td>${hourlyStop !== null && hourlyStop !== undefined ? formatCurrency(hourlyStop, 3) : "—"}</td>
+          <td class="reason-cell">
+            ${atr1xStop !== null && atr1xStop !== undefined ? `<div><span class="stop-label">ATR 1x</span> ${formatCurrency(atr1xStop, 3)}</div>` : ""}
+            ${atr2xStop !== null && atr2xStop !== undefined ? `<div><span class="stop-label">ATR 2x</span> ${formatCurrency(atr2xStop, 3)}</div>` : ""}
+            ${hourlyStop !== null && hourlyStop !== undefined ? `<div><span class="stop-label">Hourly SZ</span> ${formatCurrency(hourlyStop, 3)}</div>` : ""}
+            ${nickStop !== null && nickStop !== undefined ? `<div><span class="stop-label">Nick</span> ${formatCurrency(nickStop, 3)}</div>` : ""}
+            ${atr1xStop === null && atr2xStop === null && hourlyStop === null && nickStop === null ? "—" : ""}
+          </td>
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${riskOrResult}</td>
           <td>${formatCurrency(getTradeTargetPrice(trade), 3)}</td>
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "Open" : formatCurrency(pnl, 2)}</td>
@@ -679,7 +688,7 @@ function renderJournalTable(list) {
             <th>Shares</th>
             <th>Initial Stop Price</th>
             <th>Current Protective Stop</th>
-            <th>Hourly SZ Stop</th>
+            <th>EOD Updated Stops</th>
             <th>Risk / Result</th>
             <th>Target Price</th>
             <th>Net Result</th>

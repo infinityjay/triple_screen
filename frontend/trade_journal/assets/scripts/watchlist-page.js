@@ -146,13 +146,19 @@ function buildExecutionPlan(item) {
       breakoutEntry !== undefined && breakoutEntry !== null
         ? `Previous-day break ${formatCurrency(breakoutEntry, 3)}`
         : "",
-      exits.initial_stop_hourly_safezone !== undefined &&
-      exits.initial_stop_hourly_safezone !== null
-        ? `Hourly SZ stop ${formatCurrency(exits.initial_stop_hourly_safezone, 3)}`
-        : exits.initial_stop_nick !== undefined &&
-            exits.initial_stop_nick !== null
-          ? `Nick stop ${formatCurrency(exits.initial_stop_nick, 3)}`
+      ...([
+        exits.initial_stop_hourly_safezone != null
+          ? `Hourly SZ ${formatCurrency(exits.initial_stop_hourly_safezone, 3)}`
           : "",
+        exits.initial_stop_safezone != null
+          ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
+          : "",
+        exits.initial_stop_nick != null
+          ? `Nick ${formatCurrency(exits.initial_stop_nick, 3)}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" / ") || ""),
       target !== undefined && target !== null
         ? `Target ${formatCurrency(target, 3)}`
         : "",
