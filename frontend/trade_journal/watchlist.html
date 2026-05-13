@@ -85,31 +85,65 @@
               <div>
                 <div class="eyebrow">Watchlist</div>
                 <h2 id="sessionHeadline">Scan Candidates</h2>
-                <p id="sessionHeadlineBody">Select a session to review candidates and execution plans.</p>
+                <p id="sessionHeadlineBody">
+                  Select a session to review candidates and execution plans.
+                </p>
               </div>
               <div class="toolbar ledger-toolbar">
-                <select class="select" style="max-width:180px" id="sessionSelect"></select>
-                <button class="btn btn-secondary" id="refreshWatchlistBtn" type="button">Refresh</button>
-                <select class="select" style="max-width:160px" id="statusFilter">
+                <select
+                  class="select"
+                  style="max-width: 180px"
+                  id="sessionSelect"
+                ></select>
+                <button
+                  class="btn btn-secondary"
+                  id="refreshWatchlistBtn"
+                  type="button"
+                >
+                  Refresh
+                </button>
+                <select
+                  class="select"
+                  style="max-width: 160px"
+                  id="statusFilter"
+                >
                   <option value="all">All statuses</option>
                   <option value="watchlist">Waiting only</option>
                   <option value="touched">Touched only</option>
                   <option value="monitor">Monitor only</option>
                   <option value="triggered">Triggered only</option>
                 </select>
-                <select class="select" style="max-width:160px" id="directionFilter">
+                <select
+                  class="select"
+                  style="max-width: 160px"
+                  id="directionFilter"
+                >
                   <option value="all">All directions</option>
                   <option value="LONG">Long only</option>
                   <option value="SHORT">Short only</option>
                 </select>
-                <input class="input" style="min-width:240px" type="search" id="watchlistSearch" placeholder="Search symbol, reason, earnings, status...">
+                <input
+                  class="input"
+                  style="min-width: 240px"
+                  type="search"
+                  id="watchlistSearch"
+                  placeholder="Search symbol, reason, earnings, status..."
+                />
               </div>
             </div>
             <div class="toolbar ledger-meta">
-              <div class="status-pill mono" id="watchlistRailCount">0 candidates</div>
-              <div class="status-pill mono">Triggered: <span id="watchlistTriggered">0</span></div>
-              <div class="status-pill mono">Mix: <span id="watchlistDirectionMix">—</span></div>
-              <div class="status-pill mono">Divergence: <span id="watchlistDivergence">0</span></div>
+              <div class="status-pill mono" id="watchlistRailCount">
+                0 candidates
+              </div>
+              <div class="status-pill mono">
+                Triggered: <span id="watchlistTriggered">0</span>
+              </div>
+              <div class="status-pill mono">
+                Mix: <span id="watchlistDirectionMix">—</span>
+              </div>
+              <div class="status-pill mono">
+                Divergence: <span id="watchlistDivergence">0</span>
+              </div>
             </div>
           </section>
 
@@ -138,10 +172,26 @@
                 <option value="Stop">Stop</option>
               </select>
               <input class="input" id="orderQuantity" placeholder="Quantity" />
-              <input class="input" id="orderStopPrice" placeholder="Stop (order trigger)" />
-              <input class="input" id="orderLimitPrice" placeholder="Limit (order price)" />
-              <input class="input" id="orderStopLoss" placeholder="Stop Loss (exit)" />
-              <input class="input" id="orderBrokerId" placeholder="IBKR Order ID" />
+              <input
+                class="input"
+                id="orderStopPrice"
+                placeholder="Stop (order trigger)"
+              />
+              <input
+                class="input"
+                id="orderLimitPrice"
+                placeholder="Limit (order price)"
+              />
+              <input
+                class="input"
+                id="orderStopLoss"
+                placeholder="Stop Loss (exit)"
+              />
+              <input
+                class="input"
+                id="orderBrokerId"
+                placeholder="IBKR Order ID"
+              />
               <select class="select" id="orderStatus">
                 <option value="SUBMITTED">Submitted</option>
                 <option value="PRESUBMITTED">PreSubmitted</option>

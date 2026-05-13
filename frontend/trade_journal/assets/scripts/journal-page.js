@@ -427,16 +427,34 @@ function renderSummary(includeCapturePreview = false) {
   $("statsMonthCurrent").textContent = `Current Month: ${month}`;
 
   // compact risk bar in ledger header
-  $("riskBarTotal").textContent = settings.total ? formatCurrency(settings.total, 0) : "Not Set";
-  $("riskBarSingleStop").textContent = settings.total ? formatCurrency(singleStop, 2) : "—";
-  $("riskBarBudget").textContent = settings.total ? formatCurrency(monthBudget, 2) : "—";
+  $("riskBarTotal").textContent = settings.total
+    ? formatCurrency(settings.total, 0)
+    : "Not Set";
+  $("riskBarSingleStop").textContent = settings.total
+    ? formatCurrency(singleStop, 2)
+    : "—";
+  $("riskBarBudget").textContent = settings.total
+    ? formatCurrency(monthBudget, 2)
+    : "—";
   const remainingEl = $("riskBarRemaining");
   remainingEl.textContent = settings.total ? formatCurrency(remaining, 2) : "—";
-  if (settings.total) remainingEl.style.color = remaining <= 0 ? "var(--accent-danger, #c0392b)" : remaining < singleStop ? "var(--accent-warn, #d38a2e)" : "";
+  if (settings.total)
+    remainingEl.style.color =
+      remaining <= 0
+        ? "var(--accent-danger, #c0392b)"
+        : remaining < singleStop
+          ? "var(--accent-warn, #d38a2e)"
+          : "";
   $("riskBarOpen").textContent = String(openTrades.length);
-  $("riskBarClosed").textContent = closedTrades.length ? formatCurrency(netClosed, 2) : "—";
+  $("riskBarClosed").textContent = closedTrades.length
+    ? formatCurrency(netClosed, 2)
+    : "—";
   const closedEl = $("riskBarClosed");
-  if (closedTrades.length) closedEl.style.color = netClosed >= 0 ? "var(--accent-safe, #27ae60)" : "var(--accent-danger, #c0392b)";
+  if (closedTrades.length)
+    closedEl.style.color =
+      netClosed >= 0
+        ? "var(--accent-safe, #27ae60)"
+        : "var(--accent-danger, #c0392b)";
 
   const notes = [];
   if (!settings.total)

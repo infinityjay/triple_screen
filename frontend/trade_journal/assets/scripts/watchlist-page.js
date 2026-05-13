@@ -93,8 +93,8 @@ function truncateText(value, length = 92) {
 }
 
 function setupHorizontalScrollbar(scrollContainerId, scrollbarId) {
-  const scrollContainer = $(scrollContainerId);
-  const scrollbar = $(scrollbarId);
+  const scrollContainer = document.getElementById(scrollContainerId);
+  const scrollbar = document.getElementById(scrollbarId);
   if (!scrollContainer || !scrollbar) return;
 
   const spacer = scrollbar.querySelector(".scrollbar-inner");
@@ -670,8 +670,6 @@ async function loadWatchlist(sessionDate = "") {
   state.payload = payload;
   state.sessionDate = payload.session_date || "";
   renderSummary();
-  renderSessions();
-  renderInsights();
   renderPlannedOrders();
   renderFilteredViews();
 }
