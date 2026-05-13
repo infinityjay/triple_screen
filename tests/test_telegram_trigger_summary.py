@@ -89,7 +89,8 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
         self.assertIn("Suggested entry: <code>438.20</code>", message)
         self.assertIn("Reason: EMA penetration", message)
         self.assertIn("Entry: EMA <code>438.20*</code>  Breakout <code>441.30</code>", message)
-        self.assertIn("Stop: SafeZone <code>433.20</code>  Nick <code>431.10</code>", message)
+        self.assertIn("Stop: SafeZone <code>433.20</code>", message)
+        self.assertIn("Nick <code>431.10</code>", message)
 
     def test_short_trigger_summary_includes_sell_price_and_initial_stop(self) -> None:
         message = self.notifier.format_trigger_summary_message(
@@ -103,7 +104,8 @@ class TelegramTriggerSummaryTests(unittest.TestCase):
         self.assertIn("Suggested entry: <code>146.10</code>", message)
         self.assertIn("Reason: EMA penetration", message)
         self.assertIn("Entry: EMA <code>146.10*</code>  Breakout <code>145.40</code>", message)
-        self.assertIn("Stop: SafeZone <code>148.31</code>  Nick <code>149.70</code>", message)
+        self.assertIn("Stop: SafeZone <code>148.31</code>", message)
+        self.assertIn("Nick <code>149.70</code>", message)
 
     def test_detailed_signal_supports_ema_trigger_without_signal_bar(self) -> None:
         message = self.notifier.format_signal_message(_build_signal("SHORT"))

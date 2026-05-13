@@ -358,7 +358,7 @@ class TelegramNotifier:
             f"<b>Entry plan</b>\n"
             f"{entry_options_block}\n"
             f"Initial stops: <code>{self._fmt_num(exits.get('initial_stop_loss'), 2)}</code> ({initial_stop_basis_label})\n"
-            f"SafeZone initial stop: <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  Nick stop: <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
+            f"SafeZone initial stop: <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  Hourly SZ: <code>{self._fmt_num(exits.get('initial_stop_hourly_safezone'), 2)}</code>  Nick stop: <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
             f"ATR trailing stop 1x: <code>{self._fmt_num(exits.get('stop_loss_atr_1x'), 2)}</code>  2x: <code>{self._fmt_num(exits.get('stop_loss_atr_2x'), 2)}</code>\n"
             f"Next protective stop: <code>{self._fmt_num(exits.get('protective_stop_loss'), 2)}</code> ({protective_stop_basis_label}, one-way after entry)\n"
             f"Active stop: <code>{self._fmt_num(exits.get('stop_loss'), 2)}</code> ({stop_basis_label})\n"
@@ -381,6 +381,32 @@ class TelegramNotifier:
     def send_signal(self, signal: dict) -> bool:
         return self._send(self.format_signal_message(signal))
 
+    def format_position_health_section(self, health_summary: dict[str, Any]) -> str:
+        items = list(health_summary.get("items", []))
+        total_positions = int(health_summary.get("total_positions", 0) or 0)
+        if total_positions == 0:
+            return ""
+
+        lines = ["📊 <b>Open-position hourly health check</b>\n"]
+        for index, item in enumerate(items[:8], start=1):
+            symbol = item.get("symbol", "UNKNOWN")
+            direction = self.get_direction_text(item.get("direction"))
+            color = str(item.get("hourly_impulse_color", "BLUE")).upper()
+            consecutive = int(item.get("consecutive_opposing", 0) or 0)
+            divergence = bool(item.get("divergence_detected"))
+
+            color_icon = {"GREEN": "🟢", "RED": "🔴", "BLUE": "🔵"}.get(color, "⚪")
+            impulse_note = f"{color_icon} {color}"
+            if consecutive >= 2:
+                impulse_note += f" x{consecutive}"
+
+            div_note = "  · ⚠️ divergence" if divergence else ""
+            lines.append(
+                f"{index}. <b>{symbol}</b> {direction} — hourly impulse {impulse_note}{div_note}\n"
+            )
+
+        return "".join(lines)
+
     def format_candidate_summary_message(
         self,
         qualified_signals: list[dict],
@@ -390,6 +416,7 @@ class TelegramNotifier:
         stop_update_summary: dict[str, Any] | None = None,
         open_position_earnings_summary: dict[str, Any] | None = None,
         open_position_exit_alert_summary: dict[str, Any] | None = None,
+        position_health_summary: dict[str, Any] | None = None,
     ) -> str:
         if total_candidates <= 0:
             lines = [
@@ -412,6 +439,10 @@ class TelegramNotifier:
             lines.append(f"\n{self.format_open_position_earnings_section(open_position_earnings_summary)}")
         if open_position_exit_alert_summary:
             lines.append(f"\n{self.format_open_position_exit_alert_section(open_position_exit_alert_summary)}")
+        if position_health_summary:
+            health_section = self.format_position_health_section(position_health_summary)
+            if health_section:
+                lines.append(f"\n{health_section}")
         lines.append(f"\n<i>Elapsed {scan_time_sec:.1f}s · {_utc_clock_label()}</i>")
         return "".join(lines)
 
@@ -439,6 +470,7 @@ class TelegramNotifier:
             current_stop = item.get("current_stop_loss")
             atr_1x_stop = item.get("proposed_stop_loss")
             atr_2x_stop = item.get("proposed_stop_loss_atr_2x")
+            hourly_sz_stop = item.get("proposed_stop_hourly_safezone")
             applied_stop = item.get("applied_stop_loss")
             status = "Updated" if item.get("status") == "UPDATED" else "Unchanged"
             lines.append(
@@ -446,6 +478,7 @@ class TelegramNotifier:
                 f"Current stop <code>{self._fmt_num(current_stop, 2)}</code> · "
                 f"ATR 1x <code>{self._fmt_num(atr_1x_stop, 2)}</code> · "
                 f"ATR 2x <code>{self._fmt_num(atr_2x_stop, 2)}</code> · "
+                f"Hourly SZ <code>{self._fmt_num(hourly_sz_stop, 2)}</code> · "
                 f"Suggested stop <code>{self._fmt_num(applied_stop, 2)}</code> · {status}\n"
             )
         return "".join(lines)
@@ -541,6 +574,7 @@ class TelegramNotifier:
                 f"   Entry: EMA <code>{self._format_entry_option_price(ema_option)}</code>  "
                 f"Breakout <code>{self._format_entry_option_price(breakout_option)}</code>\n"
                 f"   Stop: SafeZone <code>{self._fmt_num(exits.get('initial_stop_safezone'), 2)}</code>  "
+                f"Hourly SZ <code>{self._fmt_num(exits.get('initial_stop_hourly_safezone'), 2)}</code>  "
                 f"Nick <code>{self._fmt_num(exits.get('initial_stop_nick'), 2)}</code>\n"
             )
 
@@ -604,6 +638,7 @@ class TelegramNotifier:
         stop_update_summary: dict[str, Any] | None = None,
         open_position_earnings_summary: dict[str, Any] | None = None,
         open_position_exit_alert_summary: dict[str, Any] | None = None,
+        position_health_summary: dict[str, Any] | None = None,
     ) -> bool:
         return self._send(
             self.format_candidate_summary_message(
@@ -614,6 +649,7 @@ class TelegramNotifier:
                 stop_update_summary=stop_update_summary,
                 open_position_earnings_summary=open_position_earnings_summary,
                 open_position_exit_alert_summary=open_position_exit_alert_summary,
+                position_health_summary=position_health_summary,
             )
         )
 
@@ -631,6 +667,16 @@ class TelegramNotifier:
                 total_candidates,
                 scan_time_sec,
             )
+        )
+
+    def send_divergence_alert(self, symbol: str, direction: str, divergence_reason: str) -> bool:
+        direction_label = self.get_direction_text(direction)
+        div_type = "bearish" if direction == "LONG" else "bullish"
+        return self._send(
+            f"⚠️ <b>Hourly divergence — {symbol} {direction_label}</b>\n"
+            f"{div_type} divergence forming on hourly chart: consider tightening stop or reviewing position size\n"
+            f"<i>{_html_text(divergence_reason)}</i>\n"
+            f"<i>{_utc_clock_label()}</i>"
         )
 
     def send_no_opportunity(self, scan_time_sec: float) -> bool:

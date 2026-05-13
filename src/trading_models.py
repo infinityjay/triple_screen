@@ -70,6 +70,7 @@ class TradingModel:
         signal_bar_high: float | None = None,
         signal_bar_low: float | None = None,
         weekly_frame: pd.DataFrame | None = None,
+        hourly_frame: pd.DataFrame | None = None,
     ) -> dict:
         if self.use_weekly_value_target:
             return indicators.calc_exits(
@@ -81,6 +82,7 @@ class TradingModel:
                 signal_bar_high=signal_bar_high,
                 signal_bar_low=signal_bar_low,
                 weekly_frame=weekly_frame,
+                hourly_frame=hourly_frame,
             )
         return legacy_calc_exits(
             direction,

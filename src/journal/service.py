@@ -159,6 +159,14 @@ class JournalManager:
                 atr_stops, _ = indicators.calc_atr_stops(daily_frame, direction, atr_period=14)
                 proposed_stop = _to_float(atr_stops.get(1.0))
                 proposed_stop_wide = _to_float(atr_stops.get(2.0))
+
+                hourly_frame = getattr(self.market_data, "get_hourly_bars", lambda _: None)(symbol)
+                hourly_safezone_stop, _ = (
+                    indicators.calc_safezone_stop(hourly_frame, direction, self.trade_plan)
+                    if hourly_frame is not None and not hourly_frame.empty
+                    else (None, 0.0)
+                )
+                proposed_stop_hourly_safezone = _round_or_none(hourly_safezone_stop)
                 applied_stop = apply_monotonic_stop(monotonic_anchor, proposed_stop, direction)
                 used_stop = compute_used_stop(entry_price, applied_stop, shares, direction)
                 changed = monotonic_anchor is None or (
@@ -186,6 +194,7 @@ class JournalManager:
                         "previous_stop_loss": _round_or_none(monotonic_anchor),
                         "proposed_stop_loss": _round_or_none(proposed_stop),
                         "proposed_stop_loss_atr_2x": _round_or_none(proposed_stop_wide),
+                        "proposed_stop_hourly_safezone": proposed_stop_hourly_safezone,
                         "applied_stop_loss": _round_or_none(applied_stop),
                         "stop_basis": stop_basis,
                         "changed": changed,

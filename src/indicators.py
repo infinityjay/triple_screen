@@ -1194,6 +1194,7 @@ def calc_exits(
     signal_bar_high: float | None = None,
     signal_bar_low: float | None = None,
     weekly_frame: pd.DataFrame | None = None,
+    hourly_frame: pd.DataFrame | None = None,
 ) -> dict:
     weekly_target = calc_weekly_value_target(weekly_frame, direction)
     if daily_frame is None or daily_frame.empty:
@@ -1217,10 +1218,12 @@ def calc_exits(
         model_initial_stop_loss = entry
         model_initial_stop_basis = "UNKNOWN"
         nick_detail = None
+        hourly_safezone_stop = None
     else:
         latest_high = float(daily_frame["high"].iloc[-1])
         latest_low = float(daily_frame["low"].iloc[-1])
         safezone_stop, safezone_noise = calc_safezone_stop(daily_frame, direction, trade_plan)
+        hourly_safezone_stop, _ = calc_safezone_stop(hourly_frame, direction, trade_plan) if hourly_frame is not None and not hourly_frame.empty else (None, 0.0)
         nick_detail = calc_nick_stop_detail(daily_frame, direction)
         nick_stop = nick_detail["stop"] if nick_detail else None
         atr_stops, daily_atr = calc_atr_stops(daily_frame, direction, atr_period=14)
@@ -1301,6 +1304,7 @@ def calc_exits(
         "initial_stop_signal_bar": None,
         "initial_stop_two_bar": None,
         "initial_stop_safezone": round(safezone_stop, 4) if safezone_stop is not None else None,
+        "initial_stop_hourly_safezone": round(hourly_safezone_stop, 4) if hourly_safezone_stop is not None else None,
         "initial_stop_nick": round(nick_stop, 4) if nick_stop is not None else None,
         "initial_stop_nick_reference_date": nick_detail.get("reference_date") if nick_detail else None,
         "initial_stop_nick_reference_price": (

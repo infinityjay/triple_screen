@@ -71,6 +71,16 @@ class TripleScreenScanner:
         cooldown = timedelta(hours=self.settings.alerts.cooldown_hours)
         return _utc_now() - last_alert_at <= cooldown and row["last_direction"] == direction
 
+    def _is_divergence_recently_alerted(self, symbol: str, direction: str) -> bool:
+        row = self.storage.get_last_divergence_alert(symbol)
+        if not row:
+            return False
+        last_alert_at = datetime.fromisoformat(row["last_alert_at"])
+        if last_alert_at.tzinfo is None:
+            last_alert_at = last_alert_at.replace(tzinfo=UTC)
+        cooldown = timedelta(hours=self.settings.alerts.cooldown_hours)
+        return _utc_now() - last_alert_at <= cooldown and row["last_direction"] == direction
+
     def _market_now(self) -> datetime:
         return datetime.now(self.market_timezone)
 
@@ -135,6 +145,7 @@ class TripleScreenScanner:
         daily_frame,
         weekly_frame,
         daily: dict,
+        hourly_frame=None,
     ) -> dict:
         entry_plan = daily.get("entry_plan") or indicators.calc_ema_penetration_entry_plan(daily_frame, direction)
         previous_high = entry_plan.get("previous_high")
@@ -151,6 +162,7 @@ class TripleScreenScanner:
                 0.0,
                 self.settings.trade_plan,
                 weekly_frame=weekly_frame,
+                hourly_frame=hourly_frame,
             )
             if breakout_entry is not None
             else {}
@@ -163,6 +175,7 @@ class TripleScreenScanner:
                 0.0,
                 self.settings.trade_plan,
                 weekly_frame=weekly_frame,
+                hourly_frame=hourly_frame,
             )
             if ema_entry is not None
             else {}
@@ -225,6 +238,7 @@ class TripleScreenScanner:
             "risk": {
                 "initial_stop": breakout_exits.get("initial_stop_model_loss"),
                 "initial_stop_safezone": breakout_exits.get("initial_stop_safezone"),
+                "initial_stop_hourly_safezone": breakout_exits.get("initial_stop_hourly_safezone"),
                 "initial_stop_nick": breakout_exits.get("initial_stop_nick"),
                 "protective_stop": breakout_exits.get("protective_stop_loss"),
                 "take_profit": breakout_exits.get("take_profit"),
@@ -458,6 +472,72 @@ class TripleScreenScanner:
             "items": reminder_items,
         }
 
+    def _build_position_health_summary(self, session_date: date) -> dict:
+        """Build hourly impulse + divergence health check for all open positions."""
+        open_trades = self.storage.list_open_trades()
+        items: list[dict] = []
+
+        for trade in open_trades:
+            symbol = str(trade.get("stock", "")).strip().upper()
+            direction = "SHORT" if str(trade.get("direction", "")).lower() == "short" else "LONG"
+            if not symbol:
+                continue
+            try:
+                hourly_frame = self.market_data.get_hourly_bars(symbol)
+                hourly_impulse = indicators.calc_impulse_system(hourly_frame, self.settings.strategy) if hourly_frame is not None else {}
+                hourly_color = hourly_impulse.get("color", "BLUE")
+
+                divergence_direction = "LONG" if direction == "LONG" else "SHORT"
+                divergence = indicators.detect_divergence(
+                    hourly_frame,
+                    self.settings.strategy,
+                    divergence_direction,
+                    "hourly",
+                    exhaustion_multiplier=2.0,
+                ) if hourly_frame is not None else {"detected": False}
+
+                # Count consecutive RED/GREEN bars opposing the trade direction
+                consecutive_opposing = 0
+                if hourly_frame is not None and len(hourly_frame) >= 2 and hourly_color:
+                    opposing_color = "RED" if direction == "LONG" else "GREEN"
+                    for i in range(len(hourly_frame) - 1, max(len(hourly_frame) - 6, -1), -1):
+                        bar_impulse = indicators.calc_impulse_system(hourly_frame.iloc[: i + 1], self.settings.strategy)
+                        if bar_impulse.get("color") == opposing_color:
+                            consecutive_opposing += 1
+                        else:
+                            break
+
+                items.append(
+                    {
+                        "trade_id": str(trade.get("id", "")),
+                        "symbol": symbol,
+                        "direction": str(trade.get("direction", "long")),
+                        "hourly_impulse_color": hourly_color,
+                        "consecutive_opposing": consecutive_opposing,
+                        "divergence_detected": bool(divergence.get("detected")),
+                        "divergence_reason": divergence.get("reason", ""),
+                    }
+                )
+            except Exception as exc:
+                logger.warning("[%s] position health check failed: %s", symbol, exc)
+                items.append(
+                    {
+                        "trade_id": str(trade.get("id", "")),
+                        "symbol": symbol,
+                        "direction": str(trade.get("direction", "long")),
+                        "hourly_impulse_color": "UNKNOWN",
+                        "consecutive_opposing": 0,
+                        "divergence_detected": False,
+                        "divergence_reason": f"Health check failed: {exc}",
+                    }
+                )
+
+        return {
+            "session_date": session_date.isoformat(),
+            "total_positions": len(open_trades),
+            "items": items,
+        }
+
     def _build_open_position_exit_alert_summary(self, session_date: date) -> dict:
         open_trades = self.storage.list_open_trades()
         items: list[dict] = []
@@ -588,6 +668,7 @@ class TripleScreenScanner:
                 daily_frame=daily_frame,
                 weekly_frame=weekly_frame,
                 daily=daily,
+                hourly_frame=self.market_data.get_hourly_bars(symbol),
             )
             priority_tags = []
             if earnings["warning"]:
@@ -754,6 +835,7 @@ class TripleScreenScanner:
                 daily_frame=daily_frame,
                 weekly_frame=weekly_frame,
                 daily=daily,
+                hourly_frame=self.market_data.get_hourly_bars(symbol),
             )
             refreshed["weekly"] = weekly
             refreshed["daily"] = daily
@@ -811,6 +893,7 @@ class TripleScreenScanner:
             stop_update_summary = self.journal_manager.update_open_position_stops(session_date=session_date)
         open_position_earnings_summary = self._build_open_position_earnings_summary(session_date)
         open_position_exit_alert_summary = self._build_open_position_exit_alert_summary(session_date)
+        position_health_summary = self._build_position_health_summary(session_date)
 
         display_limit = max(self.settings.alerts.qualified_display_limit, 0)
         displayed_candidates = candidates[:display_limit] if display_limit else []
@@ -845,6 +928,7 @@ class TripleScreenScanner:
                 },
                 open_position_earnings_summary=open_position_earnings_summary,
                 open_position_exit_alert_summary=open_position_exit_alert_summary,
+                position_health_summary=position_health_summary,
             )
 
         logger.info(
@@ -891,9 +975,6 @@ class TripleScreenScanner:
                 candidates.append(refreshed)
         if not candidates:
             logger.info("no active tracking candidates remain after weekly/daily refresh.")
-            if not self.dry_run:
-                elapsed = time.time() - started_at
-                self.notifier.send_trigger_summary([], tracking_label, 0, elapsed)
             return []
 
         opportunities: list[dict] = []
@@ -925,17 +1006,39 @@ class TripleScreenScanner:
                 opportunity["summary"],
             )
 
-        elapsed = time.time() - started_at
+        # Divergence scan for open positions — send immediate alert (separate from entry triggers)
         if not self.dry_run:
-            if top_triggered:
-                self.notifier.send_trigger_summary(top_triggered, tracking_label or "UNKNOWN", len(candidates), elapsed)
-            for opportunity in top_triggered:
-                if opportunity.get("cooldown_active"):
+            open_trades = self.storage.list_open_trades()
+            for trade in open_trades:
+                trade_symbol = str(trade.get("stock", "")).strip().upper()
+                trade_direction = "SHORT" if str(trade.get("direction", "")).lower() == "short" else "LONG"
+                if not trade_symbol:
                     continue
-                self.storage.update_alert_log(opportunity["symbol"], opportunity["direction"])
+                try:
+                    hourly_frame = self.market_data.get_hourly_bars(trade_symbol)
+                    if hourly_frame is None or hourly_frame.empty:
+                        continue
+                    divergence = indicators.detect_divergence(
+                        hourly_frame,
+                        self.settings.strategy,
+                        trade_direction,
+                        "hourly",
+                        exhaustion_multiplier=2.0,
+                    )
+                    if divergence.get("detected") and not self._is_divergence_recently_alerted(trade_symbol, trade_direction):
+                        self.notifier.send_divergence_alert(
+                            trade_symbol,
+                            trade_direction,
+                            divergence.get("reason", ""),
+                        )
+                        self.storage.update_divergence_alert_log(trade_symbol, trade_direction)
+                        logger.info("[%s] divergence alert sent for open position", trade_symbol)
+                except Exception as exc:
+                    logger.warning("[%s] divergence check failed during intraday scan: %s", trade_symbol, exc)
 
+        elapsed = time.time() - started_at
         logger.info(
-            "intraday trigger scan finished: %s candidates scanned, %s actionable, elapsed %.1fs",
+            "intraday trigger scan finished: %s candidates scanned, %s actionable (entry notifications suppressed), elapsed %.1fs",
             len(candidates),
             len(top_triggered),
             elapsed,

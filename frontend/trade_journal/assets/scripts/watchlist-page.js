@@ -146,9 +146,13 @@ function buildExecutionPlan(item) {
       breakoutEntry !== undefined && breakoutEntry !== null
         ? `Previous-day break ${formatCurrency(breakoutEntry, 3)}`
         : "",
-      exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
-        ? `Nick stop ${formatCurrency(exits.initial_stop_nick, 3)}`
-        : "",
+      exits.initial_stop_hourly_safezone !== undefined &&
+      exits.initial_stop_hourly_safezone !== null
+        ? `Hourly SZ stop ${formatCurrency(exits.initial_stop_hourly_safezone, 3)}`
+        : exits.initial_stop_nick !== undefined &&
+            exits.initial_stop_nick !== null
+          ? `Nick stop ${formatCurrency(exits.initial_stop_nick, 3)}`
+          : "",
       target !== undefined && target !== null
         ? `Target ${formatCurrency(target, 3)}`
         : "",
@@ -179,6 +183,9 @@ function buildOrderPlanInline(item) {
   const rsiState = String(item.daily?.rsi_state || "");
   const useEmaEntry = Boolean(item.daily?.entered_value_zone);
   const stopParts = [
+    risk.initial_stop_hourly_safezone != null
+      ? `Hourly SZ stop ${formatCurrency(risk.initial_stop_hourly_safezone, 2)}`
+      : "",
     risk.initial_stop_safezone != null
       ? `SafeZone stop ${formatCurrency(risk.initial_stop_safezone, 2)}`
       : "",
@@ -223,12 +230,16 @@ function buildExecutionInline(item) {
       ? formatCurrency(entryPlan.breakout_entry, 3)
       : "—";
   const stop =
-    exits.initial_stop_nick !== undefined && exits.initial_stop_nick !== null
-      ? `Nick ${formatCurrency(exits.initial_stop_nick, 3)}`
-      : exits.initial_stop_safezone !== undefined &&
-          exits.initial_stop_safezone !== null
-        ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
-        : "Choose manually";
+    exits.initial_stop_hourly_safezone !== undefined &&
+    exits.initial_stop_hourly_safezone !== null
+      ? `Hourly SZ ${formatCurrency(exits.initial_stop_hourly_safezone, 3)}`
+      : exits.initial_stop_nick !== undefined &&
+          exits.initial_stop_nick !== null
+        ? `Nick ${formatCurrency(exits.initial_stop_nick, 3)}`
+        : exits.initial_stop_safezone !== undefined &&
+            exits.initial_stop_safezone !== null
+          ? `SafeZone ${formatCurrency(exits.initial_stop_safezone, 3)}`
+          : "Choose manually";
   const target =
     exits.take_profit !== undefined && exits.take_profit !== null
       ? formatCurrency(exits.take_profit, 3)

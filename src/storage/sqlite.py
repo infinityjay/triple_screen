@@ -154,6 +154,15 @@ class SQLiteStorage:
             )
             cursor.execute(
                 """
+                CREATE TABLE IF NOT EXISTS divergence_alert_log (
+                    symbol TEXT PRIMARY KEY,
+                    last_alert_at TEXT,
+                    last_direction TEXT
+                )
+                """
+            )
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS price_bars (
                     symbol TEXT,
                     timeframe TEXT,
@@ -347,6 +356,7 @@ class SQLiteStorage:
             self._ensure_column(cursor.connection, "trades", "initial_stop_loss", "REAL")
             self._ensure_column(cursor.connection, "trades", "initial_stop_basis", "TEXT")
             self._ensure_column(cursor.connection, "planned_orders", "stop_loss", "REAL")
+            self._ensure_column(cursor.connection, "trade_stop_updates", "proposed_stop_hourly_safezone", "REAL")
             cursor.execute(
                 """
                 UPDATE trades
@@ -497,6 +507,23 @@ class SQLiteStorage:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO alert_log (symbol, last_alert_at, last_direction)
+                VALUES (?, ?, ?)
+                """,
+                (symbol, self._utc_iso(), direction),
+            )
+
+    def get_last_divergence_alert(self, symbol: str):
+        with self._connect() as connection:
+            return connection.execute(
+                "SELECT last_alert_at, last_direction FROM divergence_alert_log WHERE symbol = ?",
+                (symbol,),
+            ).fetchone()
+
+    def update_divergence_alert_log(self, symbol: str, direction: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO divergence_alert_log (symbol, last_alert_at, last_direction)
                 VALUES (?, ?, ?)
                 """,
                 (symbol, self._utc_iso(), direction),
@@ -864,6 +891,7 @@ class SQLiteStorage:
                 t.*,
                 su.applied_stop_loss AS suggested_stop_loss,
                 su.proposed_stop_loss AS suggested_stop_candidate,
+                su.proposed_stop_hourly_safezone AS suggested_stop_hourly_safezone,
                 su.stop_basis AS suggested_stop_basis,
                 su.session_date AS suggested_stop_session_date,
                 su.created_at AS suggested_stop_updated_at
@@ -872,6 +900,7 @@ class SQLiteStorage:
                 SELECT
                     u.trade_id,
                     u.proposed_stop_loss,
+                    u.proposed_stop_hourly_safezone,
                     u.applied_stop_loss,
                     u.stop_basis,
                     u.session_date,
@@ -1143,6 +1172,7 @@ class SQLiteStorage:
                 item.get("session_date"),
                 item.get("previous_stop_loss"),
                 item.get("proposed_stop_loss"),
+                item.get("proposed_stop_hourly_safezone"),
                 item.get("applied_stop_loss"),
                 item.get("stop_basis"),
                 int(bool(item.get("changed"))),
@@ -1157,10 +1187,10 @@ class SQLiteStorage:
                 """
                 INSERT INTO trade_stop_updates (
                     trade_id, symbol, direction, session_date, previous_stop_loss,
-                    proposed_stop_loss, applied_stop_loss, stop_basis, changed,
+                    proposed_stop_loss, proposed_stop_hourly_safezone, applied_stop_loss, stop_basis, changed,
                     status, note, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 records,
             )
