@@ -5,7 +5,6 @@ import {
   formatCurrency,
   formatDateLabel,
   formatNumber,
-  getSignalDirectionLabel,
   normalizeSignalDirection,
   parseNumberValue,
   renderConnectionStatus,
@@ -29,6 +28,11 @@ function getReasonBlock(label, score, reason) {
       <p>${escapeHtml(reason || "No notes yet")}</p>
     </div>
   `;
+}
+
+function getDirectionBadge(direction) {
+  const isShort = normalizeSignalDirection(direction) === "SHORT";
+  return `<span class="badge badge-direction ${isShort ? "badge-direction-short" : "badge-direction-long"}">${isShort ? "↓ Short" : "↑ Long"}</span>`;
 }
 
 function getStatusBadge(status) {
@@ -419,7 +423,7 @@ function renderRail() {
           <div class="watchlist-rail-top">
             <div>
               <h3>${escapeHtml(item.symbol || "—")}</h3>
-              <p>${escapeHtml(getSignalDirectionLabel(item.direction))} · Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</p>
+              <p>${getDirectionBadge(item.direction)} <span class="mono" style="font-size:11px">Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span></p>
             </div>
             ${getStatusBadge(item.opportunity_status)}
           </div>
@@ -488,7 +492,7 @@ function renderTable() {
         <tr>
           <td class="symbol-cell">
             <strong>${escapeHtml(item.symbol || "—")}</strong>
-            <span>${escapeHtml(getSignalDirectionLabel(item.direction))} · Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span>
+            <span>${getDirectionBadge(item.direction)} <span class="mono">Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span></span>
           </td>
           <td>
             ${getStatusBadge(item.opportunity_status)}
@@ -603,7 +607,7 @@ function renderPlannedOrders() {
         .map(
           (order) => `
           <div class="manual-order-row">
-            <strong>${escapeHtml(order.symbol)} · ${escapeHtml(getSignalDirectionLabel(order.direction))}</strong>
+            <strong>${escapeHtml(order.symbol)}</strong> ${getDirectionBadge(order.direction)}
             <span>${escapeHtml(order.order_type || "—")} ${escapeHtml(order.action || "")}</span>
             <span>Qty ${escapeHtml(formatNumber(order.quantity, 0))}</span>
             <span>${

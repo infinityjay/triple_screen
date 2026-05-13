@@ -14,14 +14,14 @@ const state = {
   activeModelId: "",
 };
 
-const AI_ANALYSIS_ENABLED = false;
-
 function $(id) {
   return document.getElementById(id);
 }
 
 function getBadge(label, tone = "info") {
-  const toneClass = ["safe", "danger", "warn", "info"].includes(tone) ? tone : "info";
+  const toneClass = ["safe", "danger", "warn", "info"].includes(tone)
+    ? tone
+    : "info";
   return `<span class="badge badge-${toneClass}">${escapeHtml(label || "—")}</span>`;
 }
 
@@ -41,7 +41,10 @@ function renderPromptOutline(outline = []) {
       ];
 
   $("analysisPromptOutline").innerHTML = items
-    .map((item) => `<div class="insight-item"><strong>System Rules</strong><p>${escapeHtml(item)}</p></div>`)
+    .map(
+      (item) =>
+        `<div class="insight-item"><strong>System Rules</strong><p>${escapeHtml(item)}</p></div>`,
+    )
     .join("");
 }
 
@@ -54,7 +57,7 @@ function renderMetrics(containerId, metrics = []) {
               <span>${escapeHtml(item.label || "—")}</span>
               <strong class="metric-${escapeHtml(item.emphasis || "neutral")}">${escapeHtml(item.value || "—")}</strong>
             </div>
-          `
+          `,
         )
         .join("")
     : `<div class="empty-state">No metrics yet.</div>`;
@@ -70,7 +73,7 @@ function renderChecks(containerId, checks = []) {
               <strong>${escapeHtml(item.label || "—")}</strong>
               <p>${escapeHtml(item.detail || "—")}</p>
             </div>
-          `
+          `,
         )
         .join("")
     : `<div class="empty-state">No checks yet.</div>`;
@@ -89,7 +92,7 @@ function renderStopMethods(containerId, methods = []) {
               <p>Reference: ${escapeHtml(item.reference || "—")}</p>
               <p>${escapeHtml(item.detail || "—")}</p>
             </div>
-          `
+          `,
         )
         .join("")
     : `<div class="empty-state">No stop methods yet.</div>`;
@@ -111,15 +114,77 @@ function renderSystem(system) {
   $("summarySymbol").textContent = system?.symbol || "—";
   $("summaryClose").textContent = findMetric(keyLevels.metrics, "Latest Close");
   $("summarySystemDecision").textContent = recommendation.label || "—";
-  $("summarySystemReason").textContent = recommendation.reason || "Waiting for analysis results.";
+  $("summarySystemReason").textContent =
+    recommendation.reason || "Waiting for analysis results.";
   $("summaryEntry").textContent = execution?.entry_price ?? "—";
-  $("summaryEntryReason").textContent = execution?.summary || "Waiting for execution levels.";
+  $("summaryEntryReason").textContent =
+    execution?.summary || "Waiting for execution levels.";
   $("summaryStop").textContent = execution?.stop_loss ?? "—";
-  $("summaryStopReason").textContent = execution?.summary || "Waiting for stop levels.";
-  $("systemDecisionBadge").innerHTML = getBadge(recommendation.label || "System Decision", recommendation.tone || "info");
-  $("systemSummary").className = `alert ${recommendation.tone === "safe" ? "success" : recommendation.tone === "warn" ? "warn" : "info"}`;
+  $("summaryStopReason").textContent =
+    execution?.summary || "Waiting for stop levels.";
+  $("systemDecisionBadge").innerHTML = getBadge(
+    recommendation.label || "System Decision",
+    recommendation.tone || "info",
+  );
+  $("systemSummary").className =
+    `alert ${recommendation.tone === "safe" ? "success" : recommendation.tone === "warn" ? "warn" : "info"}`;
   $("systemSummary").textContent = system?.summary || "No system decision yet.";
   const model = system?.model || {};
+
+  const DECISION_SCALE = [
+    {
+      codes: ["NO_TREND", "REJECT"],
+      label: "Do Not Track Yet",
+      tone: "warn",
+      note: "Weekly trend direction is unclear, or daily setup quality is insufficient. Skip this ticker for now.",
+    },
+    {
+      codes: ["EARLY_TREND"],
+      label: "Track First, No Rush",
+      tone: "info",
+      note: "Weekly direction has appeared but confirmation bars or trend-side position are not complete. Log it, check again next session.",
+    },
+    {
+      codes: ["WATCH"],
+      label: "Continue Watching",
+      tone: "info",
+      note: "Weekly direction is mostly clear, but daily Force Index or daily impulse is not fully ready. Stay alert.",
+    },
+    {
+      codes: ["READY_WITH_CAUTION"],
+      label: "Watch, But More Conservatively",
+      tone: "warn",
+      note: "Weekly and daily both pass, but divergence warns of possible trend exhaustion. Reduce execution aggressiveness.",
+    },
+    {
+      codes: ["READY"],
+      label: "Priority Watch",
+      tone: "safe",
+      note: "Weekly trend confirmed and daily setup is ready. Prioritize for order-plan review and execution.",
+    },
+  ];
+
+  const activeCode = recommendation.code || "";
+  const toneColorMap = {
+    safe: "var(--safe)",
+    warn: "var(--warn)",
+    info: "var(--info)",
+    danger: "var(--danger)",
+  };
+
+  const legendHtml = DECISION_SCALE.map((entry, idx) => {
+    const isActive = entry.codes.includes(activeCode);
+    const color = toneColorMap[entry.tone] || "var(--muted)";
+    return `
+      <div class="decision-legend-item${isActive ? " active" : ""}">
+        <span class="badge" style="border-color:${color};color:${color};min-width:18px;text-align:center;font-weight:700">${idx + 1}</span>
+        <div class="decision-legend-text">
+          <strong style="color:${color}">${escapeHtml(entry.label)}${isActive ? " ← current" : ""}</strong>
+          <p>${escapeHtml(entry.note)}</p>
+        </div>
+      </div>`;
+  }).join("");
+
   $("systemDifference").innerHTML = `
     <div class="insight-item">
       <strong>Model Definition</strong>
@@ -129,6 +194,11 @@ function renderSystem(system) {
     <div class="insight-item">
       <strong>System Watch Decision</strong>
       <p>${escapeHtml(recommendation.reason || "—")}</p>
+    </div>
+    <div class="insight-item">
+      <strong>Decision Scale — Weakest to Strongest</strong>
+      <p style="margin-bottom:10px">All possible system decisions, from least to most actionable. The current result is marked.</p>
+      <div class="decision-legend">${legendHtml}</div>
     </div>
     <div class="insight-item">
       <strong>System Method</strong>
@@ -148,8 +218,11 @@ function renderSystem(system) {
   renderMetrics("dailyMetrics", daily.metrics);
   renderChecks("dailyChecks", daily.checks);
 
-  $("executionTitle").textContent = execution.title || "Execution Plan / Entry and Stops";
-  $("executionSubtitle").textContent = system?.model?.intraday_trigger || "Shows the current model trigger, stop, and target levels.";
+  $("executionTitle").textContent =
+    execution.title || "Execution Plan / Entry and Stops";
+  $("executionSubtitle").textContent =
+    system?.model?.intraday_trigger ||
+    "Shows the current model trigger, stop, and target levels.";
   $("executionReason").textContent = execution.summary || "—";
   renderMetrics("executionMetrics", execution.metrics);
 
@@ -157,123 +230,39 @@ function renderSystem(system) {
   renderMetrics("divergenceMetrics", divergence.metrics);
   renderMetrics("keyLevelMetrics", keyLevels.metrics);
   $("stopMethodsSummary").textContent = stopMethods.summary || "—";
-  renderStopMethods("initialStopMethodsList", stopMethods.initial_methods || []);
-  renderStopMethods("trailingStopMethodsList", stopMethods.trailing_methods || []);
-}
-
-function renderAi(ai) {
-  if (!AI_ANALYSIS_ENABLED) return;
-
-  renderPromptOutline(ai?.outline || []);
-
-  if (!ai || ai.status === "SKIPPED") {
-    $("summaryAiDecision").textContent = "Disabled";
-    $("summaryAiReason").textContent = ai?.message || "AI was not enabled for this run.";
-    $("aiStatusBadge").innerHTML = getBadge("AI Disabled", "info");
-    $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = ai?.message || "AI was not enabled for this run.";
-    $("aiDifference").innerHTML = "";
-    return;
-  }
-
-  if (ai.status === "UNAVAILABLE") {
-    $("summaryAiDecision").textContent = "Not Configured";
-    $("summaryAiReason").textContent = ai.message || "AI model is not configured.";
-    $("aiStatusBadge").innerHTML = getBadge("AI Not Configured", "warn");
-    $("aiSummary").className = "alert warn";
-    $("aiSummary").textContent = ai.message || "AI model is not configured.";
-    $("aiDifference").innerHTML = "";
-    return;
-  }
-
-  if (ai.status === "ERROR") {
-    $("summaryAiDecision").textContent = "Call Failed";
-    $("summaryAiReason").textContent = ai.message || "AI analysis failed.";
-    $("aiStatusBadge").innerHTML = getBadge("AI Failed", "danger");
-    $("aiSummary").className = "alert danger";
-    $("aiSummary").textContent = ai.message || "AI analysis failed.";
-    $("aiDifference").innerHTML = "";
-    return;
-  }
-
-  if (ai.status === "RAW") {
-    $("summaryAiDecision").textContent = "Raw Response";
-    $("summaryAiReason").textContent = ai.message || "AI returned unstructured content.";
-    $("aiStatusBadge").innerHTML = getBadge(ai.model || "AI Raw", "info");
-    $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = ai.raw_text || "AI returned no displayable content.";
-    $("aiDifference").innerHTML = "";
-    return;
-  }
-
-  const structured = ai.structured || {};
-  const difference = structured.difference_vs_system || {};
-  const investmentView = structured.investment_view || {};
-  const weeklyAnalysis = structured.weekly_analysis || {};
-  const dailyAnalysis = structured.daily_analysis || {};
-
-  $("summaryAiDecision").textContent = structured.watch_decision || "—";
-  $("summaryAiReason").textContent = investmentView.summary || difference.agreement || "AI returned structured analysis.";
-  $("aiStatusBadge").innerHTML = getBadge(`${ai.model || "AI"} · ${structured.watch_decision || "Completed"}`, "safe");
-  $("aiSummary").className = "alert success";
-  $("aiSummary").textContent = investmentView.summary || "AI returned structured analysis.";
-
-  const weeklySignals = Array.isArray(weeklyAnalysis.signals) ? weeklyAnalysis.signals : [];
-  const dailySignals = Array.isArray(dailyAnalysis.signals) ? dailyAnalysis.signals : [];
-  const riskControls = Array.isArray(investmentView.risk_controls) ? investmentView.risk_controls : [];
-  const keyLevelFocus = Array.isArray(investmentView.key_level_focus) ? investmentView.key_level_focus : [];
-  const differences = Array.isArray(difference.differences) ? difference.differences : [];
-
-  $("aiDifference").innerHTML = `
-    <div class="insight-item">
-      <strong>AI Weekly View</strong>
-      <p>${escapeHtml(weeklyAnalysis.summary || "—")}</p>
-      <p>${escapeHtml(weeklySignals.join(";  ") || "—")}</p>
-    </div>
-    <div class="insight-item">
-      <strong>AI Daily View</strong>
-      <p>${escapeHtml(dailyAnalysis.summary || "—")}</p>
-      <p>${escapeHtml(dailySignals.join(";  ") || "—")}</p>
-    </div>
-    <div class="insight-item">
-      <strong>Difference vs System</strong>
-      <p>${escapeHtml(difference.agreement || "—")}</p>
-      <p>${escapeHtml(differences.join(";  ") || "—")}</p>
-    </div>
-    <div class="insight-item">
-      <strong>AI Risk Controls and Focus</strong>
-      <p>${escapeHtml(riskControls.join(";  ") || "—")}</p>
-      <p>${escapeHtml(keyLevelFocus.join(";  ") || "—")}</p>
-    </div>
-  `;
+  renderStopMethods(
+    "initialStopMethodsList",
+    stopMethods.initial_methods || [],
+  );
+  renderStopMethods(
+    "trailingStopMethodsList",
+    stopMethods.trailing_methods || [],
+  );
 }
 
 function renderPayload(payload) {
   state.payload = payload;
   const system = payload?.system || {};
-  const ai = payload?.ai || {};
 
-  $("analysisHeadline").textContent = `${payload?.symbol || "—"} · System Technicals`;
-  $("analysisHeadlineBody").textContent = `Generated At: ${escapeHtml(payload?.generated_at || "—")}. Currently showing system-rule analysis only.`;
+  $("analysisHeadline").textContent =
+    `${payload?.symbol || "—"} · System Technicals`;
+  $("analysisHeadlineBody").textContent =
+    `Generated At: ${escapeHtml(payload?.generated_at || "—")}`;
   renderSystem(system);
-  if (AI_ANALYSIS_ENABLED) renderAi(ai);
 }
 
 async function loadAnalysis(symbol) {
   setLoading(true);
   $("systemSummary").className = "alert info";
-  $("systemSummary").textContent = `Analyzing ${symbol} weekly and daily structure...`;
-  if (AI_ANALYSIS_ENABLED) {
-    $("aiSummary").className = "alert info";
-    $("aiSummary").textContent = $("includeAiToggle").checked ? "Requesting AI comparison analysis..." : "AI was not enabled for this run.";
-  }
+  $("systemSummary").textContent =
+    `Analyzing ${symbol} weekly and daily structure...`;
 
   try {
     const payload = await apiRequest("/technical-analysis", {
       method: "POST",
       body: {
         symbol,
-        include_ai: AI_ANALYSIS_ENABLED && $("includeAiToggle")?.checked,
+        include_ai: false,
         model_id: $("modelSelect")?.value || state.activeModelId || null,
       },
     });
@@ -281,10 +270,6 @@ async function loadAnalysis(symbol) {
   } catch (error) {
     $("systemSummary").className = "alert danger";
     $("systemSummary").textContent = error.message || String(error);
-    if (AI_ANALYSIS_ENABLED) {
-      $("aiSummary").className = "alert warn";
-      $("aiSummary").textContent = "No displayable AI result for this run.";
-    }
   } finally {
     setLoading(false);
   }
@@ -295,7 +280,10 @@ async function loadModels() {
   state.models = Array.isArray(payload.models) ? payload.models : [];
   state.activeModelId = payload.active_model_id || state.models[0]?.id || "";
   $("modelSelect").innerHTML = state.models
-    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label)}</option>`)
+    .map(
+      (model) =>
+        `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label)}</option>`,
+    )
     .join("");
   if (state.activeModelId) {
     $("modelSelect").value = state.activeModelId;
@@ -304,15 +292,23 @@ async function loadModels() {
 
 async function bootApp() {
   syncShell("analysis");
-  setScreenState("boot", "Checking local Journal API and preparing the technical-analysis page...");
+  setScreenState(
+    "boot",
+    "Checking local Journal API and preparing the technical-analysis page...",
+  );
   try {
     const health = await ensureApiReady();
-    renderConnectionStatus(true, `Local API connected · ${health.server.host}:${health.server.port}`);
+    renderConnectionStatus(
+      true,
+      `Local API connected · ${health.server.host}:${health.server.port}`,
+    );
     setScreenState("app");
     await loadModels();
     renderPromptOutline();
 
-    const initialSymbol = new URLSearchParams(window.location.search).get("symbol");
+    const initialSymbol = new URLSearchParams(window.location.search).get(
+      "symbol",
+    );
     if (initialSymbol) {
       $("symbolInput").value = initialSymbol.toUpperCase();
       await loadAnalysis(initialSymbol.toUpperCase());
