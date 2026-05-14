@@ -1,0 +1,47 @@
+# Backtest Configuration for Elder Triple Screen Model
+
+account:
+  starting_equity: 100000.0
+
+risk:
+  per_trade_pct: 0.02 # 2% per trade
+  max_open_pct: 0.06 # 6% total open risk cap
+
+leverage:
+  mode: "1.5x_margin" # Allow up to 1.5x equity as buying power
+  ratio: 1.5
+
+model:
+  active: "elder_force"
+
+universe:
+  symbols_file: "config/universe_us_top300.yaml"
+  # Optional override: symbols: [AAPL, MSFT, TSLA]
+
+data:
+  start_date: "2023-01-01"
+  end_date: "2026-05-01"
+  timeframes: [daily, weekly]
+  source: alpaca
+
+entry:
+  methods: [ema_penetration, previous_day_breakout] # Both trigger OR'd
+  confirmation: hourly # Hourly bars must confirm
+
+stops:
+  method: atr_1x # ATR 1x only
+  trailing_rule: monotonic_ratchet # Never move backward
+
+execution:
+  commission_per_trade: 1.0 # $1.00 per buy/sell
+  slippage: 0.0 # None assumed
+
+validation:
+  spot_check_count: 20 # Spot-check N random trades
+  compare_to_legacy: true
+  min_acceptable_drawdown_pct: -20.0
+
+output:
+  format: json
+  include_daily_metrics: false # For speed
+  include_trade_details: true

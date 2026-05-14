@@ -19,7 +19,6 @@ from config.loader import load_settings
 from config.schema import AppConfig
 from journal import (
     apply_monotonic_stop,
-    compute_used_stop,
 )
 from storage.sqlite import SQLiteStorage
 
@@ -512,15 +511,12 @@ def build_as_of(timestamp: pd.Timestamp) -> datetime:
 
 
 def compute_position_open_risk(position: Position) -> float:
-    return float(
-        compute_used_stop(
-            entry_price=position.entry_price,
-            stop_loss=position.active_stop,
-            shares=position.shares,
-            direction=position.direction,
-        )
-        or 0.0
+    risk_per_share = (
+        position.entry_price - position.active_stop
+        if position.direction == "LONG"
+        else position.active_stop - position.entry_price
     )
+    return round(risk_per_share * position.shares, 4)
 
 
 def compute_total_open_risk(open_positions: dict[str, Position]) -> float:
