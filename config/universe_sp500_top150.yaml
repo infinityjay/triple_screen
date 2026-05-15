@@ -1,0 +1,607 @@
+metadata:
+  source: SlickCharts S&P 500
+  source_url: https://www.slickcharts.com/sp500
+  as_of: '2026-05-15'
+  description: Fixed editable U.S. stock universe file. Ranking is retained only as
+    list order metadata.
+symbols:
+- ticker: NVDA
+  name: NVIDIA Corp
+  rank: 1
+  country: USA
+- ticker: AAPL
+  name: Apple Inc
+  rank: 2
+  country: USA
+- ticker: MSFT
+  name: Microsoft Corp
+  rank: 3
+  country: USA
+- ticker: AMZN
+  name: Amazon.com Inc
+  rank: 4
+  country: USA
+- ticker: GOOGL
+  name: Alphabet Inc
+  rank: 5
+  country: USA
+- ticker: GOOG
+  name: Alphabet Inc
+  rank: 6
+  country: USA
+- ticker: AVGO
+  name: Broadcom Inc
+  rank: 7
+  country: USA
+- ticker: TSLA
+  name: Tesla Inc
+  rank: 8
+  country: USA
+- ticker: META
+  name: Meta Platforms Inc
+  rank: 9
+  country: USA
+- ticker: WMT
+  name: Walmart Inc
+  rank: 10
+  country: USA
+- ticker: BRK.B
+  name: Berkshire Hathaway Inc
+  rank: 11
+  country: USA
+- ticker: LLY
+  name: Eli Lilly & Co
+  rank: 12
+  country: USA
+- ticker: MU
+  name: Micron Technology Inc
+  rank: 13
+  country: USA
+- ticker: JPM
+  name: JPMorgan Chase & Co
+  rank: 14
+  country: USA
+- ticker: AMD
+  name: Advanced Micro Devices Inc
+  rank: 15
+  country: USA
+- ticker: XOM
+  name: Exxon Mobil Corp
+  rank: 16
+  country: USA
+- ticker: V
+  name: Visa Inc
+  rank: 17
+  country: USA
+- ticker: INTC
+  name: Intel Corp
+  rank: 18
+  country: USA
+- ticker: JNJ
+  name: Johnson & Johnson
+  rank: 19
+  country: USA
+- ticker: ORCL
+  name: Oracle Corp
+  rank: 20
+  country: USA
+- ticker: COST
+  name: Costco Wholesale Corp
+  rank: 21
+  country: USA
+- ticker: CSCO
+  name: Cisco Systems Inc
+  rank: 22
+  country: USA
+- ticker: MA
+  name: Mastercard Inc
+  rank: 23
+  country: USA
+- ticker: CAT
+  name: Caterpillar Inc
+  rank: 24
+  country: USA
+- ticker: ABBV
+  name: AbbVie Inc
+  rank: 25
+  country: USA
+- ticker: CVX
+  name: Chevron Corp
+  rank: 26
+  country: USA
+- ticker: LRCX
+  name: Lam Research Corp
+  rank: 27
+  country: USA
+- ticker: NFLX
+  name: Netflix Inc
+  rank: 28
+  country: USA
+- ticker: UNH
+  name: UnitedHealth Group Inc
+  rank: 29
+  country: USA
+- ticker: BAC
+  name: Bank of America Corp
+  rank: 30
+  country: USA
+- ticker: KO
+  name: Coca-Cola Co/The
+  rank: 31
+  country: USA
+- ticker: AMAT
+  name: Applied Materials Inc
+  rank: 32
+  country: USA
+- ticker: PG
+  name: Procter & Gamble Co/The
+  rank: 33
+  country: USA
+- ticker: PLTR
+  name: Palantir Technologies Inc
+  rank: 34
+  country: USA
+- ticker: MS
+  name: Morgan Stanley
+  rank: 35
+  country: USA
+- ticker: GE
+  name: General Electric Co
+  rank: 36
+  country: USA
+- ticker: HD
+  name: Home Depot Inc/The
+  rank: 37
+  country: USA
+- ticker: PM
+  name: Philip Morris International Inc
+  rank: 38
+  country: USA
+- ticker: GEV
+  name: GE Vernova Inc
+  rank: 39
+  country: USA
+- ticker: GS
+  name: Goldman Sachs Group Inc/The
+  rank: 40
+  country: USA
+- ticker: MRK
+  name: Merck & Co Inc
+  rank: 41
+  country: USA
+- ticker: TXN
+  name: Texas Instruments Inc
+  rank: 42
+  country: USA
+- ticker: KLAC
+  name: KLA Corp
+  rank: 43
+  country: USA
+- ticker: LIN
+  name: Linde PLC
+  rank: 44
+  country: USA
+- ticker: RTX
+  name: RTX Corp
+  rank: 45
+  country: USA
+- ticker: WFC
+  name: Wells Fargo & Co
+  rank: 46
+  country: USA
+- ticker: AXP
+  name: American Express Co
+  rank: 47
+  country: USA
+- ticker: QCOM
+  name: QUALCOMM Inc
+  rank: 48
+  country: USA
+- ticker: C
+  name: Citigroup Inc
+  rank: 49
+  country: USA
+- ticker: ADI
+  name: Analog Devices Inc
+  rank: 50
+  country: USA
+- ticker: IBM
+  name: International Business Machines Corp
+  rank: 51
+  country: USA
+- ticker: TMUS
+  name: T-Mobile US Inc
+  rank: 52
+  country: USA
+- ticker: PEP
+  name: PepsiCo Inc
+  rank: 53
+  country: USA
+- ticker: SNDK
+  name: Sandisk Corp/DE
+  rank: 54
+  country: USA
+- ticker: NEE
+  name: NextEra Energy Inc
+  rank: 55
+  country: USA
+- ticker: VZ
+  name: Verizon Communications Inc
+  rank: 56
+  country: USA
+- ticker: MCD
+  name: McDonald's Corp
+  rank: 57
+  country: USA
+- ticker: PANW
+  name: Palo Alto Networks Inc
+  rank: 58
+  country: USA
+- ticker: ANET
+  name: Arista Networks Inc
+  rank: 59
+  country: USA
+- ticker: DIS
+  name: Walt Disney Co/The
+  rank: 60
+  country: USA
+- ticker: BA
+  name: Boeing Co/The
+  rank: 61
+  country: USA
+- ticker: AMGN
+  name: Amgen Inc
+  rank: 62
+  country: USA
+- ticker: STX
+  name: Seagate Technology Holdings PLC
+  rank: 63
+  country: USA
+- ticker: GLW
+  name: Corning Inc
+  rank: 64
+  country: USA
+- ticker: T
+  name: AT&T Inc
+  rank: 65
+  country: USA
+- ticker: BLK
+  name: Blackrock Inc
+  rank: 66
+  country: USA
+- ticker: TMO
+  name: Thermo Fisher Scientific Inc
+  rank: 67
+  country: USA
+- ticker: GILD
+  name: Gilead Sciences Inc
+  rank: 68
+  country: USA
+- ticker: WDC
+  name: Western Digital Corp
+  rank: 69
+  country: USA
+- ticker: TJX
+  name: TJX Cos Inc/The
+  rank: 70
+  country: USA
+- ticker: APP
+  name: AppLovin Corp
+  rank: 71
+  country: USA
+- ticker: UNP
+  name: Union Pacific Corp
+  rank: 72
+  country: USA
+- ticker: DELL
+  name: Dell Technologies Inc
+  rank: 73
+  country: USA
+- ticker: ETN
+  name: Eaton Corp PLC
+  rank: 74
+  country: USA
+- ticker: APH
+  name: Amphenol Corp
+  rank: 75
+  country: USA
+- ticker: SCHW
+  name: Charles Schwab Corp/The
+  rank: 76
+  country: USA
+- ticker: DE
+  name: Deere & Co
+  rank: 77
+  country: USA
+- ticker: WELL
+  name: Welltower Inc
+  rank: 78
+  country: USA
+- ticker: ISRG
+  name: Intuitive Surgical Inc
+  rank: 79
+  country: USA
+- ticker: UBER
+  name: Uber Technologies Inc
+  rank: 80
+  country: USA
+- ticker: BX
+  name: Blackstone Inc
+  rank: 81
+  country: USA
+- ticker: ABT
+  name: Abbott Laboratories
+  rank: 82
+  country: USA
+- ticker: PFE
+  name: Pfizer Inc
+  rank: 83
+  country: USA
+- ticker: CRWD
+  name: Crowdstrike Holdings Inc
+  rank: 84
+  country: USA
+- ticker: COP
+  name: ConocoPhillips
+  rank: 85
+  country: USA
+- ticker: VRT
+  name: Vertiv Holdings
+  rank: 86
+  country: USA
+- ticker: CRM
+  name: Salesforce Inc
+  rank: 87
+  country: USA
+- ticker: HON
+  name: Honeywell International Inc
+  rank: 88
+  country: USA
+- ticker: PLD
+  name: Prologis Inc
+  rank: 89
+  country: USA
+- ticker: CB
+  name: Chubb Ltd
+  rank: 90
+  country: USA
+- ticker: LOW
+  name: Lowe's Cos Inc
+  rank: 91
+  country: USA
+- ticker: CVS
+  name: CVS Health Corp
+  rank: 92
+  country: USA
+- ticker: MO
+  name: Altria Group Inc
+  rank: 93
+  country: USA
+- ticker: NEM
+  name: Newmont Corp
+  rank: 94
+  country: USA
+- ticker: SBUX
+  name: Starbucks Corp
+  rank: 95
+  country: USA
+- ticker: BKNG
+  name: Booking Holdings Inc
+  rank: 96
+  country: USA
+- ticker: SPGI
+  name: S&P Global Inc
+  rank: 97
+  country: USA
+- ticker: LMT
+  name: Lockheed Martin Corp
+  rank: 98
+  country: USA
+- ticker: SYK
+  name: Stryker Corp
+  rank: 99
+  country: USA
+- ticker: DHR
+  name: Danaher Corp
+  rank: 100
+  country: USA
+- ticker: BMY
+  name: Bristol-Myers Squibb Co
+  rank: 101
+  country: USA
+- ticker: PWR
+  name: Quanta Services Inc
+  rank: 102
+  country: USA
+- ticker: COF
+  name: Capital One Financial Corp
+  rank: 103
+  country: USA
+- ticker: PGR
+  name: Progressive Corp/The
+  rank: 104
+  country: USA
+- ticker: VRTX
+  name: Vertex Pharmaceuticals Inc
+  rank: 105
+  country: USA
+- ticker: PH
+  name: Parker-Hannifin Corp
+  rank: 106
+  country: USA
+- ticker: HWM
+  name: Howmet Aerospace Inc
+  rank: 107
+  country: USA
+- ticker: CME
+  name: CME Group Inc
+  rank: 108
+  country: USA
+- ticker: TT
+  name: Trane Technologies PLC
+  rank: 109
+  country: USA
+- ticker: EQIX
+  name: Equinix Inc
+  rank: 110
+  country: USA
+- ticker: INTU
+  name: Intuit Inc
+  rank: 111
+  country: USA
+- ticker: SO
+  name: Southern Co/The
+  rank: 112
+  country: USA
+- ticker: ACN
+  name: Accenture PLC
+  rank: 113
+  country: USA
+- ticker: MDT
+  name: Medtronic PLC
+  rank: 114
+  country: USA
+- ticker: CEG
+  name: Constellation Energy Corp
+  rank: 115
+  country: USA
+- ticker: CMI
+  name: Cummins Inc
+  rank: 116
+  country: USA
+- ticker: SNPS
+  name: Synopsys Inc
+  rank: 117
+  country: USA
+- ticker: CDNS
+  name: Cadence Design Systems Inc
+  rank: 118
+  country: USA
+- ticker: ADBE
+  name: Adobe Inc
+  rank: 119
+  country: USA
+- ticker: DUK
+  name: Duke Energy Corp
+  rank: 120
+  country: USA
+- ticker: HCA
+  name: HCA Healthcare Inc
+  rank: 121
+  country: USA
+- ticker: WMB
+  name: Williams Cos Inc/The
+  rank: 122
+  country: USA
+- ticker: NOW
+  name: ServiceNow Inc
+  rank: 123
+  country: USA
+- ticker: MAR
+  name: Marriott International Inc/MD
+  rank: 124
+  country: USA
+- ticker: BK
+  name: Bank of New York Mellon Corp/The
+  rank: 125
+  country: USA
+- ticker: GD
+  name: General Dynamics Corp
+  rank: 126
+  country: USA
+- ticker: FCX
+  name: Freeport-McMoRan Inc
+  rank: 127
+  country: USA
+- ticker: CMCSA
+  name: Comcast Corp
+  rank: 128
+  country: USA
+- ticker: MCK
+  name: McKesson Corp
+  rank: 129
+  country: USA
+- ticker: FDX
+  name: FedEx Corp
+  rank: 130
+  country: USA
+- ticker: FTNT
+  name: Fortinet Inc
+  rank: 131
+  country: USA
+- ticker: KKR
+  name: KKR & Co Inc
+  rank: 132
+  country: USA
+- ticker: JCI
+  name: Johnson Controls International plc
+  rank: 133
+  country: USA
+- ticker: ICE
+  name: Intercontinental Exchange Inc
+  rank: 134
+  country: USA
+- ticker: PNC
+  name: PNC Financial Services Group Inc/The
+  rank: 135
+  country: USA
+- ticker: WM
+  name: Waste Management Inc
+  rank: 136
+  country: USA
+- ticker: ELV
+  name: Elevance Health Inc
+  rank: 137
+  country: USA
+- ticker: CSX
+  name: CSX Corp
+  rank: 138
+  country: USA
+- ticker: MNST
+  name: Monster Beverage Corp
+  rank: 139
+  country: USA
+- ticker: UPS
+  name: United Parcel Service Inc
+  rank: 140
+  country: USA
+- ticker: SLB
+  name: SLB Ltd
+  rank: 141
+  country: USA
+- ticker: ADP
+  name: Automatic Data Processing Inc
+  rank: 142
+  country: USA
+- ticker: USB
+  name: US Bancorp
+  rank: 143
+  country: USA
+- ticker: CIEN
+  name: Ciena
+  rank: 144
+  country: USA
+- ticker: BSX
+  name: Boston Scientific Corp
+  rank: 145
+  country: USA
+- ticker: AMT
+  name: American Tower Corp
+  rank: 146
+  country: USA
+- ticker: ABNB
+  name: Airbnb Inc
+  rank: 147
+  country: USA
+- ticker: CI
+  name: Cigna Group/The
+  rank: 148
+  country: USA
+- ticker: MDLZ
+  name: Mondelez International Inc
+  rank: 149
+  country: USA
+- ticker: NOC
+  name: Northrop Grumman Corp
+  rank: 150
+  country: USA

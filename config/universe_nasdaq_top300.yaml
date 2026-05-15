@@ -1,0 +1,1208 @@
+metadata:
+  source: SlickCharts Nasdaq
+  source_url: https://www.slickcharts.com/nasdaq
+  as_of: '2026-05-15'
+  description: Fixed editable U.S. stock universe file. Ranking is retained only as
+    list order metadata.
+symbols:
+- ticker: NVDA
+  name: Nvidia Corp
+  rank: 1
+  country: USA
+- ticker: AAPL
+  name: Apple Inc.
+  rank: 2
+  country: USA
+- ticker: MSFT
+  name: Microsoft Corp
+  rank: 3
+  country: USA
+- ticker: AMZN
+  name: Amazon.com Inc
+  rank: 4
+  country: USA
+- ticker: GOOGL
+  name: Alphabet Inc. Class A
+  rank: 5
+  country: USA
+- ticker: GOOG
+  name: Alphabet Inc. Class C
+  rank: 6
+  country: USA
+- ticker: AVGO
+  name: Broadcom Inc.
+  rank: 7
+  country: USA
+- ticker: TSLA
+  name: Tesla, Inc.
+  rank: 8
+  country: USA
+- ticker: META
+  name: Meta Platforms, Inc. Class A
+  rank: 9
+  country: USA
+- ticker: WMT
+  name: Walmart Inc.
+  rank: 10
+  country: USA
+- ticker: MU
+  name: Micron Technology, Inc.
+  rank: 11
+  country: USA
+- ticker: AMD
+  name: Advanced Micro Devices
+  rank: 12
+  country: USA
+- ticker: ASML
+  name: Asml Holding Nv
+  rank: 13
+  country: USA
+- ticker: INTC
+  name: Intel Corp
+  rank: 14
+  country: USA
+- ticker: COST
+  name: Costco Wholesale Corp
+  rank: 15
+  country: USA
+- ticker: CSCO
+  name: Cisco Systems, Inc.
+  rank: 16
+  country: USA
+- ticker: NFLX
+  name: Netflix Inc
+  rank: 17
+  country: USA
+- ticker: LRCX
+  name: Lam Research Corp
+  rank: 18
+  country: USA
+- ticker: AMAT
+  name: Applied Materials Inc
+  rank: 19
+  country: USA
+- ticker: PLTR
+  name: Palantir Technologies Inc. Class A
+  rank: 20
+  country: USA
+- ticker: TXN
+  name: Texas Instruments Incorporated
+  rank: 21
+  country: USA
+- ticker: KLAC
+  name: Kla Corporation
+  rank: 22
+  country: USA
+- ticker: LIN
+  name: Linde Plc
+  rank: 23
+  country: USA
+- ticker: ARM
+  name: Arm Holdings Plc American Depositary Shares
+  rank: 24
+  country: USA
+- ticker: QCOM
+  name: Qualcomm Inc
+  rank: 25
+  country: USA
+- ticker: ADI
+  name: Analog Devices, Inc.
+  rank: 26
+  country: USA
+- ticker: TMUS
+  name: T-Mobile Us, Inc.
+  rank: 27
+  country: USA
+- ticker: PEP
+  name: Pepsico, Inc.
+  rank: 28
+  country: USA
+- ticker: SNDK
+  name: Sandisk Corporation
+  rank: 29
+  country: USA
+- ticker: PANW
+  name: Palo Alto Networks, Inc.
+  rank: 30
+  country: USA
+- ticker: AMGN
+  name: Amgen Inc
+  rank: 31
+  country: USA
+- ticker: STX
+  name: Seagate Technology Holdings Plcs
+  rank: 32
+  country: USA
+- ticker: GILD
+  name: Gilead Sciences Inc
+  rank: 33
+  country: USA
+- ticker: WDC
+  name: Western Digital Corp.
+  rank: 34
+  country: USA
+- ticker: APP
+  name: Applovin Corporation Class A
+  rank: 35
+  country: USA
+- ticker: MRVL
+  name: Marvell Technology, Inc.
+  rank: 36
+  country: USA
+- ticker: ISRG
+  name: Intuitive Surgical Inc.
+  rank: 37
+  country: USA
+- ticker: CRWD
+  name: Crowdstrike Holdings, Inc. Class A
+  rank: 38
+  country: USA
+- ticker: HON
+  name: Honeywell International, Inc.
+  rank: 39
+  country: USA
+- ticker: PDD
+  name: Pdd Holdings Inc. American Depositary Shares
+  rank: 40
+  country: USA
+- ticker: SHOP
+  name: Shopify Inc. Class A Subordinate Voting Shares
+  rank: 41
+  country: USA
+- ticker: SBUX
+  name: Starbucks Corp
+  rank: 42
+  country: USA
+- ticker: BKNG
+  name: Booking Holdings Inc.
+  rank: 43
+  country: USA
+- ticker: VRTX
+  name: Vertex Pharmaceuticals Inc
+  rank: 44
+  country: USA
+- ticker: CME
+  name: Cme Group Inc.
+  rank: 45
+  country: USA
+- ticker: EQIX
+  name: Equinix, Inc. Reit
+  rank: 46
+  country: USA
+- ticker: INTU
+  name: Intuit Inc
+  rank: 47
+  country: USA
+- ticker: SNY
+  name: Sanofi American Depositary Shares (Each Representing One-Half of One)
+  rank: 48
+  country: USA
+- ticker: CEG
+  name: Constellation Energy Corporation
+  rank: 49
+  country: USA
+- ticker: CDNS
+  name: Cadence Design Systems
+  rank: 50
+  country: USA
+- ticker: SNPS
+  name: Synopsys Inc
+  rank: 51
+  country: USA
+- ticker: ADBE
+  name: Adobe Inc.
+  rank: 52
+  country: USA
+- ticker: MAR
+  name: Marriott International Class A
+  rank: 53
+  country: USA
+- ticker: CMCSA
+  name: Comcast Corp
+  rank: 54
+  country: USA
+- ticker: FTNT
+  name: Fortinet, Inc.
+  rank: 55
+  country: USA
+- ticker: CSX
+  name: Csx Corporation
+  rank: 56
+  country: USA
+- ticker: MNST
+  name: Monster Beverage Corporation
+  rank: 57
+  country: USA
+- ticker: ADP
+  name: Automatic Data Processing
+  rank: 58
+  country: USA
+- ticker: MELI
+  name: Mercado Libre, Inc
+  rank: 59
+  country: USA
+- ticker: ABNB
+  name: Airbnb, Inc. Class A
+  rank: 60
+  country: USA
+- ticker: MDLZ
+  name: Mondelez International, Inc. Class A
+  rank: 61
+  country: USA
+- ticker: MPWR
+  name: Monolithic Power Systems, Inc.
+  rank: 62
+  country: USA
+- ticker: REGN
+  name: Regeneron Pharmaceuticals Inc
+  rank: 63
+  country: USA
+- ticker: LITE
+  name: Lumentum Holdings Inc.
+  rank: 64
+  country: USA
+- ticker: ORLY
+  name: O'reilly Automotive, Inc.
+  rank: 65
+  country: USA
+- ticker: RKLB
+  name: Rocket Lab Corporation
+  rank: 66
+  country: USA
+- ticker: NXPI
+  name: Nxp Semiconductors N.v.
+  rank: 67
+  country: USA
+- ticker: NTES
+  name: Netease, Inc.
+  rank: 68
+  country: USA
+- ticker: DDOG
+  name: Datadog, Inc. Class A
+  rank: 69
+  country: USA
+- ticker: HOOD
+  name: Robinhood Markets, Inc. Class A
+  rank: 70
+  country: USA
+- ticker: AEP
+  name: American Electric Power Company, Inc.
+  rank: 71
+  country: USA
+- ticker: ROST
+  name: Ross Stores Inc
+  rank: 72
+  country: USA
+- ticker: WBD
+  name: Warner Bros. Discovery, Inc. Series a
+  rank: 73
+  country: USA
+- ticker: DASH
+  name: Doordash, Inc. Class A
+  rank: 74
+  country: USA
+- ticker: CTAS
+  name: Cintas Corp
+  rank: 75
+  country: USA
+- ticker: MSTR
+  name: Strategy Inc Class A
+  rank: 76
+  country: USA
+- ticker: BKR
+  name: Baker Hughes Company
+  rank: 77
+  country: USA
+- ticker: CRWV
+  name: Coreweave, Inc. Class A
+  rank: 78
+  country: USA
+- ticker: PCAR
+  name: Paccar Inc
+  rank: 79
+  country: USA
+- ticker: FANG
+  name: Diamondback Energy, Inc.
+  rank: 80
+  country: USA
+- ticker: COIN
+  name: Coinbase Global, Inc. Class A
+  rank: 81
+  country: USA
+- ticker: NBIS
+  name: Nebius Group N.v. Class As
+  rank: 82
+  country: USA
+- ticker: TER
+  name: Teradyne, Inc.
+  rank: 83
+  country: USA
+- ticker: MCHP
+  name: Microchip Technology Inc
+  rank: 84
+  country: USA
+- ticker: ARGX
+  name: Argenx Se American Depositary Shares
+  rank: 85
+  country: USA
+- ticker: EA
+  name: Electronic Arts Inc
+  rank: 86
+  country: USA
+- ticker: NDAQ
+  name: Nasdaq, Inc.
+  rank: 87
+  country: USA
+- ticker: FLEX
+  name: Flex Ltd.s
+  rank: 88
+  country: USA
+- ticker: XEL
+  name: Xcel Energy, Inc.
+  rank: 89
+  country: USA
+- ticker: FAST
+  name: Fastenal Co
+  rank: 90
+  country: USA
+- ticker: EBAY
+  name: Ebay Inc
+  rank: 91
+  country: USA
+- ticker: ADSK
+  name: Autodesk Inc
+  rank: 92
+  country: USA
+- ticker: FER
+  name: Ferrovial N.v.s
+  rank: 93
+  country: USA
+- ticker: BIDU
+  name: Baidu, Inc.
+  rank: 94
+  country: USA
+- ticker: EXC
+  name: Exelon Corporation
+  rank: 95
+  country: USA
+- ticker: TTWO
+  name: Take-Two Interactive Software Inc
+  rank: 96
+  country: USA
+- ticker: 'ON'
+  name: On Semiconductor Corp
+  rank: 97
+  country: USA
+- ticker: JD
+  name: Jd.com, Inc.
+  rank: 98
+  country: USA
+- ticker: FITB
+  name: Fifth Third Bancorp
+  rank: 99
+  country: USA
+- ticker: IDXX
+  name: Idexx Laboratories Inc
+  rank: 100
+  country: USA
+- ticker: ODFL
+  name: Old Dominion Freight Line
+  rank: 101
+  country: USA
+- ticker: ERIC
+  name: Ericsson American Depositary Shares
+  rank: 102
+  country: USA
+- ticker: KDP
+  name: Keurig Dr Pepper Inc.
+  rank: 103
+  country: USA
+- ticker: CCEP
+  name: Coca-Cola Europacific Partners Plcs
+  rank: 104
+  country: USA
+- ticker: PYPL
+  name: Paypal Holdings, Inc.
+  rank: 105
+  country: USA
+- ticker: GFS
+  name: Globalfoundries Inc.s
+  rank: 106
+  country: USA
+- ticker: ALNY
+  name: Alnylam Pharmaceuticals, Inc.
+  rank: 107
+  country: USA
+- ticker: IBKR
+  name: Interactive Brokers Group, Inc. Class A
+  rank: 108
+  country: USA
+- ticker: SATS
+  name: Echostar Corporation
+  rank: 109
+  country: USA
+- ticker: ALAB
+  name: Astera Labs, Inc.
+  rank: 110
+  country: USA
+- ticker: ESLT
+  name: Elbit Systems Ltd
+  rank: 111
+  country: USA
+- ticker: VOD
+  name: Vodafone Group Plc
+  rank: 112
+  country: USA
+- ticker: TRI
+  name: Thomson Reuters Corporation Common Shares
+  rank: 113
+  country: USA
+- ticker: STLD
+  name: Steel Dynamics Inc
+  rank: 114
+  country: USA
+- ticker: CRDO
+  name: Credo Technology Group Holding Ltds
+  rank: 115
+  country: USA
+- ticker: MDLN
+  name: Medline Inc. Class A
+  rank: 116
+  country: USA
+- ticker: CASY
+  name: Casey's General Stores Inc
+  rank: 117
+  country: USA
+- ticker: ACGL
+  name: Arch Capital Group Ltd
+  rank: 118
+  country: USA
+- ticker: KMB
+  name: Kimberly-Clark Corp.
+  rank: 119
+  country: USA
+- ticker: ROP
+  name: Roper Technologies, Inc.
+  rank: 120
+  country: USA
+- ticker: PAYX
+  name: Paychex Inc
+  rank: 121
+  country: USA
+- ticker: RVMD
+  name: Revolution Medicines, Inc.
+  rank: 122
+  country: USA
+- ticker: CPRT
+  name: Copart Inc
+  rank: 123
+  country: USA
+- ticker: TCOM
+  name: Trip.com Group Limited American Depositary Shares
+  rank: 124
+  country: USA
+- ticker: HBAN
+  name: Huntington Bancshares Inc
+  rank: 125
+  country: USA
+- ticker: ONC
+  name: Beone Medicines Ltd. American Depositary Shares
+  rank: 126
+  country: USA
+- ticker: AXON
+  name: Axon Enterprise, Inc.
+  rank: 127
+  country: USA
+- ticker: TSEM
+  name: Tower Semiconductor Ltd
+  rank: 128
+  country: USA
+- ticker: UAL
+  name: United Airlines Holdings, Inc.
+  rank: 129
+  country: USA
+- ticker: NTRS
+  name: Northern Trust Corp
+  rank: 130
+  country: USA
+- ticker: WDAY
+  name: Workday, Inc. Class A
+  rank: 131
+  country: USA
+- ticker: BIIB
+  name: Biogen Inc.
+  rank: 132
+  country: USA
+- ticker: ZM
+  name: Zoom Communications, Inc. Class A
+  rank: 133
+  country: USA
+- ticker: MTSI
+  name: Macom Technology Solutions Holdings, Inc
+  rank: 134
+  country: USA
+- ticker: FISV
+  name: Fiserv, Inc.
+  rank: 135
+  country: USA
+- ticker: GEHC
+  name: Ge Healthcare Technologies Inc.
+  rank: 136
+  country: USA
+- ticker: NTRA
+  name: Natera, Inc.
+  rank: 137
+  country: USA
+- ticker: RYAAY
+  name: Ryanair Holdings Plc American Depositary Shares
+  rank: 138
+  country: USA
+- ticker: KHC
+  name: The Kraft Heinz Company
+  rank: 139
+  country: USA
+- ticker: VRSN
+  name: Verisign Inc
+  rank: 140
+  country: USA
+- ticker: FTAI
+  name: Ftai Aviation Ltd.
+  rank: 141
+  country: USA
+- ticker: STRL
+  name: Sterling Infrastructure, Inc.
+  rank: 142
+  country: USA
+- ticker: EXPE
+  name: Expedia Group, Inc.
+  rank: 143
+  country: USA
+- ticker: CINF
+  name: Cincinnati Financial Corp
+  rank: 144
+  country: USA
+- ticker: INSM
+  name: Insmed, Inc.
+  rank: 145
+  country: USA
+- ticker: ZS
+  name: Zscaler, Inc.
+  rank: 146
+  country: USA
+- ticker: UTHR
+  name: United Therapeutics Corp
+  rank: 147
+  country: USA
+- ticker: MDB
+  name: Mongodb, Inc. Class A
+  rank: 148
+  country: USA
+- ticker: JBHT
+  name: Jb Hunt Transport Services Inc
+  rank: 149
+  country: USA
+- ticker: FSLR
+  name: First Solar, Inc.
+  rank: 150
+  country: USA
+- ticker: LPLA
+  name: Lpl Financial Holdings Inc.
+  rank: 151
+  country: USA
+- ticker: ASTS
+  name: Ast Spacemobile, Inc. Class A
+  rank: 152
+  country: USA
+- ticker: NTAP
+  name: Netapp, Inc
+  rank: 153
+  country: USA
+- ticker: WTW
+  name: Willis Towers Watson Public Limited Companys
+  rank: 154
+  country: USA
+- ticker: TW
+  name: Tradeweb Markets Inc. Class A
+  rank: 155
+  country: USA
+- ticker: DXCM
+  name: Dexcom, Inc.
+  rank: 156
+  country: USA
+- ticker: EXE
+  name: Expand Energy Corporation
+  rank: 157
+  country: USA
+- ticker: FWONK
+  name: Liberty Media Corporation Series C Liberty Formula One
+  rank: 158
+  country: USA
+- ticker: BNTX
+  name: Biontech Se American Depositary Share
+  rank: 159
+  country: USA
+- ticker: RPRX
+  name: Royalty Pharma Plc Class As
+  rank: 160
+  country: USA
+- ticker: FCNCA
+  name: First Citizens Bancshares Inc
+  rank: 161
+  country: USA
+- ticker: AKAM
+  name: Akamai Technologies Inc
+  rank: 162
+  country: USA
+- ticker: AFRM
+  name: Affirm Holdings, Inc. Class A
+  rank: 163
+  country: USA
+- ticker: WWD
+  name: Woodward, Inc.
+  rank: 164
+  country: USA
+- ticker: PFG
+  name: Principal Financial Group, Inc.
+  rank: 165
+  country: USA
+- ticker: CTSH
+  name: Cognizant Technology Solutions
+  rank: 166
+  country: USA
+- ticker: ULTA
+  name: Ulta Beauty, Inc.
+  rank: 167
+  country: USA
+- ticker: SBAC
+  name: Sba Communications Corp
+  rank: 168
+  country: USA
+- ticker: TROW
+  name: T Rowe Price Group Inc
+  rank: 169
+  country: USA
+- ticker: ROIV
+  name: Roivant Sciences Ltd. Common Shares
+  rank: 170
+  country: USA
+- ticker: ILMN
+  name: Illumina Inc
+  rank: 171
+  country: USA
+- ticker: VRSK
+  name: Verisk Analytics, Inc.
+  rank: 172
+  country: USA
+- ticker: SITM
+  name: Sitime Corporation
+  rank: 173
+  country: USA
+- ticker: NXT
+  name: Nextpower Inc. Class A
+  rank: 174
+  country: USA
+- ticker: FFIV
+  name: F5, Inc.
+  rank: 175
+  country: USA
+- ticker: ENTG
+  name: Entegris Inc
+  rank: 176
+  country: USA
+- ticker: MKSI
+  name: Mks Inc.
+  rank: 177
+  country: USA
+- ticker: TEAM
+  name: Atlassian Corporation Class A
+  rank: 178
+  country: USA
+- ticker: IREN
+  name: Iren Limiteds
+  rank: 179
+  country: USA
+- ticker: SOFI
+  name: Sofi Technologies, Inc.
+  rank: 180
+  country: USA
+- ticker: VTRS
+  name: Viatris Inc.
+  rank: 181
+  country: USA
+- ticker: RGLD
+  name: Royal Gold Inc
+  rank: 182
+  country: USA
+- ticker: LI
+  name: Li Auto Inc. American Depositary Shares
+  rank: 183
+  country: USA
+- ticker: MRNA
+  name: Moderna, Inc.
+  rank: 184
+  country: USA
+- ticker: FUTU
+  name: Futu Holdings Limited American Depositary Shares
+  rank: 185
+  country: USA
+- ticker: INCY
+  name: Incyte Genomics Inc
+  rank: 186
+  country: USA
+- ticker: RIVN
+  name: Rivian Automotive, Inc. Class A
+  rank: 187
+  country: USA
+- ticker: SMCI
+  name: Super Micro Computer, Inc.
+  rank: 188
+  country: USA
+- ticker: EVRG
+  name: Evergy, Inc.
+  rank: 189
+  country: USA
+- ticker: CHRW
+  name: C.H. Robinson Worldwide, Inc.
+  rank: 190
+  country: USA
+- ticker: LNT
+  name: Alliant Energy Corporation
+  rank: 191
+  country: USA
+- ticker: ROKU
+  name: Roku, Inc. Class A
+  rank: 192
+  country: USA
+- ticker: CHTR
+  name: Charter Comm Inc Del Cl a
+  rank: 193
+  country: USA
+- ticker: CG
+  name: The Carlyle Group Inc.
+  rank: 194
+  country: USA
+- ticker: DLTR
+  name: Dollar Tree Inc.
+  rank: 195
+  country: USA
+- ticker: AMKR
+  name: Amkor Technology Inc
+  rank: 196
+  country: USA
+- ticker: TTMI
+  name: Ttm Technologies Inc
+  rank: 197
+  country: USA
+- ticker: WMG
+  name: Warner Music Group Corp. Class A
+  rank: 198
+  country: USA
+- ticker: NVMI
+  name: Nova Ltd.s
+  rank: 199
+  country: USA
+- ticker: KSPI
+  name: Joint Stock Company Kaspi.Kz American Depository Shares
+  rank: 200
+  country: USA
+- ticker: LSCC
+  name: Lattice Semiconductor Corp
+  rank: 201
+  country: USA
+- ticker: GMAB
+  name: Genmab A/S Ads
+  rank: 202
+  country: USA
+- ticker: EWBC
+  name: East-West Bancorp Inc
+  rank: 203
+  country: USA
+- ticker: PAA
+  name: Plains All American Pipeline, L.P. Common Units Representing Limited Partner
+    Interests
+  rank: 204
+  country: USA
+- ticker: TSCO
+  name: Tractor Supply Co
+  rank: 205
+  country: USA
+- ticker: NBIX
+  name: Neurocrine Biosciences Inc
+  rank: 206
+  country: USA
+- ticker: PTC
+  name: Ptc, Inc
+  rank: 207
+  country: USA
+- ticker: SSNC
+  name: Ss&c Technologies Inc
+  rank: 208
+  country: USA
+- ticker: TLN
+  name: Talen Energy Corporation
+  rank: 209
+  country: USA
+- ticker: AUR
+  name: Aurora Innovation, Inc. Class A
+  rank: 210
+  country: USA
+- ticker: NDSN
+  name: Nordson Corp
+  rank: 211
+  country: USA
+- ticker: AAOI
+  name: Applied Optoelectronics, Inc.
+  rank: 212
+  country: USA
+- ticker: ASND
+  name: Ascendis Pharma A/S
+  rank: 213
+  country: USA
+- ticker: LAMR
+  name: Lamar Advertising Co
+  rank: 214
+  country: USA
+- ticker: ARXS
+  name: Arxis, Inc. Class A
+  rank: 215
+  country: USA
+- ticker: HST
+  name: Host Hotels & Resorts, Inc.
+  rank: 216
+  country: USA
+- ticker: LECO
+  name: Lincoln Electric Holdings Inc
+  rank: 217
+  country: USA
+- ticker: LOGI
+  name: Logitech International Sa
+  rank: 218
+  country: USA
+- ticker: GRAB
+  name: Grab Holdings Limited Class As
+  rank: 219
+  country: USA
+- ticker: JAZZ
+  name: Jazz Pharmaceuticals, Inc.
+  rank: 220
+  country: USA
+- ticker: OKTA
+  name: Okta, Inc. Class A
+  rank: 221
+  country: USA
+- ticker: REG
+  name: Regency Centers Corporation
+  rank: 222
+  country: USA
+- ticker: HTHT
+  name: H World Group Limited American Depositary Shares
+  rank: 223
+  country: USA
+- ticker: LULU
+  name: Lululemon Athletica Inc.
+  rank: 224
+  country: USA
+- ticker: SMMT
+  name: Summit Therapeutics Inc.
+  rank: 225
+  country: USA
+- ticker: BBIO
+  name: Bridgebio Pharma, Inc.
+  rank: 226
+  country: USA
+- ticker: RMBS
+  name: Rambus Inc
+  rank: 227
+  country: USA
+- ticker: TIGO
+  name: Millicom International Cellular S.a.
+  rank: 228
+  country: USA
+- ticker: GEN
+  name: Gen Digital Inc.
+  rank: 229
+  country: USA
+- ticker: SOLS
+  name: Solstice Advanced Materials Inc.
+  rank: 230
+  country: USA
+- ticker: HAS
+  name: Hasbro, Inc.
+  rank: 231
+  country: USA
+- ticker: GLPI
+  name: Gaming and Leisure Properties, Inc.
+  rank: 232
+  country: USA
+- ticker: PAYP
+  name: Paypay Corporation American Depository Shares
+  rank: 233
+  country: USA
+- ticker: RGC
+  name: Regencell Bioscience Holdings Limiteds
+  rank: 234
+  country: USA
+- ticker: APA
+  name: Apa Corporation
+  rank: 235
+  country: USA
+- ticker: FOX
+  name: Fox Corporation Class B
+  rank: 236
+  country: USA
+- ticker: GH
+  name: Guardant Health, Inc.
+  rank: 237
+  country: USA
+- ticker: IESC
+  name: Ies Holdings, Inc.
+  rank: 238
+  country: USA
+- ticker: TRMB
+  name: Trimble Inc.
+  rank: 239
+  country: USA
+- ticker: CSGP
+  name: Costar Group Inc
+  rank: 240
+  country: USA
+- ticker: AEIS
+  name: Advanced Energy Industries Inc
+  rank: 241
+  country: USA
+- ticker: CDW
+  name: Cdw Corporation
+  rank: 242
+  country: USA
+- ticker: APLD
+  name: Applied Digital Corporation
+  rank: 243
+  country: USA
+- ticker: FOXA
+  name: Fox Corporation Class A
+  rank: 244
+  country: USA
+- ticker: EXEL
+  name: Exelixis Inc
+  rank: 245
+  country: USA
+- ticker: WSE
+  name: Wise Group Plc Class As
+  rank: 246
+  country: USA
+- ticker: SANM
+  name: Sanmina  Corp
+  rank: 247
+  country: USA
+- ticker: SMTC
+  name: Semtech Corp
+  rank: 248
+  country: USA
+- ticker: CHKP
+  name: Check Point Software Technologies Ltd
+  rank: 249
+  country: USA
+- ticker: ZBRA
+  name: Zebra Technologies Corporation
+  rank: 250
+  country: USA
+- ticker: VICR
+  name: Vicor Corp
+  rank: 251
+  country: USA
+- ticker: MDGL
+  name: Madrigal Pharmaceuticals, Inc.
+  rank: 252
+  country: USA
+- ticker: DKNG
+  name: Draftkings Inc. Class A
+  rank: 253
+  country: USA
+- ticker: ENLT
+  name: Enlight Renewable Energy Ltd.s
+  rank: 254
+  country: USA
+- ticker: IONS
+  name: Ionis Pharmaceuticals, Inc.
+  rank: 255
+  country: USA
+- ticker: NTNX
+  name: Nutanix, Inc. Class A
+  rank: 256
+  country: USA
+- ticker: SAIA
+  name: Saia, Inc.
+  rank: 257
+  country: USA
+- ticker: AGNC
+  name: Agnc Investment Corp.
+  rank: 258
+  country: USA
+- ticker: HUT
+  name: Hut 8 Corp.
+  rank: 259
+  country: USA
+- ticker: AXSM
+  name: Axsome Therapeutics, Inc
+  rank: 260
+  country: USA
+- ticker: VIAV
+  name: Viavi Solutions Inc.
+  rank: 261
+  country: USA
+- ticker: FIVE
+  name: Five Below, Inc.
+  rank: 262
+  country: USA
+- ticker: MEDP
+  name: Medpace Holdings, Inc.
+  rank: 263
+  country: USA
+- ticker: COO
+  name: The Cooper Companies, Inc.
+  rank: 264
+  country: USA
+- ticker: TXRH
+  name: Texas Roadhouse, Inc.
+  rank: 265
+  country: USA
+- ticker: WULF
+  name: Terawulf Inc.
+  rank: 266
+  country: USA
+- ticker: LFUS
+  name: Littelfuse Inc
+  rank: 267
+  country: USA
+- ticker: PSKY
+  name: Paramount Skydance Corporation Class B
+  rank: 268
+  country: USA
+- ticker: DRS
+  name: Leonardo Drs, Inc.
+  rank: 269
+  country: USA
+- ticker: ALGN
+  name: Align Technology Inc
+  rank: 270
+  country: USA
+- ticker: BTSG
+  name: Brightspring Health Services, Inc.
+  rank: 271
+  country: USA
+- ticker: AAON
+  name: Aaon Inc
+  rank: 272
+  country: USA
+- ticker: ERIE
+  name: Erie Indemnity Co
+  rank: 273
+  country: USA
+- ticker: ARWR
+  name: Arrowhead Research Corporation
+  rank: 274
+  country: USA
+- ticker: SEIC
+  name: Sei Investments Co
+  rank: 275
+  country: USA
+- ticker: CGNX
+  name: Cognex Corp
+  rank: 276
+  country: USA
+- ticker: COKE
+  name: Coca-Cola Consolidated, Inc.
+  rank: 277
+  country: USA
+- ticker: CYTK
+  name: Cytokinetics Inc.
+  rank: 278
+  country: USA
+- ticker: GSAT
+  name: Globalstar, Inc.
+  rank: 279
+  country: USA
+- ticker: POWL
+  name: Powell Industries Inc
+  rank: 280
+  country: USA
+- ticker: ENSG
+  name: The Ensign Group, Inc.
+  rank: 281
+  country: USA
+- ticker: BMRN
+  name: Biomarin Pharmaceuticals Inc
+  rank: 282
+  country: USA
+- ticker: PODD
+  name: Insulet Corporation
+  rank: 283
+  country: USA
+- ticker: DPZ
+  name: Domino's Pizza Inc.
+  rank: 284
+  country: USA
+- ticker: KTOS
+  name: Kratos Defense & Security Solutions, Inc.
+  rank: 285
+  country: USA
+- ticker: FCFS
+  name: Firstcash Holdings, Inc.
+  rank: 286
+  country: USA
+- ticker: SWKS
+  name: Skyworks Solutions Inc
+  rank: 287
+  country: USA
+- ticker: WYNN
+  name: Wynn Resorts Ltd
+  rank: 288
+  country: USA
+- ticker: WTFC
+  name: Wintrust Financial Corp
+  rank: 289
+  country: USA
+- ticker: VSAT
+  name: Viasat Inc
+  rank: 290
+  country: USA
+- ticker: SFD
+  name: Smithfield Foods, Inc.
+  rank: 291
+  country: USA
+- ticker: PRAX
+  name: Praxis Precision Medicines, Inc.
+  rank: 292
+  country: USA
+- ticker: UMBF
+  name: Umb Financial Corp
+  rank: 293
+  country: USA
+- ticker: JKHY
+  name: Henry (Jack) & Associates
+  rank: 294
+  country: USA
+- ticker: NWSA
+  name: News Corporation Class A
+  rank: 295
+  country: USA
+- ticker: BSY
+  name: Bentley Systems, Incorporated Class B
+  rank: 296
+  country: USA
+- ticker: ABVX
+  name: Abivax Sa American Depositary Shares
+  rank: 297
+  country: USA
+- ticker: TTD
+  name: The Trade Desk, Inc.
+  rank: 298
+  country: USA
+- ticker: FORM
+  name: Formfactor Inc.
+  rank: 299
+  country: USA
+- ticker: FIGR
+  name: Figure Technology Solutions, Inc. Class A
+  rank: 300
+  country: USA

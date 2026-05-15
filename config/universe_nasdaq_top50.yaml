@@ -1,0 +1,207 @@
+metadata:
+  source: SlickCharts Nasdaq
+  source_url: https://www.slickcharts.com/nasdaq
+  as_of: '2026-05-15'
+  description: Fixed editable U.S. stock universe file. Ranking is retained only as
+    list order metadata.
+symbols:
+- ticker: NVDA
+  name: Nvidia Corp
+  rank: 1
+  country: USA
+- ticker: AAPL
+  name: Apple Inc.
+  rank: 2
+  country: USA
+- ticker: MSFT
+  name: Microsoft Corp
+  rank: 3
+  country: USA
+- ticker: AMZN
+  name: Amazon.com Inc
+  rank: 4
+  country: USA
+- ticker: GOOGL
+  name: Alphabet Inc. Class A
+  rank: 5
+  country: USA
+- ticker: GOOG
+  name: Alphabet Inc. Class C
+  rank: 6
+  country: USA
+- ticker: AVGO
+  name: Broadcom Inc.
+  rank: 7
+  country: USA
+- ticker: TSLA
+  name: Tesla, Inc.
+  rank: 8
+  country: USA
+- ticker: META
+  name: Meta Platforms, Inc. Class A
+  rank: 9
+  country: USA
+- ticker: WMT
+  name: Walmart Inc.
+  rank: 10
+  country: USA
+- ticker: MU
+  name: Micron Technology, Inc.
+  rank: 11
+  country: USA
+- ticker: AMD
+  name: Advanced Micro Devices
+  rank: 12
+  country: USA
+- ticker: ASML
+  name: Asml Holding Nv
+  rank: 13
+  country: USA
+- ticker: INTC
+  name: Intel Corp
+  rank: 14
+  country: USA
+- ticker: COST
+  name: Costco Wholesale Corp
+  rank: 15
+  country: USA
+- ticker: CSCO
+  name: Cisco Systems, Inc.
+  rank: 16
+  country: USA
+- ticker: LRCX
+  name: Lam Research Corp
+  rank: 17
+  country: USA
+- ticker: NFLX
+  name: Netflix Inc
+  rank: 18
+  country: USA
+- ticker: AMAT
+  name: Applied Materials Inc
+  rank: 19
+  country: USA
+- ticker: PLTR
+  name: Palantir Technologies Inc. Class A
+  rank: 20
+  country: USA
+- ticker: TXN
+  name: Texas Instruments Incorporated
+  rank: 21
+  country: USA
+- ticker: KLAC
+  name: Kla Corporation
+  rank: 22
+  country: USA
+- ticker: LIN
+  name: Linde Plc
+  rank: 23
+  country: USA
+- ticker: ARM
+  name: Arm Holdings Plc American Depositary Shares
+  rank: 24
+  country: USA
+- ticker: QCOM
+  name: Qualcomm Inc
+  rank: 25
+  country: USA
+- ticker: ADI
+  name: Analog Devices, Inc.
+  rank: 26
+  country: USA
+- ticker: TMUS
+  name: T-Mobile Us, Inc.
+  rank: 27
+  country: USA
+- ticker: PEP
+  name: Pepsico, Inc.
+  rank: 28
+  country: USA
+- ticker: SNDK
+  name: Sandisk Corporation
+  rank: 29
+  country: USA
+- ticker: PANW
+  name: Palo Alto Networks, Inc.
+  rank: 30
+  country: USA
+- ticker: AMGN
+  name: Amgen Inc
+  rank: 31
+  country: USA
+- ticker: STX
+  name: Seagate Technology Holdings Plcs
+  rank: 32
+  country: USA
+- ticker: GILD
+  name: Gilead Sciences Inc
+  rank: 33
+  country: USA
+- ticker: WDC
+  name: Western Digital Corp.
+  rank: 34
+  country: USA
+- ticker: APP
+  name: Applovin Corporation Class A
+  rank: 35
+  country: USA
+- ticker: MRVL
+  name: Marvell Technology, Inc.
+  rank: 36
+  country: USA
+- ticker: ISRG
+  name: Intuitive Surgical Inc.
+  rank: 37
+  country: USA
+- ticker: CRWD
+  name: Crowdstrike Holdings, Inc. Class A
+  rank: 38
+  country: USA
+- ticker: HON
+  name: Honeywell International, Inc.
+  rank: 39
+  country: USA
+- ticker: PDD
+  name: Pdd Holdings Inc. American Depositary Shares
+  rank: 40
+  country: USA
+- ticker: SHOP
+  name: Shopify Inc. Class A Subordinate Voting Shares
+  rank: 41
+  country: USA
+- ticker: SBUX
+  name: Starbucks Corp
+  rank: 42
+  country: USA
+- ticker: BKNG
+  name: Booking Holdings Inc.
+  rank: 43
+  country: USA
+- ticker: VRTX
+  name: Vertex Pharmaceuticals Inc
+  rank: 44
+  country: USA
+- ticker: CME
+  name: Cme Group Inc.
+  rank: 45
+  country: USA
+- ticker: EQIX
+  name: Equinix, Inc. Reit
+  rank: 46
+  country: USA
+- ticker: INTU
+  name: Intuit Inc
+  rank: 47
+  country: USA
+- ticker: SNY
+  name: Sanofi American Depositary Shares (Each Representing One-Half of One)
+  rank: 48
+  country: USA
+- ticker: CEG
+  name: Constellation Energy Corporation
+  rank: 49
+  country: USA
+- ticker: SNPS
+  name: Synopsys Inc
+  rank: 50
+  country: USA
