@@ -671,11 +671,38 @@ class TelegramNotifier:
 
     def send_divergence_alert(self, symbol: str, direction: str, divergence_reason: str) -> bool:
         direction_label = self.get_direction_text(direction)
-        div_type = "bearish" if direction == "LONG" else "bullish"
+        if direction == "LONG":
+            div_label = "Hourly bullish bottom divergence"
+            meaning = (
+                "Price made a lower low while the MACD histogram made a higher low — "
+                "downward momentum on the hourly is weakening and a recovery may be forming."
+            )
+            actions = (
+                "• Do <b>not</b> exit yet — this pattern supports the long thesis\n"
+                "• Trail your stop up to protect gains if price is above entry\n"
+                "• Wait for the next hourly bar to close green before adding size\n"
+                "• If price fails to recover and makes another lower low, reassess"
+            )
+        else:
+            div_label = "Hourly bearish top divergence"
+            meaning = (
+                "Price made a higher high while the MACD histogram made a lower high — "
+                "upward momentum on the hourly is weakening and a reversal may be forming."
+            )
+            actions = (
+                "• Do <b>not</b> exit yet — this pattern supports the short thesis\n"
+                "• Trail your stop down to protect gains if price is below entry\n"
+                "• Wait for the next hourly bar to close red before adding size\n"
+                "• If price pushes to a new high with improving histogram, reassess"
+            )
         return self._send(
-            f"⚠️ <b>Hourly divergence — {symbol} {direction_label}</b>\n"
-            f"{div_type} divergence forming on hourly chart: consider tightening stop or reviewing position size\n"
-            f"<i>{_html_text(divergence_reason)}</i>\n"
+            f"⚠️ <b>{div_label} — {symbol} {direction_label}</b>\n"
+            f"\n"
+            f"<b>Situation:</b> {meaning}\n"
+            f"\n"
+            f"<b>Actions:</b>\n{actions}\n"
+            f"\n"
+            f"<i>Pattern detail: {_html_text(divergence_reason)}</i>\n"
             f"<i>{_utc_clock_label()}</i>"
         )
 
