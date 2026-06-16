@@ -5,16 +5,21 @@ import {
   formatCurrency,
   formatDateLabel,
   formatNumber,
+  getRecommendedShares,
+  normalizeSettings,
   normalizeSignalDirection,
   parseNumberValue,
+  readStoredJson,
   renderConnectionStatus,
   setScreenState,
+  settingsRowToState,
   syncShell,
 } from "./shared.js";
 
 const state = {
   payload: null,
   sessionDate: "",
+  settings: normalizeSettings(readStoredJson("tradeSettings", {})),
 };
 
 const _noop = new Proxy({}, { get: () => _noop, set: () => true });
@@ -567,23 +572,101 @@ function updateOrderFormVisibility() {
 }
 
 function fillOrderFormFromCandidate(item) {
+  const hourly = item.hourly || {};
+  const exits = item.exits || {};
+  const entryPlan = hourly.entry_plan || item.daily?.entry_plan || {};
+  const direction = normalizeSignalDirection(item.direction);
+
+  // Entry: prefer EMA penetration, fall back to breakout, then order plan
+  const emaEntry = entryPlan.ema_penetration_entry;
+  const breakoutEntry = entryPlan.breakout_entry;
   const plan = getOrderPlan(item);
   const primary = plan.primary_order || {};
   const secondary = plan.secondary_order || {};
   const useEma = Boolean(item.daily?.entered_value_zone);
-  const order = useEma ? secondary : primary;
+
+  let entryPrice = null;
+  let orderType = "Stop Limit";
+  let stopPriceValue = "";
+  let limitPriceValue = "";
+
+  if (emaEntry !== undefined && emaEntry !== null) {
+    entryPrice = emaEntry;
+    orderType = "Limit";
+    limitPriceValue = emaEntry;
+  } else if (breakoutEntry !== undefined && breakoutEntry !== null) {
+    entryPrice = breakoutEntry;
+    orderType = "Stop Limit";
+    stopPriceValue = breakoutEntry;
+    limitPriceValue = breakoutEntry;
+  } else if (
+    useEma &&
+    secondary.limit_price !== undefined &&
+    secondary.limit_price !== null
+  ) {
+    entryPrice = secondary.limit_price;
+    orderType = "Limit";
+    limitPriceValue = secondary.limit_price;
+  } else if (primary.stop_price !== undefined && primary.stop_price !== null) {
+    entryPrice = primary.limit_price ?? primary.stop_price;
+    orderType = "Stop Limit";
+    stopPriceValue = primary.stop_price;
+    limitPriceValue = primary.limit_price ?? primary.stop_price;
+  }
+
+  // Stop loss: prefer safezone
+  const stopLoss =
+    exits.initial_stop_safezone ??
+    exits.initial_stop_hourly_safezone ??
+    exits.initial_stop_nick ??
+    null;
+
+  // Suggested quantity from settings
+  const settings = normalizeSettings(state.settings);
+  const maxLossAmt =
+    settings.total > 0 ? settings.total * (settings.singleStop / 100) : null;
+  const suggestedQty = getRecommendedShares(
+    maxLossAmt,
+    entryPrice,
+    stopLoss,
+    direction === "SHORT" ? "short" : "long",
+  );
+
   $("orderSessionDate").value = state.payload?.session_date || "";
   $("orderSymbol").value = item.symbol || "";
-  $("orderDirection").value = normalizeSignalDirection(item.direction);
-  $("orderType").value = order.order_type || (useEma ? "Limit" : "Stop Limit");
-  $("orderQuantity").value = order.quantity || "";
-  $("orderStopPrice").value = useEma ? "" : (primary.stop_price ?? "");
-  $("orderLimitPrice").value = order.limit_price ?? "";
-  const exits = item.exits || {};
-  $("orderStopLoss").value =
-    exits.initial_stop_nick ?? exits.initial_stop_safezone ?? "";
+  $("orderDirection").value = direction;
+  $("orderType").value = orderType;
+  $("orderStopPrice").value = stopPriceValue !== "" ? stopPriceValue : "";
+  $("orderLimitPrice").value = limitPriceValue !== "" ? limitPriceValue : "";
+  $("orderStopLoss").value = stopLoss !== null ? stopLoss : "";
   $("orderBrokerId").value = "";
   $("orderStatus").value = "SUBMITTED";
+  $("orderQuantity").value =
+    suggestedQty !== null && suggestedQty > 0 ? suggestedQty : "";
+
+  // Show suggested quantity hint
+  const hintEl = document.getElementById("orderQtyHint");
+  if (hintEl) {
+    if (suggestedQty !== null && suggestedQty > 0) {
+      const riskPerShare =
+        entryPrice !== null && stopLoss !== null
+          ? Math.abs(entryPrice - stopLoss)
+          : null;
+      hintEl.textContent =
+        `Suggested: ${suggestedQty} shares` +
+        (riskPerShare !== null
+          ? ` (risk $${riskPerShare.toFixed(2)}/share · max loss $${maxLossAmt !== null ? maxLossAmt.toFixed(2) : "?"})`
+          : "");
+      hintEl.style.display = "block";
+    } else {
+      hintEl.textContent =
+        maxLossAmt === null
+          ? "Set total capital in Journal settings to get a qty suggestion."
+          : "Cannot calculate qty — verify entry and stop prices.";
+      hintEl.style.display = "block";
+    }
+  }
+
   updateOrderFormVisibility();
   $("orderSymbol").focus();
 }
@@ -652,6 +735,15 @@ async function loadWatchlist(sessionDate = "") {
   renderFilteredViews();
 }
 
+async function loadSettings() {
+  try {
+    const row = await apiRequest("/settings");
+    state.settings = settingsRowToState(row);
+  } catch (_) {
+    state.settings = normalizeSettings(readStoredJson("tradeSettings", {}));
+  }
+}
+
 async function bootApp() {
   syncShell("watchlist");
   setScreenState(
@@ -665,7 +757,7 @@ async function bootApp() {
       `Local API connected · ${health.server.host}:${health.server.port}`,
     );
     setScreenState("app");
-    await loadWatchlist();
+    await Promise.all([loadSettings(), loadWatchlist()]);
   } catch (error) {
     renderConnectionStatus(false, "Local API unavailable");
     $("configError").textContent = error.message || String(error);
