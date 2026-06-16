@@ -497,7 +497,7 @@ function renderOverview() {
     .slice(0, 5);
 
   $("reminderSummary").innerHTML = overdue.length
-    ? `There are <strong>${overdue.length}</strong> trades, fill in trade plan, review, and price ranges first.`
+    ? `There are <strong>${overdue.length}</strong> trades — fill in review notes and price ranges first.`
     : "No trades older than 3 months remain incomplete.";
 
   $("reminderList").innerHTML = overdue.length
@@ -650,6 +650,84 @@ function renderJournalRail(list) {
   `;
 }
 
+/**
+ * Elder "Trade for a Living" grading system.
+ * Entry grade: how close to the day's extreme (low for long, high for short).
+ * Exit grade:  how close to the exit-day extreme (high for long, low for short).
+ * Trade grade: what fraction of the channel the trade captured.
+ * Grades: A ≥75%, B 50–74%, C 25–49%, D <25%, — if data missing.
+ */
+function gradeLabel(pct) {
+  if (pct === null) return "—";
+  if (pct >= 75) return "A";
+  if (pct >= 50) return "B";
+  if (pct >= 25) return "C";
+  return "D";
+}
+
+function gradeTone(label) {
+  if (label === "A") return "tone-safe";
+  if (label === "B") return "tone-safe";
+  if (label === "C") return "tone-warn";
+  if (label === "D") return "tone-danger";
+  return "";
+}
+
+function getTradeGrades(trade) {
+  const entry = parseNumberValue(trade?.buy_price);
+  const dayHigh = parseNumberValue(trade?.day_high);
+  const dayLow = parseNumberValue(trade?.day_low);
+  const chanHigh = parseNumberValue(trade?.chan_high);
+  const chanLow = parseNumberValue(trade?.chan_low);
+  const exit = parseNumberValue(trade?.sell_price);
+  const sellHigh = parseNumberValue(trade?.sell_high);
+  const sellLow = parseNumberValue(trade?.sell_low);
+  const isShort = normalizeDirection(trade?.direction) === "short";
+
+  // Entry grade
+  let entryPct = null;
+  const entryRange =
+    dayHigh !== null && dayLow !== null ? dayHigh - dayLow : null;
+  if (entry !== null && entryRange !== null && entryRange > 0) {
+    entryPct = isShort
+      ? ((entry - dayLow) / entryRange) * 100
+      : ((dayHigh - entry) / entryRange) * 100;
+    entryPct = Math.max(0, Math.min(100, entryPct));
+  }
+
+  // Exit grade (only for closed trades)
+  let exitPct = null;
+  const exitRange =
+    sellHigh !== null && sellLow !== null ? sellHigh - sellLow : null;
+  if (exit !== null && exitRange !== null && exitRange > 0) {
+    exitPct = isShort
+      ? ((sellHigh - exit) / exitRange) * 100
+      : ((exit - sellLow) / exitRange) * 100;
+    exitPct = Math.max(0, Math.min(100, exitPct));
+  }
+
+  // Trade grade — fraction of channel captured
+  let tradePct = null;
+  const chanRange =
+    chanHigh !== null && chanLow !== null ? chanHigh - chanLow : null;
+  if (entry !== null && exit !== null && chanRange !== null && chanRange > 0) {
+    tradePct = isShort
+      ? ((entry - exit) / chanRange) * 100
+      : ((exit - entry) / chanRange) * 100;
+    // allow negative (trade went wrong direction) but cap display at 100
+    tradePct = Math.min(100, tradePct);
+  }
+
+  return {
+    entry: { pct: entryPct, label: gradeLabel(entryPct) },
+    exit: { pct: exitPct, label: exit !== null ? gradeLabel(exitPct) : "—" },
+    trade: {
+      pct: tradePct,
+      label: tradePct !== null ? gradeLabel(tradePct) : "—",
+    },
+  };
+}
+
 function renderJournalTable(list) {
   if (!list.length) {
     $("journalTableContainer").innerHTML =
@@ -661,7 +739,6 @@ function renderJournalTable(list) {
     .map((trade) => {
       const meta = getStatusMeta(trade);
       const pnl = getTradeNetPnl(trade);
-      const gaps = getTradeCompletionGaps(trade);
       const initialStop = getTradeInitialStop(trade);
       const currentStop = getTradeCurrentStop(trade);
       const atr1xStop = parseNumberValue(trade?.suggested_stop_candidate);
@@ -675,6 +752,7 @@ function renderJournalTable(list) {
           ? "—"
           : formatCurrency(pnl, 2)
         : formatCurrency(getTradeUsedStop(trade), 2);
+      const grades = getTradeGrades(trade);
       return `
         <tr>
           <td class="symbol-cell">
@@ -699,9 +777,10 @@ function renderJournalTable(list) {
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${riskOrResult}</td>
           <td>${formatCurrency(getTradeTargetPrice(trade), 3)}</td>
           <td class="${pnl === null ? "" : pnl >= 0 ? "tone-safe" : "tone-danger"}">${pnl === null ? "Open" : formatCurrency(pnl, 2)}</td>
-          <td class="reason-cell">${escapeHtml(trade.stop_reason || "—")}</td>
           <td class="reason-cell">${escapeHtml(trade.sell_reason || "—")}</td>
-          <td class="reason-cell">${escapeHtml(gaps.length ? gaps.join(", ") : "Complete")}</td>
+          <td class="mono ${gradeTone(grades.entry.label)}" title="${grades.entry.pct !== null ? `${grades.entry.pct.toFixed(1)}% of day range` : "Entry day high/low missing"}">${grades.entry.label}</td>
+          <td class="mono ${gradeTone(grades.exit.label)}" title="${grades.exit.pct !== null ? `${grades.exit.pct.toFixed(1)}% of exit day range` : "Exit day high/low missing or trade open"}">${grades.exit.label}</td>
+          <td class="mono ${gradeTone(grades.trade.label)}" title="${grades.trade.pct !== null ? `${grades.trade.pct.toFixed(1)}% of channel` : "Channel or exit data missing"}">${grades.trade.label}</td>
           <td class="reason-cell">${escapeHtml((trade.review || "").slice(0, 120) || "—")}</td>
           <td>
             <div class="inline-actions">
@@ -732,9 +811,10 @@ function renderJournalTable(list) {
             <th>Risk / Result</th>
             <th>Target Price</th>
             <th>Net Result</th>
-            <th>Trade Plan</th>
             <th>Exit Reason</th>
-            <th>Missing Fields</th>
+            <th title="Entry grade: how close to the day extreme (Elder). A=top 25%, B=50-75%, C=25-50%, D=bottom 25%">Entry Grade</th>
+            <th title="Exit grade: how close to the exit-day extreme (Elder). A=top 25%, B=50-75%, C=25-50%, D=bottom 25%">Exit Grade</th>
+            <th title="Trade grade: fraction of channel captured (Elder). A≥75%, B=50-74%, C=25-49%, D<25%">Trade Grade</th>
             <th>Review Summary</th>
             <th>Actions</th>
           </tr>
@@ -1447,9 +1527,6 @@ function bindEvents() {
   $("captureSaveBtn").addEventListener("click", saveTrade);
   $("captureCancelBtn").addEventListener("click", clearCaptureForm);
   $("clearCaptureBtn").addEventListener("click", clearCaptureForm);
-  $("insertPlanTemplateBtn").addEventListener("click", () =>
-    insertReviewTemplate("plan"),
-  );
   $("insertReviewTemplateBtn").addEventListener("click", () =>
     insertReviewTemplate("review"),
   );

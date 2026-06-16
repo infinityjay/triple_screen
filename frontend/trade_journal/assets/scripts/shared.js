@@ -15,7 +15,7 @@ export function safeStorageGet(key) {
 export function safeStorageSet(key, value) {
   try {
     localStorage.setItem(key, value);
-  } catch (_) { }
+  } catch (_) {}
 }
 
 export function readStoredJson(key, fallback) {
@@ -143,7 +143,9 @@ export function getSignalDirectionLabel(value) {
 }
 
 export function getDirectionAccent(value) {
-  return normalizeDirection(value) === "short" ? "accent-danger" : "accent-safe";
+  return normalizeDirection(value) === "short"
+    ? "accent-danger"
+    : "accent-safe";
 }
 
 export function getCommissionValue(value, fallback = 0) {
@@ -164,31 +166,45 @@ export function getRiskPerShare(entryPrice, stopLoss, direction = "long") {
   const entry = parseNumberValue(entryPrice);
   const stop = parseNumberValue(stopLoss);
   if (entry === null || stop === null) return null;
-  const diff = normalizeDirection(direction) === "short" ? stop - entry : entry - stop;
+  const diff =
+    normalizeDirection(direction) === "short" ? stop - entry : entry - stop;
   return diff > 0 ? diff : 0;
 }
 
-export function getSignedStopBudgetPerShare(entryPrice, stopLoss, direction = "long") {
+export function getSignedStopBudgetPerShare(
+  entryPrice,
+  stopLoss,
+  direction = "long",
+) {
   const entry = parseNumberValue(entryPrice);
   const stop = parseNumberValue(stopLoss);
   if (entry === null || stop === null) return null;
-  return normalizeDirection(direction) === "short" ? stop - entry : entry - stop;
+  return normalizeDirection(direction) === "short"
+    ? stop - entry
+    : entry - stop;
 }
 
 export function getStopStatus(entryPrice, stopLoss, direction = "long") {
   const entry = parseNumberValue(entryPrice);
   const stop = parseNumberValue(stopLoss);
   if (entry === null || stop === null || entry <= 0) return null;
-  const diff = normalizeDirection(direction) === "short" ? entry - stop : stop - entry;
+  const diff =
+    normalizeDirection(direction) === "short" ? entry - stop : stop - entry;
   if (Math.abs(diff) < 1e-9) return { type: "breakeven", pct: 0 };
   if (diff > 0) return { type: "locked", pct: (diff / entry) * 100 };
   return { type: "risk", pct: (Math.abs(diff) / entry) * 100 };
 }
 
-export function getRecommendedShares(maxLoss, entryPrice, stopLoss, direction = "long") {
+export function getRecommendedShares(
+  maxLoss,
+  entryPrice,
+  stopLoss,
+  direction = "long",
+) {
   const riskPerShare = getRiskPerShare(entryPrice, stopLoss, direction);
   const max = parseNumberValue(maxLoss);
-  if (riskPerShare === null || riskPerShare <= 0 || max === null || max <= 0) return null;
+  if (riskPerShare === null || riskPerShare <= 0 || max === null || max <= 0)
+    return null;
   const shares = Math.floor(max / riskPerShare);
   return shares > 0 ? shares : 0;
 }
@@ -205,23 +221,37 @@ export function isTradeClosed(trade) {
   return hasCompleteSellInfo(trade?.sell_price, trade?.sell_date);
 }
 
-export function calculateGrossPnl(entryPrice, exitPrice, shares, direction = "long") {
+export function calculateGrossPnl(
+  entryPrice,
+  exitPrice,
+  shares,
+  direction = "long",
+) {
   const entry = parseNumberValue(entryPrice);
   const exit = parseNumberValue(exitPrice);
   const size = parseNumberValue(shares);
   if (entry === null || exit === null || size === null) return null;
-  return normalizeDirection(direction) === "short" ? (entry - exit) * size : (exit - entry) * size;
+  return normalizeDirection(direction) === "short"
+    ? (entry - exit) * size
+    : (exit - entry) * size;
 }
 
 export function calculateNetPnl(grossPnl, buyComm, sellComm) {
   const gross = parseNumberValue(grossPnl);
   if (gross === null) return null;
-  return gross - getCommissionValue(buyComm, 0) - getCommissionValue(sellComm, 0);
+  return (
+    gross - getCommissionValue(buyComm, 0) - getCommissionValue(sellComm, 0)
+  );
 }
 
 export function getTradeNetPnl(trade) {
   if (!isTradeClosed(trade)) return null;
-  const gross = calculateGrossPnl(trade.buy_price, trade.sell_price, trade.shares, trade.direction);
+  const gross = calculateGrossPnl(
+    trade.buy_price,
+    trade.sell_price,
+    trade.shares,
+    trade.direction,
+  );
   return calculateNetPnl(gross, trade.buy_comm, trade.sell_comm);
 }
 
@@ -234,12 +264,20 @@ export function getTradeTargetPct(trade) {
 export function getTradeTargetPrice(trade) {
   const stored = parseNumberValue(trade?.target_price);
   if (stored !== null) return stored;
-  return getTargetPrice(trade?.buy_price, getTradeTargetPct(trade), trade?.direction);
+  return getTargetPrice(
+    trade?.buy_price,
+    getTradeTargetPct(trade),
+    trade?.direction,
+  );
 }
 
 export function getTradeUsedStop(trade) {
   if (isTradeClosed(trade)) return 0;
-  const risk = getRiskPerShare(trade?.buy_price, trade?.stop_loss, trade?.direction);
+  const risk = getRiskPerShare(
+    trade?.buy_price,
+    trade?.stop_loss,
+    trade?.direction,
+  );
   const shares = parseNumberValue(trade?.shares);
   if (risk !== null && shares !== null) return risk * shares;
   const stored = parseNumberValue(trade?.used_stop);
@@ -275,24 +313,32 @@ export function parseTradeDateValue(value) {
 }
 
 export function getTradeAnchorDate(trade) {
-  return parseTradeDateValue(trade?.buy_date) || parseTradeDateValue(trade?.created_at);
+  return (
+    parseTradeDateValue(trade?.buy_date) ||
+    parseTradeDateValue(trade?.created_at)
+  );
 }
 
 export function getTradeAgeInDays(trade, referenceDate = new Date()) {
   const anchor = getTradeAnchorDate(trade);
   if (!anchor) return null;
-  return Math.max(0, Math.floor((referenceDate.getTime() - anchor.getTime()) / 86400000));
+  return Math.max(
+    0,
+    Math.floor((referenceDate.getTime() - anchor.getTime()) / 86400000),
+  );
 }
 
 export function getTradeCompletionGaps(trade) {
   const gaps = [];
-  if (!hasTextValue(trade?.stop_reason)) gaps.push("trade plan");
   if (!hasTextValue(trade?.review)) gaps.push("trade review");
-  if (!hasNumberValue(trade?.day_high) || !hasNumberValue(trade?.day_low)) gaps.push("entry-day high/low");
-  if (!hasNumberValue(trade?.chan_high) || !hasNumberValue(trade?.chan_low)) gaps.push("channel high/low");
+  if (!hasNumberValue(trade?.day_high) || !hasNumberValue(trade?.day_low))
+    gaps.push("entry-day high/low");
+  if (!hasNumberValue(trade?.chan_high) || !hasNumberValue(trade?.chan_low))
+    gaps.push("channel high/low");
   if (isTradeClosed(trade)) {
     if (!hasTextValue(trade?.sell_reason)) gaps.push("exit reason");
-    if (!hasNumberValue(trade?.sell_high) || !hasNumberValue(trade?.sell_low)) gaps.push("exit-day high/low");
+    if (!hasNumberValue(trade?.sell_high) || !hasNumberValue(trade?.sell_low))
+      gaps.push("exit-day high/low");
   }
   return gaps;
 }
@@ -362,7 +408,9 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(data?.detail || data?.message || text || `HTTP ${response.status}`);
+    throw new Error(
+      data?.detail || data?.message || text || `HTTP ${response.status}`,
+    );
   }
   return data;
 }
@@ -377,7 +425,11 @@ export function withTimeout(promise, ms, message) {
 }
 
 export async function ensureApiReady(timeoutMs = 4000) {
-  return withTimeout(apiRequest("/health"), timeoutMs, "Timed out while connecting to the local Journal API");
+  return withTimeout(
+    apiRequest("/health"),
+    timeoutMs,
+    "Timed out while connecting to the local Journal API",
+  );
 }
 
 export function setScreenState(view, bootMessage = "") {
@@ -412,11 +464,16 @@ export function renderConnectionStatus(healthy, detail = "") {
   const dot = document.getElementById("connectionDot");
   const label = document.getElementById("connectionLabel");
   if (dot) dot.className = `status-dot ${healthy ? "healthy" : "error"}`;
-  if (label) label.textContent = healthy ? (detail || "Local API connected") : (detail || "Local API unavailable");
+  if (label)
+    label.textContent = healthy
+      ? detail || "Local API connected"
+      : detail || "Local API unavailable";
 }
 
 export function downloadJson(filename, payload) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
