@@ -165,7 +165,6 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
         ),
         universe=UniverseConfig(
             mode=universe_raw.get("mode", "market_cap_top"),
-            top_n=int(universe_raw.get("top_n", 300)),
             static_file=_resolve_path(PROJECT_ROOT, universe_raw["static_file"]) if universe_raw.get("static_file") else None,
             symbols=_load_universe_symbols(PROJECT_ROOT, universe_raw.get("static_file")),
             custom_symbols=list(universe_raw.get("custom_symbols", [])),
@@ -196,8 +195,8 @@ def load_settings(config_path: str | Path | None = None) -> AppConfig:
             ),
         ),
         qualification=QualificationConfig(
-            minimum_reward_risk=float(qualification_raw.get("minimum_reward_risk", 1.2)),
-            intraday_minimum_reward_risk=float(qualification_raw.get("intraday_minimum_reward_risk", 1.5)),
+            minimum_reward_risk=float(qualification_raw.get("minimum_reward_risk", 0.0)),
+            intraday_minimum_reward_risk=float(qualification_raw.get("intraday_minimum_reward_risk", 1.2)),
             strong_divergence_exhaustion_multiplier=float(
                 qualification_raw.get("strong_divergence_exhaustion_multiplier", 2.0)
             ),

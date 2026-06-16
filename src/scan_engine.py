@@ -361,7 +361,7 @@ class TripleScreenScanner:
                 "estimate": raw_event.get("estimate"),
             }
         days_until = (report_date - session_date).days
-        if days_until < 0:
+        if days_until < -self.settings.qualification.earnings_block_days_after:
             return {
                 "symbol": symbol,
                 "report_date": None,
@@ -913,6 +913,11 @@ class TripleScreenScanner:
 
         elapsed = time.time() - started_at
         if not self.dry_run:
+            if session_date.day == 1:
+                static_file = str(self.settings.universe.static_file or "not configured")
+                logger.info("first of month — sending universe refresh reminder")
+                self.notifier.send_monthly_universe_reminder(static_file)
+
             self.notifier.send_candidate_summary(
                 displayed_candidates,
                 len(candidates),

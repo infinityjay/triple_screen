@@ -45,14 +45,6 @@ import {
 } from "./shared.js";
 
 const REVIEW_TEMPLATES = {
-  plan: [
-    "Trade Plan",
-    "1. Are weekly / daily / hourly structures aligned:",
-    "2. Exact entry trigger:",
-    "3. Initial stop and invalidation:",
-    "4. Target / scale-out plan:",
-    "5. Execution reminder for today:",
-  ].join("\n"),
   review: [
     "Trade Review",
     "1. Best part of this trade:",
@@ -592,9 +584,9 @@ function renderJournalRail(list) {
       const initialStop = getTradeInitialStop(trade);
       const currentStop = getTradeCurrentStop(trade);
       const primaryNote =
-        trade.stop_reason ||
-        trade.sell_reason ||
         trade.review ||
+        trade.sell_reason ||
+        trade.stop_reason ||
         "No notes have been added for this trade yet.";
 
       return `

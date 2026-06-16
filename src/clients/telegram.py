@@ -717,3 +717,22 @@ class TelegramNotifier:
             f"❗ <b>System error</b>\n<code>{error_message}</code>\n"
             f"<i>{_utc_clock_label()}</i>"
         )
+
+    def send_monthly_universe_reminder(self, current_static_file: str) -> bool:
+        return self._send(
+            "📅 <b>Monthly task — refresh the stock universe</b>\n"
+            "\n"
+            "It's the first trading day of a new month.  "
+            "Run the command below to fetch the latest top-200 market-cap stocks "
+            "from S&amp;P 500 + Nasdaq, update the universe YAML, and patch settings.yaml automatically:\n"
+            "\n"
+            "<pre>python src/fetch_top_symbols.py</pre>\n"
+            "\n"
+            f"Current universe file: <code>{_html_text(current_static_file)}</code>\n"
+            "Options:\n"
+            "• <code>--top 300</code>  fetch top 300 from each source\n"
+            "• <code>--no-update-config</code>  skip patching settings.yaml\n"
+            "• <code>--output path/to/file.yaml</code>  custom output path\n"
+            "\n"
+            f"<i>{_utc_clock_label()}</i>"
+        )

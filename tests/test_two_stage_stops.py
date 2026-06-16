@@ -298,7 +298,7 @@ class TwoStageStopTests(unittest.TestCase):
         self.assertLess(summary.updates[0]["proposed_stop_loss"], 120.0)
         self.assertEqual(summary.updates[0]["applied_stop_loss"], 120.0)
         self.assertEqual(summary.updates[0]["status"], "UNCHANGED")
-        self.assertEqual(summary.updates[0]["note"], "建议止损维持不变")
+        self.assertEqual(summary.updates[0]["note"], "Suggested stop unchanged")
 
     def test_calc_safezone_stop_uses_wider_short_coefficient(self) -> None:
         stop, noise = indicators.calc_safezone_stop(

@@ -9,15 +9,44 @@ from uuid import uuid4
 import pandas as pd
 
 
+class _ConnectionContext:
+    """Context manager that commits/rolls back AND closes the SQLite connection on exit.
+
+    On Windows, sqlite3.Connection used as a plain context manager commits or
+    rolls back but does NOT close the file handle, which prevents temporary
+    directories from being cleaned up in tests.  This wrapper ensures the
+    connection is always closed when the ``with`` block exits.
+    """
+
+    __slots__ = ("_path", "_conn")
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    def __enter__(self) -> sqlite3.Connection:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(self._path)
+        self._conn.row_factory = sqlite3.Row
+        return self._conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        if self._conn is not None:
+            if exc_type is None:
+                self._conn.commit()
+            else:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+        return False
+
+
 class SQLiteStorage:
     def __init__(self, database_path: Path) -> None:
         self.database_path = database_path
 
-    def _connect(self) -> sqlite3.Connection:
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(self.database_path)
-        connection.row_factory = sqlite3.Row
-        return connection
+    def _connect(self) -> _ConnectionContext:
+        return _ConnectionContext(self.database_path)
 
     @staticmethod
     def _row_to_dict(row):

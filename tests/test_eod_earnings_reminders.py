@@ -48,8 +48,8 @@ class EodEarningsReminderTests(unittest.TestCase):
         self.assertIsNone(earnings["report_date"])
         self.assertFalse(earnings["blocked"])
         self.assertFalse(earnings["warning"])
-        self.assertIn("已早于当前交易日", earnings["reason"])
-        self.assertNotIn("下一次财报日", earnings["reason"])
+        self.assertIn("older than the current session", earnings["reason"])
+        self.assertNotIn("Next earnings date", earnings["reason"])
 
     def test_open_position_earnings_summary_only_keeps_nearby_reports(self) -> None:
         scanner = TripleScreenScanner.__new__(TripleScreenScanner)
@@ -94,9 +94,9 @@ class EodEarningsReminderTests(unittest.TestCase):
             },
         )
 
-        self.assertIn("持仓临近财报提醒", message)
+        self.assertIn("Open-position earnings reminders", message)
         self.assertIn("AAPL", message)
-        self.assertIn("提前卖出或减仓", message)
+        self.assertIn("Review whether to reduce or exit", message)
 
     def test_candidate_summary_message_uses_weekly_and_daily_reasons(self) -> None:
         notifier = TelegramNotifier(TelegramConfig(enabled=False, bot_token=None, chat_id=None))
@@ -119,7 +119,8 @@ class EodEarningsReminderTests(unittest.TestCase):
             scan_time_sec=0.5,
         )
 
-        self.assertIn("周线：向上 · 日线：超卖后回升", message)
+        self.assertIn("EOD watchlist ready", message)
+        self.assertIn("1 candidates qualified", message)
         self.assertNotIn("Force", message)
 
     def test_open_position_exit_alert_section_uses_model_risk_warning(self) -> None:
@@ -141,8 +142,8 @@ class EodEarningsReminderTests(unittest.TestCase):
             }
         )
 
-        self.assertIn("模型提示重大亏损风险", message)
-        self.assertIn("需重点复核 1 笔", message)
+        self.assertIn("Model-driven loss-risk alert", message)
+        self.assertIn("review required: 1", message)
         self.assertIn("模型提示当前持仓面临大额亏损风险", message)
 
 

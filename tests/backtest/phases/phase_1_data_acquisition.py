@@ -207,7 +207,6 @@ class DataAcquisition:
             return settings
         universe = universe_cls(
             mode="custom",
-            top_n=len(self.config.symbols),
             static_file=None,
             symbols=[],
             custom_symbols=[symbol.upper() for symbol in self.config.symbols],

@@ -64,7 +64,6 @@ class EarningsCalendarConfig:
 @dataclass(frozen=True)
 class UniverseConfig:
     mode: str
-    top_n: int
     static_file: Path | None
     symbols: list[dict]
     custom_symbols: list[str]
