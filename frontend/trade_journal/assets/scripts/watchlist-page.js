@@ -553,12 +553,15 @@ function renderTable() {
   `;
   setupHorizontalScrollbar("watchlistDetailScroll", "watchlistDetailScrollbar");
   document.querySelectorAll("[data-fill-order]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const item = items.find(
         (candidate) =>
           String(candidate.symbol || "") === button.dataset.fillOrder,
       );
-      if (item) fillOrderFormFromCandidate(item);
+      if (item) {
+        await loadSettings();
+        fillOrderFormFromCandidate(item);
+      }
     });
   });
 }
@@ -621,7 +624,33 @@ function fillOrderFormFromCandidate(item) {
     exits.initial_stop_nick ??
     null;
 
-  // Suggested quantity from settings
+  $("orderSessionDate").value = state.payload?.session_date || "";
+  $("orderSymbol").value = item.symbol || "";
+  $("orderDirection").value = direction;
+  $("orderType").value = orderType;
+  $("orderStopPrice").value = stopPriceValue !== "" ? stopPriceValue : "";
+  $("orderLimitPrice").value = limitPriceValue !== "" ? limitPriceValue : "";
+  $("orderStopLoss").value = stopLoss !== null ? stopLoss : "";
+  $("orderBrokerId").value = "";
+  $("orderStatus").value = "SUBMITTED";
+  $("orderQuantity").value = "";
+
+  // Clear hint — user will calculate manually
+  const hintEl = document.getElementById("orderQtyHint");
+  if (hintEl) hintEl.style.display = "none";
+
+  updateOrderFormVisibility();
+  $("orderSymbol").focus();
+}
+
+async function calcOrderShares() {
+  await loadSettings();
+  const direction = $("orderDirection").value;
+  // Use limit price as fill price; fall back to stop price
+  const entryPrice =
+    parseNumberValue($("orderLimitPrice").value) ??
+    parseNumberValue($("orderStopPrice").value);
+  const stopLoss = parseNumberValue($("orderStopLoss").value);
   const settings = normalizeSettings(state.settings);
   const maxLossAmt =
     settings.total > 0 ? settings.total * (settings.singleStop / 100) : null;
@@ -632,22 +661,10 @@ function fillOrderFormFromCandidate(item) {
     direction === "SHORT" ? "short" : "long",
   );
 
-  $("orderSessionDate").value = state.payload?.session_date || "";
-  $("orderSymbol").value = item.symbol || "";
-  $("orderDirection").value = direction;
-  $("orderType").value = orderType;
-  $("orderStopPrice").value = stopPriceValue !== "" ? stopPriceValue : "";
-  $("orderLimitPrice").value = limitPriceValue !== "" ? limitPriceValue : "";
-  $("orderStopLoss").value = stopLoss !== null ? stopLoss : "";
-  $("orderBrokerId").value = "";
-  $("orderStatus").value = "SUBMITTED";
-  $("orderQuantity").value =
-    suggestedQty !== null && suggestedQty > 0 ? suggestedQty : "";
-
-  // Show suggested quantity hint
   const hintEl = document.getElementById("orderQtyHint");
-  if (hintEl) {
-    if (suggestedQty !== null && suggestedQty > 0) {
+  if (suggestedQty !== null && suggestedQty > 0) {
+    $("orderQuantity").value = suggestedQty;
+    if (hintEl) {
       const riskPerShare =
         entryPrice !== null && stopLoss !== null
           ? Math.abs(entryPrice - stopLoss)
@@ -658,7 +675,9 @@ function fillOrderFormFromCandidate(item) {
           ? ` (risk $${riskPerShare.toFixed(2)}/share · max loss $${maxLossAmt !== null ? maxLossAmt.toFixed(2) : "?"})`
           : "");
       hintEl.style.display = "block";
-    } else {
+    }
+  } else {
+    if (hintEl) {
       hintEl.textContent =
         maxLossAmt === null
           ? "Set total capital in Journal settings to get a qty suggestion."
@@ -666,9 +685,6 @@ function fillOrderFormFromCandidate(item) {
       hintEl.style.display = "block";
     }
   }
-
-  updateOrderFormVisibility();
-  $("orderSymbol").focus();
 }
 
 function renderPlannedOrders() {
@@ -777,6 +793,7 @@ function bindEvents() {
   $("directionFilter").addEventListener("change", renderFilteredViews);
   $("watchlistSearch").addEventListener("input", renderFilteredViews);
   $("orderType").addEventListener("change", updateOrderFormVisibility);
+  $("calcSharesBtn").addEventListener("click", calcOrderShares);
   updateOrderFormVisibility();
   $("plannedOrderForm").addEventListener("submit", async (event) => {
     event.preventDefault();
