@@ -261,7 +261,7 @@ class AlpacaClient:
                     "sector": item.get("sector") or item.get("country"),
                     "rank": item.get("rank"),
                 }
-                for item in universe.symbols[: universe.top_n]
+                for item in universe.symbols
                 if item.get("ticker") or item.get("symbol")
             ]
 
@@ -307,7 +307,7 @@ class AlpacaClient:
             "Loaded %s symbols from Alpaca assets endpoint (market_cap not provided by Alpaca).",
             len(results),
         )
-        return results[: universe.top_n]
+        return results
 
     def fetch_bars_batch(
         self,

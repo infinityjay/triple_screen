@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -53,7 +54,35 @@ def fetch_page_data(source: str) -> str:
     return response.text
 
 
-def parse_company_data(html: str, top_n: int, source: str) -> list[dict[str, Any]]:
+def parse_total_market_cap_b(html: str, source: str) -> float | None:
+    """
+    Extract the total index market cap from the page text and return it in
+    billions USD.  Looks for patterns like "is $68.50T" or "is $1,234B".
+    Returns None if the figure cannot be found.
+    """
+    text = BeautifulSoup(html, 'html.parser').get_text()
+    # Match the figure that follows "total market cap" on the same line
+    match = re.search(
+        r'total market cap[^\n$]*\$(([\d,]+\.?\d*))\s*([TB])\b',
+        text,
+        re.IGNORECASE,
+    )
+    if match:
+        value = float(match.group(1).replace(',', ''))
+        suffix = match.group(3).upper()
+        total_b = value * 1_000 if suffix == 'T' else value
+        print(f'[{source}] Total index market cap: ${total_b:,.0f}B')
+        return total_b
+    print(f'[{source}] Could not parse total market cap from page', file=sys.stderr)
+    return None
+
+
+def parse_company_data(
+    html: str,
+    top_n: int,
+    source: str,
+    total_cap_b: float | None,
+) -> list[dict[str, Any]]:
     """Parse HTML to extract company data from a SlickCharts table."""
     companies: list[dict[str, Any]] = []
     soup = BeautifulSoup(html, 'html.parser')
@@ -78,10 +107,33 @@ def parse_company_data(html: str, top_n: int, source: str) -> list[dict[str, Any
         name = cols[1].strip()
         if not ticker or not name:
             continue
+
+        # cols[3] is either a direct market cap ("$5.07T" — Nasdaq) or
+        # an index-weight percentage ("7.40%" — S&P 500).  Parse both.
+        market_cap_b: float | None = None
+        if len(cols) >= 4:
+            col3 = cols[3].strip()
+            if col3.startswith('$'):
+                # Direct market cap value from the Nasdaq table
+                m = re.match(r'\$([\d,]+\.?\d*)\s*([TBM])', col3, re.IGNORECASE)
+                if m:
+                    value = float(m.group(1).replace(',', ''))
+                    suffix = m.group(2).upper()
+                    multipliers = {'T': 1_000, 'B': 1, 'M': 0.001}
+                    market_cap_b = round(value * multipliers[suffix], 2)
+            elif col3.endswith('%') and total_cap_b is not None:
+                # Weight percentage from the S&P 500 table
+                try:
+                    weight_pct = float(col3.replace('%', '').replace(',', ''))
+                    market_cap_b = round(total_cap_b * weight_pct / 100, 2)
+                except ValueError:
+                    pass
+
         companies.append({
             'ticker': ticker,
             'name': name,
             'rank': rank,
+            'market_cap_b': market_cap_b,
             'source': SOURCE_CONFIG[source]['label'],
             'country': 'USA',
         })
@@ -95,7 +147,8 @@ def fetch_source(source: str, top_n: int) -> list[dict[str, Any]]:
     print(f"Fetching {SOURCE_CONFIG[source]['label']} top {top_n} from {SOURCE_CONFIG[source]['url']}...")
     try:
         html = fetch_page_data(source)
-        return parse_company_data(html, top_n, source)
+        total_cap_b = parse_total_market_cap_b(html, source)
+        return parse_company_data(html, top_n, source, total_cap_b)
     except Exception as exc:
         print(f'[{source}] Error: {exc}', file=sys.stderr)
         return []
@@ -104,49 +157,71 @@ def fetch_source(source: str, top_n: int) -> list[dict[str, Any]]:
 def merge_companies(
     sp500: list[dict[str, Any]],
     nasdaq: list[dict[str, Any]],
+    final_top_n: int,
 ) -> list[dict[str, Any]]:
     """
-    Merge two source lists, deduplicating by ticker.  The first occurrence
-    (S&P 500 takes priority) is kept; duplicates from Nasdaq are annotated.
-    The result is sorted by S&P 500 rank first, then Nasdaq rank.
+    Merge S&P 500 and Nasdaq lists into a single top-N ranking by market cap.
+
+    Both source lists are already sorted by market cap within their index.
+    For stocks present in both lists the best (lowest) rank from either source
+    is used as the combined market-cap proxy, so they naturally float to the
+    top.  After sorting by combined rank the list is sliced to final_top_n.
     """
-    seen: set[str] = set()
+    sp500_by_ticker: dict[str, dict[str, Any]] = {
+        c['ticker'].upper(): c for c in sp500
+    }
+    nasdaq_by_ticker: dict[str, dict[str, Any]] = {
+        c['ticker'].upper(): c for c in nasdaq
+    }
+
+    all_tickers = set(sp500_by_ticker) | set(nasdaq_by_ticker)
     merged: list[dict[str, Any]] = []
 
-    for company in sp500:
-        ticker = company['ticker'].upper()
-        if ticker not in seen:
-            seen.add(ticker)
-            merged.append({**company, 'source': 'S&P 500'})
+    for ticker in all_tickers:
+        sp = sp500_by_ticker.get(ticker)
+        nq = nasdaq_by_ticker.get(ticker)
 
-    for company in nasdaq:
-        ticker = company['ticker'].upper()
-        if ticker not in seen:
-            seen.add(ticker)
-            # Offset rank so Nasdaq-only names sort after S&P 500 names
-            merged.append({**company, 'rank': company['rank'] + 10000, 'source': 'Nasdaq'})
+        if sp and nq:
+            # Use the Nasdaq direct market cap when available (parsed from "$X.XT"
+            # column) as it is more precise than S&P 500 weight-based estimate.
+            market_cap_b = nq.get('market_cap_b') or sp.get('market_cap_b')
+            merged.append({**sp, 'market_cap_b': market_cap_b, 'source': 'S&P 500 + Nasdaq'})
+        elif sp:
+            merged.append({**sp, 'source': 'S&P 500'})
+        else:
+            assert nq is not None
+            merged.append({**nq, 'source': 'Nasdaq'})
 
-    merged.sort(key=lambda c: c['rank'])
-    # Re-number sequentially
+    # Sort by real market cap descending; fall back to source rank (ascending)
+    # for any entries where market cap could not be computed.
+    merged.sort(
+        key=lambda c: (
+            c.get('market_cap_b') is None,   # None values sink to the bottom
+            -(c.get('market_cap_b') or 0),
+        )
+    )
+    merged = merged[:final_top_n]
+
+    # Assign sequential rank 1…N based on the sorted market-cap order
     for idx, company in enumerate(merged, start=1):
         company['rank'] = idx
 
     return merged
 
 
-def generate_yaml_content(companies: list[dict[str, Any]], top_n: int) -> str:
+def generate_yaml_content(companies: list[dict[str, Any]], final_top_n: int) -> str:
     """Generate YAML content."""
     from datetime import datetime
 
     metadata = {
-        'source': 'SlickCharts S&P 500 + Nasdaq (merged, deduplicated by ticker)',
+        'source': 'SlickCharts S&P 500 + Nasdaq (merged, sorted by real market cap)',
         'source_url': f"{SOURCE_CONFIG['sp500']['url']} + {SOURCE_CONFIG['nasdaq']['url']}",
         'as_of': datetime.now().strftime('%Y-%m-%d'),
-        'top_n_per_source': top_n,
         'total_symbols': len(companies),
         'description': (
-            'Combined universe: top market-cap stocks from S&P 500 and Nasdaq. '
-            'Deduplicated by ticker; S&P 500 entries take priority. '
+            f'Top {final_top_n} market-cap stocks combined from S&P 500 and Nasdaq. '
+            'Market cap (USD billions) is computed from each index weight % × total index market cap. '
+            'S&P 500 members use S&P 500 market cap; Nasdaq-only members use Nasdaq market cap. '
             'Update monthly with: python src/fetch_top_symbols.py'
         ),
     }
@@ -156,6 +231,7 @@ def generate_yaml_content(companies: list[dict[str, Any]], top_n: int) -> str:
             'ticker': company['ticker'],
             'name': company['name'],
             'rank': company['rank'],
+            'market_cap_b': company.get('market_cap_b'),  # USD billions, None if unavailable
             'source': company['source'],
             'country': company['country'],
         }
@@ -200,7 +276,7 @@ def main() -> int:
         '--top',
         type=int,
         default=DEFAULT_TOP_N,
-        help=f'Number of top symbols to fetch per source (default: {DEFAULT_TOP_N})',
+        help=f'Final number of symbols to keep (default: {DEFAULT_TOP_N})',
     )
     parser.add_argument(
         '--output',
@@ -224,16 +300,22 @@ def main() -> int:
     output_path_str = args.output or DEFAULT_OUTPUT.format(n=args.top)
     output_path = Path(output_path_str)
 
-    sp500_companies = fetch_source('sp500', args.top)
-    nasdaq_companies = fetch_source('nasdaq', args.top)
+    # Fetch 2× the target from each source so we have enough candidates after
+    # deduplication to fill the requested final count.
+    fetch_per_source = max(args.top * 2, args.top + 100)
+    sp500_companies = fetch_source('sp500', fetch_per_source)
+    nasdaq_companies = fetch_source('nasdaq', fetch_per_source)
 
     if not sp500_companies and not nasdaq_companies:
         print('Error: no companies fetched from either source', file=sys.stderr)
         return 1
 
-    merged = merge_companies(sp500_companies, nasdaq_companies)
-    print(f'\nMerged result: {len(merged)} unique symbols '
-          f'({len(sp500_companies)} S&P 500 + {len(nasdaq_companies)} Nasdaq, deduplicated)')
+    merged = merge_companies(sp500_companies, nasdaq_companies, args.top)
+    sp_only = sum(1 for c in merged if c['source'] == 'S&P 500')
+    nq_only = sum(1 for c in merged if c['source'] == 'Nasdaq')
+    both   = sum(1 for c in merged if c['source'] == 'S&P 500 + Nasdaq')
+    print(f'\nFinal universe: {len(merged)} symbols '
+          f'(S&P 500 only: {sp_only}, Nasdaq only: {nq_only}, both: {both})')
 
     yaml_content = generate_yaml_content(merged, args.top)
     output_path.parent.mkdir(parents=True, exist_ok=True)

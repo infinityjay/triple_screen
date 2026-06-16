@@ -1,0 +1,1210 @@
+metadata:
+  source: SlickCharts S&P 500 + Nasdaq (merged, sorted by real market cap)
+  source_url: https://www.slickcharts.com/sp500 + https://www.slickcharts.com/nasdaq
+  as_of: '2026-06-16'
+  total_symbols: 200
+  description: 'Top 200 market-cap stocks combined from S&P 500 and Nasdaq. Market
+    cap (USD billions) is computed from each index weight % × total index market cap.
+    S&P 500 members use S&P 500 market cap; Nasdaq-only members use Nasdaq market
+    cap. Update monthly with: python src/fetch_top_symbols.py'
+symbols:
+- ticker: NVDA
+  name: NVIDIA Corp
+  rank: 1
+  market_cap_b: 5070.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: AAPL
+  name: Apple Inc
+  rank: 2
+  market_cap_b: 4390.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MSFT
+  name: Microsoft Corp
+  rank: 3
+  market_cap_b: 2910.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SPCX
+  name: Space Exploration Technologies Corp. Class A
+  rank: 4
+  market_cap_b: 2810.0
+  source: Nasdaq
+  country: USA
+- ticker: AMZN
+  name: Amazon.com Inc
+  rank: 5
+  market_cap_b: 2660.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: GOOGL
+  name: Alphabet Inc
+  rank: 6
+  market_cap_b: 2340.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: GOOG
+  name: Alphabet Inc
+  rank: 7
+  market_cap_b: 2190.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: AVGO
+  name: Broadcom Inc
+  rank: 8
+  market_cap_b: 1800.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: TSLA
+  name: Tesla Inc
+  rank: 9
+  market_cap_b: 1530.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: META
+  name: Meta Platforms Inc
+  rank: 10
+  market_cap_b: 1510.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MU
+  name: Micron Technology Inc
+  rank: 11
+  market_cap_b: 1190.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: BRK.B
+  name: Berkshire Hathaway Inc
+  rank: 12
+  market_cap_b: 1075.45
+  source: S&P 500
+  country: USA
+- ticker: LLY
+  name: Eli Lilly & Co
+  rank: 13
+  market_cap_b: 1006.95
+  source: S&P 500
+  country: USA
+- ticker: WMT
+  name: Walmart Inc
+  rank: 14
+  market_cap_b: 967.92
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: JPM
+  name: JPMorgan Chase & Co
+  rank: 15
+  market_cap_b: 890.5
+  source: S&P 500
+  country: USA
+- ticker: AMD
+  name: Advanced Micro Devices Inc
+  rank: 16
+  market_cap_b: 853.44
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ASML
+  name: Asml Holding Nv
+  rank: 17
+  market_cap_b: 707.86
+  source: Nasdaq
+  country: USA
+- ticker: V
+  name: Visa Inc
+  rank: 18
+  market_cap_b: 630.2
+  source: S&P 500
+  country: USA
+- ticker: INTC
+  name: Intel Corp
+  rank: 19
+  market_cap_b: 605.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: XOM
+  name: Exxon Mobil Corp
+  rank: 20
+  market_cap_b: 582.25
+  source: S&P 500
+  country: USA
+- ticker: JNJ
+  name: Johnson & Johnson
+  rank: 21
+  market_cap_b: 568.55
+  source: S&P 500
+  country: USA
+- ticker: ORCL
+  name: Oracle Corp
+  rank: 22
+  market_cap_b: 548.0
+  source: S&P 500
+  country: USA
+- ticker: LRCX
+  name: Lam Research Corp
+  rank: 23
+  market_cap_b: 473.72
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: CSCO
+  name: Cisco Systems Inc
+  rank: 24
+  market_cap_b: 471.71
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: AMAT
+  name: Applied Materials Inc
+  rank: 25
+  market_cap_b: 463.03
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: CAT
+  name: Caterpillar Inc
+  rank: 26
+  market_cap_b: 438.4
+  source: S&P 500
+  country: USA
+- ticker: MA
+  name: Mastercard Inc
+  rank: 27
+  market_cap_b: 438.4
+  source: S&P 500
+  country: USA
+- ticker: COST
+  name: Costco Wholesale Corp
+  rank: 28
+  market_cap_b: 437.93
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ARM
+  name: Arm Holdings Plc American Depositary Shares
+  rank: 29
+  market_cap_b: 433.77
+  source: Nasdaq
+  country: USA
+- ticker: BAC
+  name: Bank of America Corp
+  rank: 30
+  market_cap_b: 404.15
+  source: S&P 500
+  country: USA
+- ticker: ABBV
+  name: AbbVie Inc
+  rank: 31
+  market_cap_b: 390.45
+  source: S&P 500
+  country: USA
+- ticker: UNH
+  name: UnitedHealth Group Inc
+  rank: 32
+  market_cap_b: 376.75
+  source: S&P 500
+  country: USA
+- ticker: GE
+  name: General Electric Co
+  rank: 33
+  market_cap_b: 363.05
+  source: S&P 500
+  country: USA
+- ticker: PG
+  name: Procter & Gamble Co/The
+  rank: 34
+  market_cap_b: 356.2
+  source: S&P 500
+  country: USA
+- ticker: CVX
+  name: Chevron Corp
+  rank: 35
+  market_cap_b: 356.2
+  source: S&P 500
+  country: USA
+- ticker: KO
+  name: Coca-Cola Co/The
+  rank: 36
+  market_cap_b: 349.35
+  source: S&P 500
+  country: USA
+- ticker: MS
+  name: Morgan Stanley
+  rank: 37
+  market_cap_b: 349.35
+  source: S&P 500
+  country: USA
+- ticker: HD
+  name: Home Depot Inc/The
+  rank: 38
+  market_cap_b: 335.65
+  source: S&P 500
+  country: USA
+- ticker: NFLX
+  name: Netflix Inc
+  rank: 39
+  market_cap_b: 331.86
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: GS
+  name: Goldman Sachs Group Inc/The
+  rank: 40
+  market_cap_b: 321.95
+  source: S&P 500
+  country: USA
+- ticker: KLAC
+  name: KLA Corp
+  rank: 41
+  market_cap_b: 320.89
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: PLTR
+  name: Palantir Technologies Inc
+  rank: 42
+  market_cap_b: 313.38
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SNDK
+  name: Sandisk Corp/DE
+  rank: 43
+  market_cap_b: 305.52
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: PM
+  name: Philip Morris International Inc
+  rank: 44
+  market_cap_b: 287.7
+  source: S&P 500
+  country: USA
+- ticker: MRK
+  name: Merck & Co Inc
+  rank: 45
+  market_cap_b: 287.7
+  source: S&P 500
+  country: USA
+- ticker: TXN
+  name: Texas Instruments Inc
+  rank: 46
+  market_cap_b: 283.4
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: DELL
+  name: Dell Technologies Inc
+  rank: 47
+  market_cap_b: 267.15
+  source: S&P 500
+  country: USA
+- ticker: GEV
+  name: GE Vernova Inc
+  rank: 48
+  market_cap_b: 267.15
+  source: S&P 500
+  country: USA
+- ticker: WFC
+  name: Wells Fargo & Co
+  rank: 49
+  market_cap_b: 260.3
+  source: S&P 500
+  country: USA
+- ticker: MRVL
+  name: Marvell Technology, Inc.
+  rank: 50
+  market_cap_b: 257.76
+  source: Nasdaq
+  country: USA
+- ticker: RTX
+  name: RTX Corp
+  rank: 51
+  market_cap_b: 253.45
+  source: S&P 500
+  country: USA
+- ticker: IBM
+  name: International Business Machines Corp
+  rank: 52
+  market_cap_b: 253.45
+  source: S&P 500
+  country: USA
+- ticker: C
+  name: Citigroup Inc
+  rank: 53
+  market_cap_b: 246.6
+  source: S&P 500
+  country: USA
+- ticker: WDC
+  name: Western Digital Corp
+  rank: 54
+  market_cap_b: 240.69
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: LIN
+  name: Linde PLC
+  rank: 55
+  market_cap_b: 239.55
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: STX
+  name: Seagate Technology Holdings PLC
+  rank: 56
+  market_cap_b: 238.05
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: QCOM
+  name: QUALCOMM Inc
+  rank: 57
+  market_cap_b: 232.93
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: AXP
+  name: American Express Co
+  rank: 58
+  market_cap_b: 232.9
+  source: S&P 500
+  country: USA
+- ticker: PANW
+  name: Palo Alto Networks Inc
+  rank: 59
+  market_cap_b: 227.75
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ANET
+  name: Arista Networks Inc
+  rank: 60
+  market_cap_b: 212.35
+  source: S&P 500
+  country: USA
+- ticker: ADI
+  name: Analog Devices Inc
+  rank: 61
+  market_cap_b: 208.31
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MCD
+  name: McDonald's Corp
+  rank: 62
+  market_cap_b: 205.5
+  source: S&P 500
+  country: USA
+- ticker: PEP
+  name: PepsiCo Inc
+  rank: 63
+  market_cap_b: 200.33
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: TMUS
+  name: T-Mobile US Inc
+  rank: 64
+  market_cap_b: 200.11
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: APH
+  name: Amphenol Corp
+  rank: 65
+  market_cap_b: 198.65
+  source: S&P 500
+  country: USA
+- ticker: VZ
+  name: Verizon Communications Inc
+  rank: 66
+  market_cap_b: 191.8
+  source: S&P 500
+  country: USA
+- ticker: AMGN
+  name: Amgen Inc
+  rank: 67
+  market_cap_b: 188.74
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: NEE
+  name: NextEra Energy Inc
+  rank: 68
+  market_cap_b: 184.95
+  source: S&P 500
+  country: USA
+- ticker: TJX
+  name: TJX Cos Inc/The
+  rank: 69
+  market_cap_b: 184.95
+  source: S&P 500
+  country: USA
+- ticker: DIS
+  name: Walt Disney Co/The
+  rank: 70
+  market_cap_b: 178.1
+  source: S&P 500
+  country: USA
+- ticker: TMO
+  name: Thermo Fisher Scientific Inc
+  rank: 71
+  market_cap_b: 178.1
+  source: S&P 500
+  country: USA
+- ticker: BA
+  name: Boeing Co/The
+  rank: 72
+  market_cap_b: 178.1
+  source: S&P 500
+  country: USA
+- ticker: CRWD
+  name: Crowdstrike Holdings Inc
+  rank: 73
+  market_cap_b: 173.54
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: APP
+  name: AppLovin Corp
+  rank: 74
+  market_cap_b: 167.21
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SCHW
+  name: Charles Schwab Corp/The
+  rank: 75
+  market_cap_b: 164.4
+  source: S&P 500
+  country: USA
+- ticker: BLK
+  name: Blackrock Inc
+  rank: 76
+  market_cap_b: 164.4
+  source: S&P 500
+  country: USA
+- ticker: GILD
+  name: Gilead Sciences Inc
+  rank: 77
+  market_cap_b: 157.86
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: GLW
+  name: Corning Inc
+  rank: 78
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: UNP
+  name: Union Pacific Corp
+  rank: 79
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: ETN
+  name: Eaton Corp PLC
+  rank: 80
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: BX
+  name: Blackstone Inc
+  rank: 81
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: ABT
+  name: Abbott Laboratories
+  rank: 82
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: DE
+  name: Deere & Co
+  rank: 83
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: T
+  name: AT&T Inc
+  rank: 84
+  market_cap_b: 157.55
+  source: S&P 500
+  country: USA
+- ticker: PFE
+  name: Pfizer Inc
+  rank: 85
+  market_cap_b: 150.7
+  source: S&P 500
+  country: USA
+- ticker: WELL
+  name: Welltower Inc
+  rank: 86
+  market_cap_b: 150.7
+  source: S&P 500
+  country: USA
+- ticker: UBER
+  name: Uber Technologies Inc
+  rank: 87
+  market_cap_b: 150.7
+  source: S&P 500
+  country: USA
+- ticker: ISRG
+  name: Intuitive Surgical Inc
+  rank: 88
+  market_cap_b: 147.69
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: HON
+  name: Honeywell International Inc
+  rank: 89
+  market_cap_b: 146.11
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SHOP
+  name: Shopify Inc. Class A Subordinate Voting Shares
+  rank: 90
+  market_cap_b: 145.93
+  source: Nasdaq
+  country: USA
+- ticker: COP
+  name: ConocoPhillips
+  rank: 91
+  market_cap_b: 137.0
+  source: S&P 500
+  country: USA
+- ticker: PLD
+  name: Prologis Inc
+  rank: 92
+  market_cap_b: 137.0
+  source: S&P 500
+  country: USA
+- ticker: BKNG
+  name: Booking Holdings Inc
+  rank: 93
+  market_cap_b: 135.34
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SPGI
+  name: S&P Global Inc
+  rank: 94
+  market_cap_b: 130.15
+  source: S&P 500
+  country: USA
+- ticker: CVS
+  name: CVS Health Corp
+  rank: 95
+  market_cap_b: 130.15
+  source: S&P 500
+  country: USA
+- ticker: CRM
+  name: Salesforce Inc
+  rank: 96
+  market_cap_b: 130.15
+  source: S&P 500
+  country: USA
+- ticker: DHR
+  name: Danaher Corp
+  rank: 97
+  market_cap_b: 130.15
+  source: S&P 500
+  country: USA
+- ticker: CB
+  name: Chubb Ltd
+  rank: 98
+  market_cap_b: 130.15
+  source: S&P 500
+  country: USA
+- ticker: LOW
+  name: Lowe's Cos Inc
+  rank: 99
+  market_cap_b: 123.3
+  source: S&P 500
+  country: USA
+- ticker: LMT
+  name: Lockheed Martin Corp
+  rank: 100
+  market_cap_b: 123.3
+  source: S&P 500
+  country: USA
+- ticker: COF
+  name: Capital One Financial Corp
+  rank: 101
+  market_cap_b: 123.3
+  source: S&P 500
+  country: USA
+- ticker: PGR
+  name: Progressive Corp/The
+  rank: 102
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: BMY
+  name: Bristol-Myers Squibb Co
+  rank: 103
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: SYK
+  name: Stryker Corp
+  rank: 104
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: VRT
+  name: Vertiv Holdings
+  rank: 105
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: PH
+  name: Parker-Hannifin Corp
+  rank: 106
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: NEM
+  name: Newmont Corp
+  rank: 107
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: MO
+  name: Altria Group Inc
+  rank: 108
+  market_cap_b: 116.45
+  source: S&P 500
+  country: USA
+- ticker: SBUX
+  name: Starbucks Corp
+  rank: 109
+  market_cap_b: 116.02
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: PDD
+  name: Pdd Holdings Inc. American Depositary Shares
+  rank: 110
+  market_cap_b: 115.36
+  source: Nasdaq
+  country: USA
+- ticker: VRTX
+  name: Vertex Pharmaceuticals Inc
+  rank: 111
+  market_cap_b: 114.14
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SO
+  name: Southern Co/The
+  rank: 112
+  market_cap_b: 109.6
+  source: S&P 500
+  country: USA
+- ticker: TT
+  name: Trane Technologies PLC
+  rank: 113
+  market_cap_b: 109.6
+  source: S&P 500
+  country: USA
+- ticker: HWM
+  name: Howmet Aerospace Inc
+  rank: 114
+  market_cap_b: 109.6
+  source: S&P 500
+  country: USA
+- ticker: PWR
+  name: Quanta Services Inc
+  rank: 115
+  market_cap_b: 109.6
+  source: S&P 500
+  country: USA
+- ticker: EQIX
+  name: Equinix Inc
+  rank: 116
+  market_cap_b: 108.36
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: CDNS
+  name: Cadence Design Systems Inc
+  rank: 117
+  market_cap_b: 107.91
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: FTNT
+  name: Fortinet Inc
+  rank: 118
+  market_cap_b: 106.73
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SNY
+  name: Sanofi American Depositary Shares (Each Representing One-Half of One)
+  rank: 119
+  market_cap_b: 105.4
+  source: Nasdaq
+  country: USA
+- ticker: MAR
+  name: Marriott International Inc/MD
+  rank: 120
+  market_cap_b: 104.98
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: NOW
+  name: ServiceNow Inc
+  rank: 121
+  market_cap_b: 102.75
+  source: S&P 500
+  country: USA
+- ticker: BNY
+  name: Bank of New York Mellon Corp/The
+  rank: 122
+  market_cap_b: 102.75
+  source: S&P 500
+  country: USA
+- ticker: ACN
+  name: Accenture PLC
+  rank: 123
+  market_cap_b: 102.75
+  source: S&P 500
+  country: USA
+- ticker: MDT
+  name: Medtronic PLC
+  rank: 124
+  market_cap_b: 102.75
+  source: S&P 500
+  country: USA
+- ticker: FCX
+  name: Freeport-McMoRan Inc
+  rank: 125
+  market_cap_b: 102.75
+  source: S&P 500
+  country: USA
+- ticker: CEG
+  name: Constellation Energy Corp
+  rank: 126
+  market_cap_b: 96.26
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: UPS
+  name: United Parcel Service Inc
+  rank: 127
+  market_cap_b: 95.9
+  source: S&P 500
+  country: USA
+- ticker: CMI
+  name: Cummins Inc
+  rank: 128
+  market_cap_b: 95.9
+  source: S&P 500
+  country: USA
+- ticker: PNC
+  name: PNC Financial Services Group Inc/The
+  rank: 129
+  market_cap_b: 95.9
+  source: S&P 500
+  country: USA
+- ticker: DUK
+  name: Duke Energy Corp
+  rank: 130
+  market_cap_b: 95.9
+  source: S&P 500
+  country: USA
+- ticker: GD
+  name: General Dynamics Corp
+  rank: 131
+  market_cap_b: 95.9
+  source: S&P 500
+  country: USA
+- ticker: CME
+  name: CME Group Inc
+  rank: 132
+  market_cap_b: 93.87
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MNST
+  name: Monster Beverage Corp
+  rank: 133
+  market_cap_b: 90.97
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ELV
+  name: Elevance Health Inc
+  rank: 134
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: WM
+  name: Waste Management Inc
+  rank: 135
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: USB
+  name: US Bancorp
+  rank: 136
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: KKR
+  name: KKR & Co Inc
+  rank: 137
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: MCK
+  name: McKesson Corp
+  rank: 138
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: AMT
+  name: American Tower Corp
+  rank: 139
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: WMB
+  name: Williams Cos Inc/The
+  rank: 140
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: JCI
+  name: Johnson Controls International plc
+  rank: 141
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: HCA
+  name: HCA Healthcare Inc
+  rank: 142
+  market_cap_b: 89.05
+  source: S&P 500
+  country: USA
+- ticker: ADP
+  name: Automatic Data Processing Inc
+  rank: 143
+  market_cap_b: 88.24
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: CSX
+  name: CSX Corp
+  rank: 144
+  market_cap_b: 87.81
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: HOOD
+  name: Robinhood Markets Inc
+  rank: 145
+  market_cap_b: 86.34
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: SNPS
+  name: Synopsys Inc
+  rank: 146
+  market_cap_b: 86.0
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MELI
+  name: Mercado Libre, Inc
+  rank: 147
+  market_cap_b: 84.57
+  source: Nasdaq
+  country: USA
+- ticker: CMCSA
+  name: Comcast Corp
+  rank: 148
+  market_cap_b: 84.47
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ADBE
+  name: Adobe Inc
+  rank: 149
+  market_cap_b: 84.24
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: DDOG
+  name: Datadog Inc
+  rank: 150
+  market_cap_b: 83.26
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ABNB
+  name: Airbnb Inc
+  rank: 151
+  market_cap_b: 83.07
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MRSH
+  name: Marsh & McLennan Cos Inc
+  rank: 152
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: EMR
+  name: Emerson Electric Co
+  rank: 153
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: MMM
+  name: 3M Co
+  rank: 154
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: SLB
+  name: SLB Ltd
+  rank: 155
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: FDX
+  name: FedEx Corp
+  rank: 156
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: APO
+  name: Apollo Global Management Inc
+  rank: 157
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: ICE
+  name: Intercontinental Exchange Inc
+  rank: 158
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: SHW
+  name: Sherwin-Williams Co/The
+  rank: 159
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: RCL
+  name: Royal Caribbean Cruises Ltd
+  rank: 160
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: MCO
+  name: Moody's Corp
+  rank: 161
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: HLT
+  name: Hilton Worldwide Holdings Inc
+  rank: 162
+  market_cap_b: 82.2
+  source: S&P 500
+  country: USA
+- ticker: NTES
+  name: Netease, Inc.
+  rank: 163
+  market_cap_b: 79.37
+  source: Nasdaq
+  country: USA
+- ticker: MDLZ
+  name: Mondelez International Inc
+  rank: 164
+  market_cap_b: 79.07
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: NXPI
+  name: NXP Semiconductors NV
+  rank: 165
+  market_cap_b: 78.14
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: MPWR
+  name: Monolithic Power Systems Inc
+  rank: 166
+  market_cap_b: 77.02
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: ROST
+  name: Ross Stores Inc
+  rank: 167
+  market_cap_b: 75.81
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: INTU
+  name: Intuit Inc
+  rank: 168
+  market_cap_b: 75.76
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: COHR
+  name: Coherent
+  rank: 169
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: MPC
+  name: Marathon Petroleum Corp
+  rank: 170
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: ECL
+  name: Ecolab Inc
+  rank: 171
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: GM
+  name: General Motors Co
+  rank: 172
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: NOC
+  name: Northrop Grumman Corp
+  rank: 173
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: TDG
+  name: TransDigm Group Inc
+  rank: 174
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: CI
+  name: Cigna Group/The
+  rank: 175
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: CL
+  name: Colgate-Palmolive Co
+  rank: 176
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: CRH
+  name: CRH PLC
+  rank: 177
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: ITW
+  name: Illinois Tool Works Inc
+  rank: 178
+  market_cap_b: 75.35
+  source: S&P 500
+  country: USA
+- ticker: ORLY
+  name: O'Reilly Automotive Inc
+  rank: 179
+  market_cap_b: 74.89
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: DASH
+  name: DoorDash Inc
+  rank: 180
+  market_cap_b: 74.34
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: AEP
+  name: American Electric Power Co Inc
+  rank: 181
+  market_cap_b: 71.35
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: CTAS
+  name: Cintas Corp
+  rank: 182
+  market_cap_b: 70.06
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: LITE
+  name: Lumentum Holdings
+  rank: 183
+  market_cap_b: 69.02
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: NBIS
+  name: Nebius Group N.v. Class As
+  rank: 184
+  market_cap_b: 69.02
+  source: Nasdaq
+  country: USA
+- ticker: FIX
+  name: Comfort Systems USA Inc
+  rank: 185
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: URI
+  name: United Rentals Inc
+  rank: 186
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: BSX
+  name: Boston Scientific Corp
+  rank: 187
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: VLO
+  name: Valero Energy Corp
+  rank: 188
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: AON
+  name: Aon PLC
+  rank: 189
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: NKE
+  name: NIKE Inc
+  rank: 190
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: NSC
+  name: Norfolk Southern Corp
+  rank: 191
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: EOG
+  name: EOG Resources Inc
+  rank: 192
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: MSI
+  name: Motorola Solutions Inc
+  rank: 193
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: KMI
+  name: Kinder Morgan Inc
+  rank: 194
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: TRV
+  name: Travelers Cos Inc/The
+  rank: 195
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: PSX
+  name: Phillips 66
+  rank: 196
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: DLR
+  name: Digital Realty Trust Inc
+  rank: 197
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: SPG
+  name: Simon Property Group Inc
+  rank: 198
+  market_cap_b: 68.5
+  source: S&P 500
+  country: USA
+- ticker: TER
+  name: Teradyne Inc
+  rank: 199
+  market_cap_b: 67.23
+  source: S&P 500 + Nasdaq
+  country: USA
+- ticker: WBD
+  name: Warner Bros Discovery Inc
+  rank: 200
+  market_cap_b: 66.9
+  source: S&P 500 + Nasdaq
+  country: USA

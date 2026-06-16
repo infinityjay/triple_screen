@@ -101,7 +101,38 @@ class TripleScreenScanner:
         return value.weekday() < 5 and self.market_open_time <= value.time() < self.market_close_time
 
     def _load_universe(self) -> list[dict]:
-        symbol_rows = self.market_data.get_top_symbols(self.settings.universe)
+        # Re-read the static universe YAML file on every scan so symbols added
+        # to the file are discovered immediately without restarting the process.
+        # Falls back to the pre-loaded snapshot if the file cannot be read.
+        import yaml as _yaml  # local import — yaml is already a project dependency
+
+        universe = self.settings.universe
+        if universe.mode == "static_file" and universe.static_file is not None:
+            try:
+                raw = universe.static_file.read_text(encoding="utf-8")
+                payload = _yaml.safe_load(raw) or {}
+                raw_items = payload.get("symbols", []) or []
+            except OSError as exc:
+                logger.warning(
+                    "Could not re-read universe file %s: %s; falling back to startup snapshot",
+                    universe.static_file,
+                    exc,
+                )
+                raw_items = list(universe.symbols)
+            symbol_rows = [
+                {
+                    "symbol": item.get("ticker") or item.get("symbol"),
+                    "name": item.get("name"),
+                    "market_cap": item.get("market_cap"),
+                    "sector": item.get("sector") or item.get("country"),
+                    "rank": item.get("rank"),
+                }
+                for item in raw_items
+                if item.get("ticker") or item.get("symbol")
+            ]
+        else:
+            symbol_rows = self.market_data.get_top_symbols(universe)
+
         for row in symbol_rows:
             self.storage.upsert_symbol(row["symbol"], row.get("market_cap"), row.get("sector"))
         return symbol_rows
