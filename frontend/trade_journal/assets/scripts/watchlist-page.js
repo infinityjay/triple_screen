@@ -422,7 +422,7 @@ function renderRail() {
         <article class="watchlist-rail-item">
           <div class="watchlist-rail-top">
             <div>
-              <h3>${escapeHtml(item.symbol || "—")}</h3>
+              <h3><a href="https://finance.yahoo.com/quote/${encodeURIComponent(item.symbol || "")}" target="_blank" rel="noopener noreferrer" class="symbol-link" title="View ${escapeHtml(item.symbol || "")} on Yahoo Finance">${escapeHtml(item.symbol || "—")}</a></h3>
               <p>${getDirectionBadge(item.direction)} <span class="mono" style="font-size:11px">Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span></p>
             </div>
             ${getStatusBadge(item.opportunity_status)}
@@ -491,7 +491,7 @@ function renderTable() {
       return `
         <tr>
           <td class="symbol-cell">
-            <strong>${escapeHtml(item.symbol || "—")}</strong>
+            <strong><a href="https://finance.yahoo.com/quote/${encodeURIComponent(item.symbol || "")}" target="_blank" rel="noopener noreferrer" class="symbol-link" title="View ${escapeHtml(item.symbol || "")} on Yahoo Finance">${escapeHtml(item.symbol || "—")}</a></strong>
             <span>${getDirectionBadge(item.direction)} <span class="mono">Score ${escapeHtml(formatNumber(item.signal_score ?? item.candidate_score ?? 0, 2))}</span></span>
           </td>
           <td>
