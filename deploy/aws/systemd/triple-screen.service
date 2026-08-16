@@ -8,7 +8,7 @@ Type=oneshot
 User=ubuntu
 WorkingDirectory=/home/ubuntu/triple_screen
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/ubuntu/triple_screen/.venv/bin/python src/scanner.py --once
+ExecStart=/home/ubuntu/triple_screen/.venv/bin/python src/scanner.py --once --mode eod
 StandardOutput=append:/home/ubuntu/triple_screen/logs/systemd.log
 StandardError=append:/home/ubuntu/triple_screen/logs/systemd.log
 

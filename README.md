@@ -211,6 +211,61 @@ export JOURNAL_AUTH_PASSWORD=your_password
 PYTHONPATH=src .venv/bin/python -m journal
 ```
 
+For local MacBook use, bind the server to localhost:
+
+```bash
+cd /Users/jay/workspace/my_github/triple_screen
+
+PYTHONPATH=src .venv/bin/python -m uvicorn journal.server:app \
+  --host 127.0.0.1 \
+  --port 8100
+```
+
+That runs in the foreground. Stop it with `Ctrl+C`.
+
+To run it in the background:
+
+```bash
+cd /Users/jay/workspace/my_github/triple_screen
+
+nohup env PYTHONPATH=src .venv/bin/python -m uvicorn journal.server:app \
+  --host 127.0.0.1 \
+  --port 8100 \
+  > logs/journal.log 2>&1 &
+
+echo $! > logs/journal.pid
+```
+
+Check whether the server is listening:
+
+```bash
+lsof -iTCP:8100 -sTCP:LISTEN -n -P
+```
+
+Check health when Basic Auth is enabled in `.env`:
+
+```bash
+cd /Users/jay/workspace/my_github/triple_screen
+set -a
+. ./.env
+set +a
+
+curl -u "$JOURNAL_AUTH_USERNAME:$JOURNAL_AUTH_PASSWORD" \
+  http://127.0.0.1:8100/api/health
+```
+
+Stop the background process:
+
+```bash
+kill "$(cat logs/journal.pid)"
+```
+
+Or stop whatever is listening on port `8100`:
+
+```bash
+kill "$(lsof -tiTCP:8100 -sTCP:LISTEN)"
+```
+
 Once running, open:
 
 - [http://127.0.0.1:8100/](http://127.0.0.1:8100/)
@@ -240,24 +295,48 @@ The EOD scan (`--mode eod`) also updates protective stops for all open positions
 
 ## Scheduling
 
-The recommended approach is to invoke the scanner as a one-shot process via cron or systemd rather than keeping a `--loop` process running permanently:
+The recommended approach is to invoke the scanner as a one-shot process via cron or systemd rather than keeping a `--loop` process running permanently.
+
+For a local MacBook daily after-market scan only, install a weekday cron entry. Cron uses the Mac's local timezone. On this machine, `22:10` Amsterdam time is `16:10` New York time during normal US/EU daylight-saving alignment:
 
 ```bash
-0 * * * * cd /path/to/triple_screen && /usr/bin/python3 src/scanner.py --once >> logs/cron.log 2>&1
+10 22 * * 1-5 cd /Users/jay/workspace/my_github/triple_screen && PYTHONPATH=src .venv/bin/python src/scanner.py --once --mode eod >> logs/cron.log 2>&1
+```
+
+Install or edit the cron job:
+
+```bash
+crontab -e
+```
+
+View the active cron jobs:
+
+```bash
+crontab -l
+```
+
+Follow scanner logs:
+
+```bash
+tail -f /Users/jay/workspace/my_github/triple_screen/logs/cron.log
+```
+
+Cron does not recover missed jobs if the MacBook is powered off at the scheduled time. If the Mac is asleep, behavior depends on macOS sleep/wake state and power settings; for reliable execution, keep it awake and online around the close. If you missed the run, execute it manually:
+
+```bash
+cd /Users/jay/workspace/my_github/triple_screen
+PYTHONPATH=src .venv/bin/python src/scanner.py --once --mode eod
 ```
 
 AWS EC2 + systemd deployment templates are in `deploy/aws/README.md`, `deploy/aws/systemd/triple-screen.service`, and `deploy/aws/systemd/triple-screen.timer`.
 
 The timer is pre-configured for US Eastern Time:
 
-- Hourly during market hours Monday–Friday: `09:30` to `15:30`
 - Once after each market close: `16:10`
 
 Recommended schedule:
 
-- `16:10` — run `--mode eod` to rebuild the candidate pool for the day
-- Next day, hourly during market hours — run `--mode intraday` to scan only the previous session's candidates for triggers
-- `--mode auto` runs intraday during market hours and EOD only within the `16:00`–`16:45` close window; it skips all other times automatically
+- `16:10` — run `--mode eod` to rebuild the candidate pool for the day and update open-position stops
 
 ## Implementation Status
 
