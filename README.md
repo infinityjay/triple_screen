@@ -315,10 +315,37 @@ View the active cron jobs:
 crontab -l
 ```
 
-Follow scanner logs:
+Check whether the scanner is currently running:
+
+```bash
+pgrep -af 'scanner.py|runner.py'
+```
+
+Follow the cron execution log:
 
 ```bash
 tail -f /Users/jay/workspace/my_github/triple_screen/logs/cron.log
+```
+
+Pause the scheduled scan without deleting the job:
+
+```bash
+crontab -e
+```
+
+Add `#` at the beginning of the scanner line, save, and verify the result:
+
+```bash
+crontab -l
+```
+
+To resume the schedule, remove the `#` from that line with `crontab -e`.
+
+Cron jobs cannot be stopped with `crontab -e` after a scan has already started. To stop the currently running scanner, first find its PID and then terminate it:
+
+```bash
+pgrep -af 'scanner.py|runner.py'
+kill <PID>
 ```
 
 Cron does not recover missed jobs if the MacBook is powered off at the scheduled time. If the Mac is asleep, behavior depends on macOS sleep/wake state and power settings; for reliable execution, keep it awake and online around the close. If you missed the run, execute it manually:
